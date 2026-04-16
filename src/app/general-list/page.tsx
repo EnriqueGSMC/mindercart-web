@@ -1,114 +1,116 @@
-import Link from "next/link";
+// FILE: src/app/general-list/page.tsx
+"use client";
 
-function navLinkStyle(active = false): React.CSSProperties {
-  return {
-    flex: 1,
-    minWidth: 120,
-    textAlign: "center",
-    padding: "12px 14px",
-    borderRadius: 14,
-    border: "1px solid #ddd",
-    background: active ? "#111" : "#fff",
-    color: active ? "#fff" : "#111",
-    textDecoration: "none",
-    fontWeight: 900,
-  };
-}
+import React from "react";
+import { AppShell, cardStyle } from "@/components/mindercart/Shell";
+import { addGeneralSelections, readState } from "@/lib/mindercart/storage";
+import type { GeneralListItem } from "@/lib/mindercart/types";
 
-function cardStyle(): React.CSSProperties {
-  return {
-    border: "1px solid #eee",
-    borderRadius: 18,
-    padding: 14,
-    background: "#fff",
-    boxShadow: "0 1px 0 rgba(0,0,0,0.03)",
-  };
-}
-
-function shellStyle(): React.CSSProperties {
-  return {
-    maxWidth: 860,
-    margin: "0 auto",
-    padding: 14,
-    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
-    color: "#111",
-  };
+function normalizedActiveKeys() {
+  const state = readState();
+  return new Set(
+    state.activeShoppingListItems.map(
+      (item) =>
+        `${item.name.toLowerCase().trim()}__${item.unit.toLowerCase().trim()}__${item.store.toLowerCase().trim()}`
+    )
+  );
 }
 
 export default function GeneralListPage() {
+  const [items, setItems] = React.useState<GeneralListItem[]>([]);
+  const [selected, setSelected] = React.useState<Record<string, boolean>>({});
+  const [message, setMessage] = React.useState("");
+
+  function reload() {
+    const state = readState();
+    const activeKeys = normalizedActiveKeys();
+
+    const nextSelected: Record<string, boolean> = {};
+    for (const item of state.generalListItems.filter((row) => row.active !== false)) {
+      const key = `${item.name.toLowerCase().trim()}__${item.unit.toLowerCase().trim()}__${item.store.toLowerCase().trim()}`;
+      nextSelected[item.id] = activeKeys.has(key);
+    }
+
+    setItems(state.generalListItems.filter((row) => row.active !== false));
+    setSelected(nextSelected);
+  }
+
+  React.useEffect(() => {
+    reload();
+  }, []);
+
+  function onAddSelected() {
+    const ids = Object.entries(selected)
+      .filter(([, value]) => value)
+      .map(([id]) => id);
+
+    addGeneralSelections(ids);
+    setMessage("✅ Selección agregada a la lista abierta");
+    reload();
+  }
+
   return (
-    <main style={shellStyle()}>
-      <div style={{ display: "grid", gap: 14 }}>
-        <header style={cardStyle()}>
-          <div style={{ fontSize: 26, fontWeight: 1000 }}>General List</div>
-          <div style={{ marginTop: 6, opacity: 0.75 }}>
-            Memoria habitual del hogar con checkbox
-          </div>
-        </header>
+    <AppShell
+      title="General List"
+      subtitle="Memoria habitual del hogar con checkbox"
+    >
+      <section style={cardStyle()}>
+        <div style={{ fontWeight: 1000, marginBottom: 8 }}>
+          Review before shopping
+        </div>
+        <div style={{ fontSize: 14, opacity: 0.75, marginBottom: 12 }}>
+          Aquí la usuaria revisa artículos frecuentes y marca lo que quiere agregar a la lista abierta.
+        </div>
 
-        <nav style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <Link href="/" style={navLinkStyle()}>Home</Link>
-          <Link href="/shopping-list" style={navLinkStyle()}>Shopping List</Link>
-          <Link href="/general-list" style={navLinkStyle(true)}>General List</Link>
-          <Link href="/in-store" style={navLinkStyle()}>In Store</Link>
-          <Link href="/history" style={navLinkStyle()}>History</Link>
-          <Link href="/settings" style={navLinkStyle()}>Settings</Link>
-        </nav>
-
-        <section style={cardStyle()}>
-          <div style={{ fontWeight: 1000, marginBottom: 8 }}>
-            Review before shopping
-          </div>
-          <div style={{ fontSize: 14, opacity: 0.75, marginBottom: 12 }}>
-            Aquí la usuaria revisa artículos frecuentes y marca lo que quiere agregar a la lista abierta.
-          </div>
-
-          <div style={{ display: "grid", gap: 10 }}>
-            {[
-              { name: "Tortillas", selected: true },
-              { name: "Coffee / Café", selected: false },
-              { name: "Toilet paper / Papel higiénico", selected: false },
-              { name: "Dish soap / Jabón para trastes", selected: true },
-            ].map((item) => (
-              <label
-                key={item.name}
-                style={{
-                  border: "1px solid #f0f0f0",
-                  borderRadius: 14,
-                  padding: 12,
-                  display: "flex",
-                  gap: 12,
-                  alignItems: "center",
-                }}
-              >
-                <input type="checkbox" defaultChecked={item.selected} />
-                <div>
-                  <div style={{ fontWeight: 900 }}>{item.name}</div>
-                  <div style={{ fontSize: 13, opacity: 0.75, marginTop: 4 }}>
-                    unit: pza · store: Preferred store
-                  </div>
+        <div style={{ display: "grid", gap: 10 }}>
+          {items.map((item) => (
+            <label
+              key={item.id}
+              style={{
+                border: "1px solid #f0f0f0",
+                borderRadius: 14,
+                padding: 12,
+                display: "flex",
+                gap: 12,
+                alignItems: "center",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={!!selected[item.id]}
+                onChange={(e) =>
+                  setSelected((prev) => ({ ...prev, [item.id]: e.target.checked }))
+                }
+              />
+              <div>
+                <div style={{ fontWeight: 900 }}>{item.name}</div>
+                <div style={{ fontSize: 13, opacity: 0.75, marginTop: 4 }}>
+                  qty: {item.quantity} · unit: {item.unit} · store: {item.store}
                 </div>
-              </label>
-            ))}
-          </div>
+              </div>
+            </label>
+          ))}
+        </div>
 
-          <button
-            type="button"
-            style={{
-              marginTop: 14,
-              width: "100%",
-              padding: "12px 14px",
-              borderRadius: 14,
-              border: "1px solid #111",
-              background: "#111",
-              color: "#fff",
-              fontWeight: 900,
-            }}
-          >
-            Add checked to active list
-          </button>
-        </section>
-      </div>
-    </main>
+        <button
+          type="button"
+          onClick={onAddSelected}
+          style={{
+            marginTop: 14,
+            width: "100%",
+            padding: "12px 14px",
+            borderRadius: 14,
+            border: "1px solid #111",
+            background: "#111",
+            color: "#fff",
+            fontWeight: 900,
+          }}
+        >
+          Add checked to active list
+        </button>
+
+        {message ? <div style={{ marginTop: 12, fontSize: 14 }}>{message}</div> : null}
+      </section>
+    </AppShell>
   );
 }
