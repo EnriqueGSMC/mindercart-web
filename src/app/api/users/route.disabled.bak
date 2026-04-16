@@ -1,0 +1,8 @@
+// FILE: src/app/api/users/route.ts
+import { NextResponse } from "next/server";
+import { listUsersLite } from "@/lib/receivingRepo";
+
+export async function GET() {
+  const users = await listUsersLite();
+  return NextResponse.json({ users });
+}

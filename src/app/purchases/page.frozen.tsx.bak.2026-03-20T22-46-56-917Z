@@ -1,0 +1,1648 @@
+// FILE: src/app/purchases/page.tsx
+"use client";
+
+import React from "react";
+import { onAuthStateChanged, signOut, type User } from "firebase/auth";
+import { clientAuth } from "@/lib/firebase/client";
+import { useRouter, useSearchParams } from "next/navigation";
+import { getLang } from "@/lib/lang";
+import { ModalShell } from "@/components/ModalShell";
+
+type Role = "BASIC" | "BUYER" | "PURCHASER" | "ADMIN" | "";
+
+type SupplierRow = {
+  supplierId: string;
+  supplierName: string;
+  itemCount: number;
+};
+
+type OrderRow = {
+  id: string;
+  orderId?: string;
+  supplierId: string;
+  supplierName: string;
+  orderNo?: string;
+  itemCount: number;
+  status: string;
+  counts?: {
+    total: number;
+    pending: number;
+    bought: number;
+    notBought: number;
+  };
+  updatedAtMs?: number;
+  createdAtMs?: number;
+  authorizedAtMs?: number;
+  closedAtMs?: number;
+};
+
+type OrderLine = {
+  id?: string;
+  itemId?: string;
+  productId?: string;
+  productName: string;
+  needQty: string;
+  unitCapture?: string;
+  note?: string;
+  state?: string;
+  purchaseState?: string;
+  notBoughtReasonText?: string;
+  lastPurchaseState?: string;
+  lastNotBoughtReasonText?: string;
+  lastPurchaseSupplierName?: string;
+  lastPurchaseOrderNo?: string;
+  lastPurchaseAtMs?: number;
+};
+
+type PreviewLine = {
+  productId: string;
+  productName: string;
+  needQty: string;
+  unitCapture?: string;
+  note?: string;
+  count: number;
+  lastAttempt?: AttemptInfo;
+};
+
+type GroupedLine = {
+  key: string;
+  productName: string;
+  needQty: string;
+  unitCapture: string;
+  note: string;
+  reason: string;
+  count: number;
+  lastAttempt?: AttemptInfo;
+};
+
+type ModalState =
+  | { kind: "none" }
+  | { kind: "pedidos"; supplier: SupplierRow; lines: PreviewLine[] }
+  | { kind: "authorized"; order: OrderRow; lines: OrderLine[] }
+  | { kind: "history"; order: OrderRow; lines: OrderLine[] };
+
+function safe(v: unknown) {
+  return String(v ?? "").trim();
+}
+
+function normalizeOrderId(o: any) {
+  return safe(o?.id || o?.orderId || o?._id || o?.orderID || "");
+}
+
+function num(v: unknown) {
+  const x = Number(String(v ?? "").replace(/[^\d.]/g, ""));
+  return Number.isFinite(x) ? x : 0;
+}
+
+type AttemptInfo = {
+  supplierName: string;
+  atMs: number;
+  orderNo: string;
+  reason: string;
+};
+
+function pickAttempt(a?: AttemptInfo, b?: AttemptInfo): AttemptInfo | undefined {
+  if (!a) return b;
+  if (!b) return a;
+  const aMs = Number(a.atMs || 0) || 0;
+  const bMs = Number(b.atMs || 0) || 0;
+  if (bMs > aMs) return b;
+  if (aMs === 0 && bMs === 0) return a.supplierName || a.reason || a.orderNo ? a : b;
+  return a;
+}
+
+function attemptFromRow(row: any): AttemptInfo | undefined {
+  const state = safe(row?.lastPurchaseState).toUpperCase();
+  if (state !== "NOT_BOUGHT") return undefined;
+
+  const supplierName = safe(row?.lastPurchaseSupplierName || row?.lastSupplierName || "");
+  const atMs = Number(row?.lastPurchaseAtMs || 0) || 0;
+  const orderNo = safe(row?.lastPurchaseOrderNo || "");
+  const reason = safe(row?.lastNotBoughtReasonText || "");
+
+  if (!supplierName && !atMs && !orderNo && !reason) return undefined;
+
+  return { supplierName, atMs, orderNo, reason };
+}
+
+function formatAttempt(at: AttemptInfo, lang: "es" | "en") {
+  const parts: string[] = [];
+  if (safe(at.supplierName)) parts.push(safe(at.supplierName));
+  if (Number(at.atMs || 0) > 0) {
+    parts.push(
+      new Date(at.atMs).toLocaleDateString(lang === "en" ? "en-US" : "es-MX", {
+        year: "2-digit",
+        month: "2-digit",
+        day: "2-digit",
+      })
+    );
+  }
+  // Order number hidden in main view / WhatsApp
+  return parts.filter(Boolean).join(" • ");
+}
+
+function normalizeTextKey(v: unknown) {
+  const s = safe(v).toLowerCase();
+  if (!s) return "";
+  try {
+    return s
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  } catch {
+    return s.replace(/\s+/g, " ").trim();
+  }
+}
+
+async function copyToClipboard(text: string): Promise<boolean> {
+  const s = String(text || "").trim();
+  if (!s) return false;
+  try {
+    await navigator.clipboard.writeText(s);
+    return true;
+  } catch {
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = s;
+      ta.style.position = "fixed";
+      ta.style.left = "-9999px";
+      ta.style.top = "0";
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      const ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      return ok;
+    } catch {
+      return false;
+    }
+  }
+}
+
+function dedupeConsecutiveLines(text: string) {
+  const lines = String(text || "")
+    .split(/\r?\n/)
+    .map((x) => x.trimEnd());
+  const out: string[] = [];
+  for (const ln of lines) {
+    if (!ln) continue;
+    if (out.length && out[out.length - 1] === ln) continue;
+    out.push(ln);
+  }
+  return out.join("\n").trim();
+}
+
+async function openWhatsAppText(text: string): Promise<{ usedFallback: boolean }> {
+  const msg = dedupeConsecutiveLines(text);
+  if (!msg) return { usedFallback: false };
+
+  const enc = encodeURIComponent(msg);
+  const httpsUrl = `https://wa.me/?text=${enc}`;
+  const apiUrl = `https://api.whatsapp.com/send?text=${enc}`;
+  const schemeUrl = `whatsapp://send?text=${enc}`;
+
+  const ua = typeof navigator !== "undefined" ? navigator.userAgent || "" : "";
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(ua);
+
+  if (typeof navigator !== "undefined" && (navigator as any).share) {
+    try {
+      await (navigator as any).share({ text: msg });
+      return { usedFallback: false };
+    } catch {
+      // ignore: user cancelled or unsupported target
+    }
+  }
+
+  if (typeof window === "undefined") return { usedFallback: false };
+
+  if (isMobile) {
+    // Try app-deeplink; if the page remains visible, assume it was blocked and fallback to https.
+    const before = typeof document !== "undefined" ? document.visibilityState : "visible";
+    window.location.href = schemeUrl;
+
+    await new Promise((r) => window.setTimeout(r, 700));
+
+    const after = typeof document !== "undefined" ? document.visibilityState : before;
+    if (before === "visible" && after === "visible") {
+      window.location.href = httpsUrl;
+      return { usedFallback: true };
+    }
+
+    return { usedFallback: false };
+  }
+
+  const w =
+    window.open(httpsUrl, "_blank", "noopener,noreferrer") ||
+    window.open(apiUrl, "_blank", "noopener,noreferrer");
+
+  return { usedFallback: !w };
+}
+
+async function apiFetch(user: User, path: string, init?: RequestInit) {
+  const token = await user.getIdToken();
+  return fetch(path, {
+    cache: "no-store",
+    ...(init || {}),
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+      ...(init?.headers || {}),
+    },
+  });
+}
+
+async function readJson(res: Response) {
+  const txt = await res.text();
+  try {
+    return txt ? JSON.parse(txt) : {};
+  } catch {
+    throw new Error(txt || "Respuesta no es JSON");
+  }
+}
+
+function normalizeProductKey(productId: string, productName: string) {
+  const pid = safe(productId);
+  if (pid) return `id:${pid}`;
+
+  const name = safe(productName)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+
+  return name ? `name:${name}` : "";
+}
+
+function consolidateNeeds(rows: any[]): PreviewLine[] {
+  const map = new Map<string, PreviewLine>();
+
+  const basePrefix = (baseKey: string) => `${baseKey}__unit:`;
+  const emptyKey = (baseKey: string) => `${baseKey}__unit:`;
+
+  for (const n of rows) {
+    const productId = safe(n?.productId);
+    const productName = safe(n?.productName);
+    const unitCapture = safe(n?.unitCapture || "");
+    const baseKey = normalizeProductKey(productId, productName);
+    if (!baseKey) continue;
+
+    const unitKey = unitCapture.toLowerCase().trim();
+    const preferredKey = `${baseKey}__unit:${unitKey}`;
+    const eKey = emptyKey(baseKey);
+
+    let key = preferredKey;
+
+    if (!unitKey) {
+      const candidates = Array.from(map.keys()).filter((k) => k.startsWith(basePrefix(baseKey)));
+      if (candidates.length === 1) key = candidates[0];
+      else key = eKey;
+    } else if (map.has(eKey) && !map.has(preferredKey)) {
+      const prevEmpty = map.get(eKey)!;
+      map.delete(eKey);
+      map.set(preferredKey, { ...prevEmpty, unitCapture: unitCapture || prevEmpty.unitCapture });
+    }
+
+    const qty = num(n?.needQty);
+    const attempt = attemptFromRow(n);
+    const note = safe(n?.note || "");
+    const prev = map.get(key);
+
+    if (!prev) {
+      map.set(key, {
+        productId,
+        productName,
+        needQty: String(qty),
+        unitCapture: unitCapture,
+        note,
+        count: 1,
+        lastAttempt: attempt,
+      });
+    } else {
+      map.set(key, {
+        ...prev,
+        productName: safe(prev.productName) || productName,
+        needQty: String(num(prev.needQty) + qty),
+        unitCapture: prev.unitCapture || unitCapture,
+        note: [safe(prev.note), note].filter(Boolean).join(" | "),
+        count: (prev.count || 1) + 1,
+        lastAttempt: pickAttempt(prev.lastAttempt, attempt),
+      });
+    }
+  }
+
+  return Array.from(map.values()).sort((a, b) => safe(a.productName).localeCompare(safe(b.productName), "es"));
+}
+
+function groupLinesByState(lines: OrderLine[], state: "PENDING" | "BOUGHT" | "NOT_BOUGHT"): GroupedLine[] {
+  const map = new Map<string, GroupedLine>();
+
+  const basePrefix = (baseKey: string) => `${baseKey}__unit:`;
+  const emptyKey = (baseKey: string) => `${baseKey}__unit:`;
+
+  for (const x of lines) {
+    const s = safe(x.purchaseState || x.state || "PENDING").toUpperCase();
+    if (s !== state) continue;
+
+    const productId = safe(x.productId);
+    const productName = safe(x.productName);
+    const unitCapture = safe(x.unitCapture || "");
+    const baseKey = normalizeProductKey(productId, productName);
+    if (!baseKey) continue;
+
+    const unitKey = unitCapture.toLowerCase().trim();
+    const preferredKey = `${baseKey}__unit:${unitKey}`;
+    const eKey = emptyKey(baseKey);
+
+    let key = preferredKey;
+
+    if (!unitKey) {
+      const candidates = Array.from(map.keys()).filter((k) => k.startsWith(basePrefix(baseKey)));
+      if (candidates.length === 1) key = candidates[0];
+      else key = eKey;
+    } else if (map.has(eKey) && !map.has(preferredKey)) {
+      const prevEmpty = map.get(eKey)!;
+      map.delete(eKey);
+      map.set(preferredKey, { ...prevEmpty, unitCapture: unitCapture || prevEmpty.unitCapture });
+    }
+
+    const attempt = attemptFromRow(x);
+    const prev = map.get(key);
+
+    if (!prev) {
+      map.set(key, {
+        key,
+        productName,
+        needQty: safe(x.needQty || "0"),
+        unitCapture,
+        note: safe(x.note || ""),
+        reason: safe(x.notBoughtReasonText || ""),
+        count: 1,
+        lastAttempt: attempt,
+      });
+    } else {
+      map.set(key, {
+        ...prev,
+        productName: safe(prev.productName) || productName,
+        needQty: String(num(prev.needQty) + num(x.needQty)),
+        unitCapture: prev.unitCapture || unitCapture,
+        note: [safe(prev.note), safe(x.note)].filter(Boolean).join(" | "),
+        reason: [safe(prev.reason), safe(x.notBoughtReasonText)].filter(Boolean).join(" | "),
+        count: prev.count + 1,
+        lastAttempt: pickAttempt(prev.lastAttempt, attempt),
+      });
+    }
+  }
+
+  return Array.from(map.values()).sort((a, b) => safe(a.productName).localeCompare(safe(b.productName), "es"));
+}
+
+function computeCountsFromLines(lines: OrderLine[]) {
+  let pending = 0;
+  let bought = 0;
+  let notBought = 0;
+
+  for (const x of lines) {
+    const s = safe(x.purchaseState || x.state || "PENDING").toUpperCase();
+    if (s === "BOUGHT") bought++;
+    else if (s === "NOT_BOUGHT") notBought++;
+    else pending++;
+  }
+
+  const total = lines.length;
+  return { total, pending, bought, notBought };
+}
+
+export default function PurchasesPage() {
+  const r = useRouter();
+  const sp = useSearchParams();
+
+  const backPedidosRef = React.useRef<HTMLButtonElement | null>(null);
+  const backAuthorizedRef = React.useRef<HTMLButtonElement | null>(null);
+  const backHistoryRef = React.useRef<HTMLButtonElement | null>(null);
+
+  const branch = safe(sp.get("branch")) || "sucursal-a";
+  const showBranchLabel = branch && branch !== "sucursal-a";
+  const openOrderParam = safe(sp.get("openOrder"));
+  const [lang, setLang] = React.useState<"es" | "en">("es");
+
+  React.useEffect(() => {
+    setLang(getLang());
+  }, []);
+
+  const rawTab = safe(sp.get("tab")).toUpperCase();
+  const initialTab: "PEDIDOS" | "AUTHORIZED" | "HISTORY" = openOrderParam
+    ? "AUTHORIZED"
+    : rawTab === "AUTHORIZED" || rawTab === "AUTORIZADAS"
+      ? "AUTHORIZED"
+      : rawTab === "HISTORY" || rawTab === "HISTORIAL"
+        ? "HISTORY"
+        : "PEDIDOS";
+
+  const [user, setUser] = React.useState<User | null>(null);
+  const [role, setRole] = React.useState<Role>("");
+
+  const userLabel = React.useMemo(() => {
+    const dn = safe(user?.displayName);
+    if (dn) return dn;
+
+    const email = safe(user?.email);
+    if (!email) return "";
+
+    const prefix = email.split("@")[0] || "";
+    return prefix || email;
+  }, [user]);
+
+
+  const [tab, setTab] = React.useState<"PEDIDOS" | "AUTHORIZED" | "HISTORY">(initialTab);
+  const [pendingSuppliers, setPendingSuppliers] = React.useState<SupplierRow[]>([]);
+  const [authorizedOrders, setAuthorizedOrders] = React.useState<OrderRow[]>([]);
+  const [historyOrders, setHistoryOrders] = React.useState<OrderRow[]>([]);
+
+  const [busy, setBusy] = React.useState(false);
+  const [msg, setMsg] = React.useState("");
+  const [modal, setModal] = React.useState<ModalState>({ kind: "none" });
+  const logoutCancelRef = React.useRef<HTMLButtonElement | null>(null);
+  const [logoutOpen, setLogoutOpen] = React.useState(false);
+  const [waCopiedOrderId, setWaCopiedOrderId] = React.useState<string>("");
+  const [toast, setToast] = React.useState<string>("");
+
+  React.useEffect(() => {
+    if (!toast) return;
+    const tmr = window.setTimeout(() => setToast(""), 2000);
+    return () => window.clearTimeout(tmr);
+  }, [toast]);
+
+  React.useEffect(() => {
+    if (!waCopiedOrderId) return;
+    const tmr = window.setTimeout(() => setWaCopiedOrderId(""), 2000);
+    return () => window.clearTimeout(tmr);
+  }, [waCopiedOrderId]);
+
+  const tickLockRef = React.useRef(false);
+  const autoOpenDoneRef = React.useRef(false);
+
+  const activeAuthorizedOrderId = modal.kind === "authorized" ? safe((modal as any).order?.id) : "";
+
+  React.useEffect(() => {
+    setWaCopiedOrderId("");
+  }, [activeAuthorizedOrderId, modal.kind]);
+
+  const L = React.useMemo(
+    () => ({
+      title: lang === "en" ? "Purchases" : "Compras",
+      pedidos: lang === "en" ? "Orders" : "Pedidos",
+      autorizadas: lang === "en" ? "Authorized" : "Autorizadas",
+      historial: lang === "en" ? "History" : "Historial",
+      back: lang === "en" ? "Back" : "Regresar",
+      authorize: lang === "en" ? "Authorize" : "Autorizar",
+      inStore: lang === "en" ? "In Store" : "En Tienda",
+      pdf: "PDF",
+      whatsapp: "WhatsApp",
+      whatsappCopied: lang === "en" ? "WhatsApp (copied)" : "WhatsApp (copiado)",
+      items: lang === "en" ? "Items" : "Artículos",
+      pending: lang === "en" ? "Pending" : "Pendientes",
+      bought: lang === "en" ? "Bought" : "Comprados",
+      notBought: lang === "en" ? "Not bought" : "No comprados",
+      reason: lang === "en" ? "Reason" : "Motivo",
+      orderNo: lang === "en" ? "Order" : "Orden",
+      noResults: lang === "en" ? "No results" : "Sin resultados",
+      logout: "Logout",
+    }),
+    [lang]
+  );
+
+  React.useEffect(() => {
+    const unsub = onAuthStateChanged(clientAuth(), async (u) => {
+      setUser(u);
+      if (!u) {
+        r.replace("/login");
+        return;
+      }
+
+      try {
+        const tok = await u.getIdTokenResult(true);
+        const claimRole = String((tok.claims as any)?.role || "") as Role;
+        setRole(claimRole);
+
+        if (claimRole === "BASIC") {
+          r.replace(`/needs?branch=${encodeURIComponent(String((tok.claims as any)?.branchId || branch))}`);
+        }
+      } catch {
+        setRole("");
+      }
+    });
+
+    return () => unsub();
+  }, [r, branch]);
+
+  React.useEffect(() => {
+    autoOpenDoneRef.current = false;
+  }, [openOrderParam]);
+
+  const loadPendingSuppliers = React.useCallback(async () => {
+    if (!user) return;
+    setMsg("");
+
+    try {
+      const res = await apiFetch(
+        user,
+        `/api/needs/pending-suppliers?branch=${encodeURIComponent(branch)}&lang=${encodeURIComponent(lang)}`
+      );
+      const json = await readJson(res);
+      if (!res.ok) throw new Error(String((json as any)?.error || "No se pudieron cargar pedidos"));
+
+      const rows = Array.isArray((json as any).rows) ? ((json as any).rows as any[]) : [];
+      const normalized = rows
+        .map((x) => ({
+          supplierId: safe((x as any).supplierId),
+          supplierName: safe((x as any).supplierName || "Proveedor"),
+          itemCount: Number((x as any).itemCount || 0),
+        }))
+        .filter((x) => !!x.supplierId);
+
+      setPendingSuppliers(normalized);
+    } catch (e: any) {
+      setPendingSuppliers([]);
+      setMsg(`⚠ ${String(e?.message || e)}`);
+    }
+  }, [user, branch, lang]);
+
+  const loadOrders = React.useCallback(
+    async (bucket: "authorized" | "history") => {
+      if (!user) return;
+      setMsg("");
+
+      try {
+        const apiBucket = bucket === "history" ? "delivery" : bucket;
+
+      const res = await apiFetch(
+          user,
+          `/api/orders/list?bucket=${apiBucket}&branch=${encodeURIComponent(branch)}&lang=${encodeURIComponent(lang)}`
+        );
+        const json = await readJson(res);
+        if (!res.ok) throw new Error(String((json as any)?.error || "No se pudieron cargar órdenes"));
+
+        const raw = Array.isArray((json as any).orders) ? ((json as any).orders as any[]) : [];
+        const rows: OrderRow[] = raw
+          .map((o) => ({
+            ...(o as any),
+            id: normalizeOrderId(o),
+            orderId: normalizeOrderId(o),
+            supplierId: safe((o as any).supplierId || ""),
+            supplierName: safe((o as any).supplierName || "Proveedor"),
+            orderNo: safe((o as any).orderNo || ""),
+            itemCount: Number((o as any).itemCount || (o as any)?.counts?.pending || 0),
+            status: safe((o as any).status || ""),
+            counts: (o as any).counts || undefined,
+            updatedAtMs: Number((o as any).updatedAtMs || 0) || 0,
+            createdAtMs: Number((o as any).createdAtMs || 0) || 0,
+            authorizedAtMs: Number((o as any).authorizedAtMs || 0) || 0,
+            closedAtMs: Number((o as any).closedAtMs || 0) || 0,
+          }))
+          .filter((o) => !!o.id);
+
+        if (bucket === "authorized") setAuthorizedOrders(rows);
+        else setHistoryOrders(rows);
+      } catch (e: any) {
+        if (bucket === "authorized") setAuthorizedOrders([]);
+        else setHistoryOrders([]);
+        setMsg(`⚠ ${String(e?.message || e)}`);
+      }
+    },
+    [user, branch, lang]
+  );
+
+  const tick = React.useCallback(async () => {
+    if (tickLockRef.current) return;
+    tickLockRef.current = true;
+    try {
+      if (tab === "PEDIDOS") await loadPendingSuppliers();
+      if (tab === "AUTHORIZED") await loadOrders("authorized");
+      if (tab === "HISTORY") await loadOrders("history");
+    } finally {
+      tickLockRef.current = false;
+    }
+  }, [tab, loadPendingSuppliers, loadOrders]);
+
+  React.useEffect(() => {
+    void tick();
+    const tmr = window.setInterval(() => void tick(), 5000);
+    return () => window.clearInterval(tmr);
+  }, [tick]);
+
+  const openSupplierPreview = async (supplier: SupplierRow) => {
+    if (!user) return;
+    setBusy(true);
+    setMsg("");
+
+    try {
+      const res = await apiFetch(
+        user,
+        `/api/purchases/supplier?branch=${encodeURIComponent(branch)}&supplierId=${encodeURIComponent(
+          supplier.supplierId
+        )}&lang=${encodeURIComponent(lang)}`
+      );
+      const json = await readJson(res);
+      if (!res.ok) throw new Error(String((json as any)?.error || "No se pudo abrir proveedor"));
+
+      const rows = Array.isArray((json as any).rows) ? ((json as any).rows as any[]) : [];
+      const lines = consolidateNeeds(rows);
+
+      setModal({
+        kind: "pedidos",
+        supplier: { ...supplier, itemCount: lines.length },
+        lines,
+      });
+    } catch (e: any) {
+      setMsg(`⚠ ${String(e?.message || e)}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const authorizeSupplier = async (supplierId: string) => {
+    if (!user) return;
+    setBusy(true);
+    setMsg("");
+
+    try {
+      const res = await apiFetch(
+        user,
+        `/api/orders/create?branch=${encodeURIComponent(branch)}&lang=${encodeURIComponent(lang)}`,
+        {
+          method: "POST",
+          body: JSON.stringify({ supplierId, authorize: true }),
+        }
+      );
+      const json = await readJson(res);
+      if (!res.ok) throw new Error(String((json as any)?.error || "No se pudo autorizar"));
+
+      setModal({ kind: "none" });
+      await loadPendingSuppliers();
+      await loadOrders("authorized");
+      setTab("PEDIDOS");
+    } catch (e: any) {
+      try { preOpened?.close(); } catch {}
+      setMsg(`⚠ ${String(e?.message || e)}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const fetchOrderLines = async (orderId: string) => {
+    if (!user) return [];
+    if (!safe(orderId)) throw new Error("orderId requerido");
+
+    const res = await apiFetch(
+      user,
+      `/api/orders/${encodeURIComponent(orderId)}?branch=${encodeURIComponent(branch)}&lang=${encodeURIComponent(lang)}`
+    );
+    const json = await readJson(res);
+    if (!res.ok) throw new Error(String((json as any)?.error || "No se pudieron cargar artículos"));
+
+    if (Array.isArray((json as any).lines)) return (json as any).lines as OrderLine[];
+    if (Array.isArray((json as any)?.order?.items)) return (json as any).order.items as OrderLine[];
+    return [];
+  };
+
+  const openOrder = async (kind: "authorized" | "history", order: OrderRow) => {
+    if (!user) return;
+
+    const orderId = normalizeOrderId(order);
+    if (!orderId) {
+      setMsg("⚠ orderId requerido");
+      return;
+    }
+
+    setBusy(true);
+    setMsg("");
+
+    try {
+      const lines = await fetchOrderLines(orderId);
+      if (kind === "authorized") setModal({ kind: "authorized", order: { ...order, id: orderId }, lines });
+      else setModal({ kind: "history", order: { ...order, id: orderId }, lines });
+    } catch (e: any) {
+      try { preOpened?.close(); } catch {}
+      setMsg(`⚠ ${String(e?.message || e)}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  React.useEffect(() => {
+    if (!user) return;
+    if (tab !== "AUTHORIZED") return;
+    if (!authorizedOrders.length) return;
+    if (!openOrderParam) return;
+    if (autoOpenDoneRef.current) return;
+
+    const found = authorizedOrders.find((o) => normalizeOrderId(o) === openOrderParam);
+    if (!found) return;
+
+    autoOpenDoneRef.current = true;
+    void openOrder("authorized", found);
+  }, [user, tab, authorizedOrders, openOrderParam]);
+
+  const sendWhatsApp = async (orderId: string) => {
+    if (!user) return;
+
+    // Mobile stability: pre-open a tab synchronously (before any await) to avoid popup blockers.
+    // We'll navigate it to WhatsApp once the message is ready.
+    const preOpened = typeof window !== "undefined" ? window.open("about:blank", "_blank") : null;
+    if (preOpened) {
+      try { (preOpened as any).opener = null; } catch {}
+    }
+    setWaCopiedOrderId("");
+    setBusy(true);
+    setMsg("");
+    try {
+      const res = await apiFetch(
+        user,
+        `/api/orders/whatsapp-text?orderId=${encodeURIComponent(orderId)}&branch=${encodeURIComponent(
+          branch
+        )}&lang=${encodeURIComponent(lang)}`
+      );
+      const json = await readJson(res);
+      if (!res.ok) throw new Error(String((json as any)?.error || "No se pudo generar WhatsApp"));
+      const waText = String((json as any).text || "").trim();
+      if (!waText) throw new Error("Texto de WhatsApp vacío");
+
+      // Copiar SIEMPRE (por si el deeplink/popup se bloquea)
+      const copied = await copyToClipboard(waText);
+      if (copied) setToast(lang === "en" ? "✅ Copied" : "✅ Copiado");
+
+      // WhatsApp = acción principal
+            // Preserve context so returning from WhatsApp re-opens the order modal
+      r.replace(`/purchases?branch=${encodeURIComponent(branch)}&tab=AUTHORIZED&openOrder=${encodeURIComponent(orderId)}`);
+
+      const msg2 = dedupeConsecutiveLines(waText);
+      const enc2 = encodeURIComponent(msg2);
+      const httpsUrl2 = `https://wa.me/?text=${enc2}`;
+      const apiUrl2 = `https://api.whatsapp.com/send?text=${enc2}`;
+
+      let usedFallback = false;
+      if (preOpened) {
+        try {
+          preOpened.location.href = httpsUrl2;
+        } catch {
+          usedFallback = true;
+          try { preOpened.close(); } catch {}
+        }
+      } else {
+        const rOpen = openWhatsAppText(waText);
+        usedFallback = rOpen.usedFallback;
+      }
+
+      // Solo si hubo fallback/bloqueo mostramos "WhatsApp (copiado)" ~2s
+      if (usedFallback) setWaCopiedOrderId(orderId);
+    } catch (e: any) {
+      try { preOpened?.close(); } catch {}
+      setMsg(`⚠ ${String(e?.message || e)}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const openPdf = async (orderId: string) => {
+    const from = `/purchases?branch=${encodeURIComponent(branch)}&tab=AUTHORIZED&openOrder=${encodeURIComponent(orderId)}`;
+    r.push(
+      `/orders/${encodeURIComponent(orderId)}/print?branch=${encodeURIComponent(branch)}&from=${encodeURIComponent(from)}`
+    );
+  };
+
+  const enterStore = async (orderId: string) => {
+    const from = `/purchases?branch=${encodeURIComponent(branch)}&tab=AUTHORIZED&openOrder=${encodeURIComponent(orderId)}`;
+    r.push(
+      `/orders/${encodeURIComponent(orderId)}?branch=${encodeURIComponent(branch)}&mode=BUYING&from=${encodeURIComponent(from)}&ordersMode=copy`
+    );
+  };
+
+  return (
+    <main className="cc-main">
+      <div className="cc-topbar">
+        <div>
+          <div style={{ fontWeight: 1000 }}>{L.title}</div>
+          {showBranchLabel ? (
+            <div className="cc-muted" style={{ fontSize: "0.95rem" }}>
+              Sucursal: {branch} {userLabel ? `• Usuario: ${userLabel}` : ""}
+            </div>
+          ) : userLabel ? (
+            <div className="cc-muted" style={{ fontSize: "0.95rem" }}>
+              Usuario: {userLabel}
+            </div>
+          ) : null}
+        </div>
+
+        <button className="cc-btn cc-btn--danger" onClick={() => setLogoutOpen(true)}>
+          {L.logout}
+        </button>
+      </div>
+
+      {msg ? <div className="cc-alert">{msg}</div> : null}
+      {logoutOpen ? (
+        <ModalShell
+          ariaLabel="Logout"
+          onClose={() => setLogoutOpen(false)}
+          initialFocusRef={logoutCancelRef}
+          header={<div style={{ fontWeight: 1000, fontSize: "1.25rem" }}>Logout</div>}
+          footer={
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                ref={logoutCancelRef}
+                className="cc-btn"
+                style={{ flex: 1 }}
+                onClick={() => setLogoutOpen(false)}
+                disabled={busy}
+              >
+                {lang === "en" ? "Cancel" : "Cancelar"}
+              </button>
+
+              <button
+                className="cc-btn cc-btn--danger"
+                style={{ flex: 1 }}
+                onClick={() => {
+                  void signOut(clientAuth()).finally(() => r.replace("/login"));
+                }}
+                disabled={busy}
+              >
+                {lang === "en" ? "Yes" : "Si"}
+              </button>
+            </div>
+          }
+        >
+          <div className="cc-sub">
+            {lang === "en" ? "Are you sure you want to logout?" : "¿Seguro que deseas salir?"}
+          </div>
+        </ModalShell>
+      ) : null}
+
+
+      <div className="cc-tabs">
+        <button className={`cc-tab ${tab === "PEDIDOS" ? "cc-tab--active" : ""}`} onClick={() => setTab("PEDIDOS")}>
+          {L.pedidos}
+        </button>
+        <button
+          className={`cc-tab ${tab === "AUTHORIZED" ? "cc-tab--active" : ""}`}
+          onClick={() => setTab("AUTHORIZED")}
+        >
+          {L.autorizadas}
+        </button>
+        <button className={`cc-tab ${tab === "HISTORY" ? "cc-tab--active" : ""}`} onClick={() => setTab("HISTORY")}>
+          {L.historial}
+        </button>
+      </div>
+
+      <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
+        {tab === "PEDIDOS" &&
+          pendingSuppliers.map((s) => (
+            <button key={s.supplierId} className="cc-card" onClick={() => void openSupplierPreview(s)} disabled={busy}>
+              <div className="cc-row">
+                <div className="cc-ellipsis" style={{ fontWeight: 1000 }}>
+                  {s.supplierName}
+                </div>
+                <div className="cc-pill">{s.itemCount}</div>
+              </div>
+            </button>
+          ))}
+
+        {tab === "AUTHORIZED" &&
+          authorizedOrders.map((o) => {
+            const pendingCount = Number(o.counts?.pending || o.itemCount || 0);
+            const totalCount = Number(o.counts?.total || o.itemCount || 0);
+
+            const authMs = Number(o.authorizedAtMs || o.createdAtMs || o.updatedAtMs || 0) || 0;
+            const authText = authMs
+              ? new Date(authMs).toLocaleDateString(lang === "en" ? "en-US" : "es-MX", {
+                  year: "2-digit",
+                  month: "2-digit",
+                  day: "2-digit",
+                })
+              : "";
+
+            return (
+              <button key={o.id} className="cc-card" onClick={() => void openOrder("authorized", o)} disabled={busy}>
+                <div className="cc-row">
+                  <div className="cc-ellipsis" style={{ fontWeight: 1000, minWidth: 0 }}>
+                    {o.supplierName}
+                  </div>
+
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2, flexShrink: 0 }}>
+                    <div className="cc-muted" style={{ whiteSpace: "nowrap", fontSize: "0.95rem" }}>
+                      {L.orderNo}: {safe(o.orderNo) || "-"}
+                    </div>
+                    {authText ? (
+                      <div className="cc-muted" style={{ whiteSpace: "nowrap", fontSize: "0.95rem" }}>
+                        {authText}
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="cc-muted" style={{ fontSize: "0.95rem", marginTop: 4 }}>
+                  {pendingCount}/{totalCount} {L.pending.toLowerCase()}
+                </div>
+              </button>
+            );
+          })}
+
+{tab === "HISTORY" &&
+          historyOrders.map((o) => {
+            const closeMs = Number(o.closedAtMs || o.updatedAtMs || 0) || 0;
+            const closeText = closeMs
+              ? new Date(closeMs).toLocaleDateString(lang === "en" ? "en-US" : "es-MX", {
+                  year: "2-digit",
+                  month: "2-digit",
+                  day: "2-digit",
+                })
+              : "";
+
+            return (
+              <button key={o.id} className="cc-card" onClick={() => void openOrder("history", o)} disabled={busy}>
+                <div className="cc-row">
+                  <div className="cc-ellipsis" style={{ fontWeight: 1000, minWidth: 0 }}>
+                    {o.supplierName}
+                  </div>
+
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2, flexShrink: 0 }}>
+                    <div className="cc-muted" style={{ whiteSpace: "nowrap", fontSize: "0.95rem" }}>
+                      {L.orderNo}: {safe(o.orderNo) || "-"}
+                    </div>
+                    {closeText ? (
+                      <div className="cc-muted" style={{ whiteSpace: "nowrap", fontSize: "0.95rem" }}>
+                        {closeText}
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="cc-muted" style={{ fontSize: "0.95rem", marginTop: 4 }}>
+                  {o.itemCount} {L.items.toLowerCase()}
+                </div>
+              </button>
+            );
+          })}
+
+{tab === "PEDIDOS" && pendingSuppliers.length === 0 ? <div className="cc-muted">{L.noResults}</div> : null}
+        {tab === "AUTHORIZED" && authorizedOrders.length === 0 ? <div className="cc-muted">{L.noResults}</div> : null}
+        {tab === "HISTORY" && historyOrders.length === 0 ? <div className="cc-muted">{L.noResults}</div> : null}
+      </div>
+
+      {modal.kind === "pedidos" ? (
+        <ModalShell
+          ariaLabel="Pedidos"
+          onClose={() => setModal({ kind: "none" })}
+          initialFocusRef={backPedidosRef}
+          header={
+            <div className="cc-row" style={{ alignItems: "flex-start" }}>
+              <div style={{ fontWeight: 1000, fontSize: "1.25rem", minWidth: 0 }} className="cc-ellipsis">
+                {modal.supplier.supplierName}
+              </div>
+              <div className="cc-muted" style={{ whiteSpace: "nowrap", fontWeight: 900 }}>
+                {L.items}: {modal.lines.length}
+              </div>
+            </div>
+          }
+          footer={
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                ref={backPedidosRef}
+                className="cc-btn"
+                style={{ flex: 1 }}
+                onClick={() => setModal({ kind: "none" })}
+                disabled={busy}
+              >
+                {L.back}
+              </button>
+              <button
+                className="cc-btn cc-btn--danger"
+                style={{ flex: 1 }}
+                onClick={() => void authorizeSupplier(modal.supplier.supplierId)}
+                disabled={busy}
+              >
+                {L.authorize}
+              </button>
+            </div>
+          }
+        >
+          {modal.lines.length ? (
+            modal.lines.map((x, idx) => (
+              <div key={`${x.productId}-${idx}`} className="cc-line">
+                <div style={{ fontWeight: 900 }}>{x.productName}</div>
+                <div className="cc-muted" style={{ fontSize: "0.95rem" }}>
+                  {x.needQty} {x.unitCapture || ""}{" "}
+                  {typeof (x as any).count === "number" && (x as any).count > 1
+                    ? ` • ${(x as any).count} ${lang === "en" ? "rows" : "renglones"}`
+                    : ""}{" "}
+                  {safe(x.note) ? ` • ${safe(x.note)}` : ""}
+                </div>
+                {x.lastAttempt ? (
+                  <div style={{ marginTop: 4 }}>
+                    <div
+                      className="cc-muted cc-clamp1"
+                      style={{ fontSize: "0.9rem" }}
+                      title={`${lang === "en" ? "Previous try" : "Intento previo"}: ${formatAttempt(x.lastAttempt, lang)}${
+                        safe(x.lastAttempt.reason)
+                          ? ` • ${(lang === "en" ? "Reason" : "Motivo")}: ${safe(x.lastAttempt.reason)}`
+                          : ""
+                      }`}
+                    >
+                      <span className="cc-pill-ncprev">{lang === "en" ? "Prev N/B" : "N/C previo"}</span>{" "}
+                      ⏱ {lang === "en" ? "Previous try" : "Intento previo"}: {formatAttempt(x.lastAttempt, lang)}
+                      {safe(x.lastAttempt.reason)
+                        ? ` • ${(lang === "en" ? "Reason" : "Motivo")}: ${safe(x.lastAttempt.reason)}`
+                        : ""}
+                    </div>
+
+                    <button
+                      type="button"
+                      className="cc-link"
+                      onClick={async () => {
+                        const txt = `${lang === "en" ? "Previous try" : "Intento previo"}: ${formatAttempt(
+                          x.lastAttempt,
+                          lang
+                        )}${
+                          safe(x.lastAttempt.reason)
+                            ? ` • ${(lang === "en" ? "Reason" : "Motivo")}: ${safe(x.lastAttempt.reason)}`
+                            : ""
+                        }${safe(x.note) ? ` • ${lang === "en" ? "Note" : "Nota"}: ${safe(x.note)}` : ""}`;
+                        const ok = await copyToClipboard(txt);
+                        setMsg(ok ? "✅ Copiado" : "⚠ No se pudo copiar");
+                      }}
+                    >
+                      {lang === "en" ? "Copy" : "Copiar"}
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            ))
+          ) : (
+            <div className="cc-muted">{L.noResults}</div>
+          )}
+        </ModalShell>
+      ) : null}
+
+      {modal.kind === "authorized" &&
+        (() => {
+          const counts = computeCountsFromLines(modal.lines);
+          const pendingLines = groupLinesByState(modal.lines, "PENDING");
+          const boughtLines = groupLinesByState(modal.lines, "BOUGHT");
+          const notBoughtLines = groupLinesByState(modal.lines, "NOT_BOUGHT");
+
+          return (
+            <ModalShell
+              ariaLabel="Autorizadas"
+              onClose={() => setModal({ kind: "none" })}
+              initialFocusRef={backAuthorizedRef}
+              header={
+                <>
+                  {(() => {
+                    const o = (modal as any).order || {};
+                    const supplierName = safe(o.supplierName) || "Proveedor";
+                    const orderNo = safe(o.orderNo) || "-";
+                    const ms = Number(o.authorizedAtMs || o.createdAtMs || o.updatedAtMs || 0) || 0;
+                    const dt = ms
+                      ? new Date(ms).toLocaleDateString(lang === "en" ? "en-US" : "es-MX", {
+                          year: "2-digit",
+                          month: "2-digit",
+                          day: "2-digit",
+                        })
+                      : "";
+                    return (
+                      <>
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            gap: 10,
+                            alignItems: "baseline",
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontWeight: 1000,
+                              fontSize: "1.25rem",
+                              overflowWrap: "anywhere",
+                              wordBreak: "break-word",
+                            }}
+                          >
+                            {supplierName}
+                          </div>
+
+                          <div className="cc-muted" style={{ fontSize: "0.9rem", fontWeight: 400, whiteSpace: "nowrap" }}>
+                            {L.orderNo}: {orderNo}
+                          </div>
+                        </div>
+
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            gap: 10,
+                            marginTop: 6,
+                            alignItems: "baseline",
+                          }}
+                        >
+                          <div className="cc-muted" style={{ fontSize: "0.95rem" }}>{dt}</div>
+
+                          <div className="cc-muted" style={{ fontSize: "0.9rem", fontWeight: 900, whiteSpace: "nowrap" }}>
+                            {counts.pending}/{counts.total} {L.pending}
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </>
+              }
+              footer={
+                <div style={{ display: "grid", gap: 10 }}>
+                  <button
+                    ref={backAuthorizedRef}
+                    className="cc-btn"
+                    onClick={() => setModal({ kind: "none" })}
+                    disabled={busy}
+                  >
+                    {L.back}
+                  </button>
+                  <button className="cc-btn" onClick={() => void sendWhatsApp(modal.order.id)} disabled={busy}>
+                    {waCopiedOrderId === safe(modal.order.id) ? L.whatsappCopied : L.whatsapp}
+                  </button>
+                  <button className="cc-btn" onClick={() => void openPdf(modal.order.id)} disabled={busy}>
+                    {L.pdf}
+                  </button>
+                  <button className="cc-btn cc-btn--primary" onClick={() => void enterStore(modal.order.id)} disabled={busy}>
+                    {L.inStore}
+                  </button>
+                </div>
+              }
+            >
+              <div style={{ marginTop: 2, paddingBottom: 6 }}>
+                <div style={{ fontWeight: 1000, marginBottom: 6 }}>{L.pending}</div>
+                {pendingLines.length ? (
+                  pendingLines.map((x) => (
+                    <div key={x.key} className="cc-line">
+                      <div style={{ fontWeight: 900 }}>{x.productName}</div>
+                      <div className="cc-muted" style={{ fontSize: "0.95rem" }}>
+                        {x.needQty} {x.unitCapture || ""}{" "}
+                        {typeof (x as any).count === "number" && (x as any).count > 1
+                          ? ` • ${(x as any).count} ${lang === "en" ? "rows" : "renglones"}`
+                          : ""}{" "}
+                        {safe(x.note) ? ` • ${safe(x.note)}` : ""}
+                      </div>
+                      {x.lastAttempt ? (
+                        <div className="cc-muted" style={{ fontSize: "0.9rem", marginTop: 4 }}>
+                          {lang === "en" ? "Previous try" : "Intento previo"}: {formatAttempt(x.lastAttempt, lang)}
+                          {safe(x.lastAttempt.reason)
+                            ? ` • ${(lang === "en" ? "Reason" : "Motivo")}: ${safe(x.lastAttempt.reason)}`
+                            : ""}
+                        </div>
+                      ) : null}
+                    </div>
+                  ))
+                ) : (
+                  <div className="cc-muted">{L.noResults}</div>
+                )}
+
+                {boughtLines.length ? (
+                  <>
+                    <div style={{ fontWeight: 1000, marginTop: 14, marginBottom: 6 }}>{L.bought}</div>
+                    {boughtLines.map((x) => (
+                      <div key={x.key} className="cc-line">
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                          <div style={{ fontWeight: 900, minWidth: 0 }} className="cc-ellipsis">
+                            {x.productName}
+                          </div>
+                          <div className="cc-badge cc-badge--green">C</div>
+                        </div>
+                        <div className="cc-muted" style={{ fontSize: "0.95rem" }}>
+                          {x.needQty} {x.unitCapture || ""}{" "}
+                          {typeof (x as any).count === "number" && (x as any).count > 1
+                            ? ` • ${(x as any).count} ${lang === "en" ? "rows" : "renglones"}`
+                            : ""}{" "}
+                          {safe(x.note) ? ` • ${safe(x.note)}` : ""}
+                        </div>
+                        {x.lastAttempt ? (
+                          <div className="cc-muted" style={{ fontSize: "0.9rem", marginTop: 4 }}>
+                            {lang === "en" ? "Previous try" : "Intento previo"}: {formatAttempt(x.lastAttempt, lang)}
+                            {safe(x.lastAttempt.reason)
+                              ? ` • ${(lang === "en" ? "Reason" : "Motivo")}: ${safe(x.lastAttempt.reason)}`
+                              : ""}
+                          </div>
+                        ) : null}
+                      </div>
+                    ))}
+                  </>
+                ) : null}
+
+                {notBoughtLines.length ? (
+                  <>
+                    <div style={{ fontWeight: 1000, marginTop: 14, marginBottom: 6 }}>{L.notBought}</div>
+                    {notBoughtLines.map((x) => (
+                      <div key={x.key} className="cc-line">
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                          <div style={{ fontWeight: 900, minWidth: 0 }} className="cc-ellipsis">
+                            {x.productName}
+                          </div>
+                          <div className="cc-badge cc-badge--red">N/C</div>
+                        </div>
+                        <div className="cc-muted" style={{ fontSize: "0.95rem" }}>
+                          {x.needQty} {x.unitCapture || ""}{" "}
+                          {typeof (x as any).count === "number" && (x as any).count > 1
+                            ? ` • ${(x as any).count} ${lang === "en" ? "rows" : "renglones"}`
+                            : ""}{" "}
+                          {safe(x.note) ? ` • ${safe(x.note)}` : ""}
+                        </div>
+                        {x.lastAttempt ? (
+                          <div className="cc-muted" style={{ fontSize: "0.9rem", marginTop: 4 }}>
+                            {lang === "en" ? "Previous try" : "Intento previo"}: {formatAttempt(x.lastAttempt, lang)}
+                            {safe(x.lastAttempt.reason)
+                              ? ` • ${(lang === "en" ? "Reason" : "Motivo")}: ${safe(x.lastAttempt.reason)}`
+                              : ""}
+                          </div>
+                        ) : null}
+                        {safe(x.reason) ? (
+                          <div className="cc-muted" style={{ fontSize: "0.95rem", color: "#b91c1c", marginTop: 4 }}>
+                            {L.reason}: {x.reason}
+                          </div>
+                        ) : null}
+                      </div>
+                    ))}
+                  </>
+                ) : null}
+              </div>
+            </ModalShell>
+          );
+        })()}
+
+      {modal.kind === "history" &&
+        (() => {
+          const counts = computeCountsFromLines(modal.lines);
+          const pendingLines = groupLinesByState(modal.lines, "PENDING");
+          const boughtLines = groupLinesByState(modal.lines, "BOUGHT");
+          const notBoughtLines = groupLinesByState(modal.lines, "NOT_BOUGHT");
+
+          return (
+            <ModalShell
+              ariaLabel="Historial"
+              onClose={() => setModal({ kind: "none" })}
+              initialFocusRef={backHistoryRef}
+              header={
+                <>
+                  <div className="cc-row" style={{ alignItems: "flex-start" }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: 1000, fontSize: "1.25rem" }} className="cc-ellipsis">
+                        {modal.order.supplierName}
+                      </div>
+
+                      {(() => {
+                        const ms = Number((modal.order as any).closedAtMs || (modal.order as any).updatedAtMs || 0) || 0;
+                        if (!ms) return null;
+                        const dt = new Date(ms).toLocaleDateString(lang === "en" ? "en-US" : "es-MX", {
+                          year: "2-digit",
+                          month: "2-digit",
+                          day: "2-digit",
+                        });
+                        return (
+                          <div className="cc-muted" style={{ marginTop: 4 }}>
+                            {dt}
+                          </div>
+                        );
+                      })()}
+                    </div>
+
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "flex-end",
+                        gap: 2,
+                        flexShrink: 0,
+                      }}
+                    >
+                      <div className="cc-muted" style={{ whiteSpace: "nowrap", fontWeight: 900 }}>
+                        {L.orderNo}: {safe(modal.order.orderNo) || "-"}
+                      </div>
+                      <div className="cc-muted" style={{ whiteSpace: "nowrap", fontSize: "0.95rem" }}>
+                        {counts.total} {L.items.toLowerCase()}
+                      </div>
+                    </div>
+                  </div>
+                </>
+              }
+              footer={
+                <button
+                  ref={backHistoryRef}
+                  className="cc-btn"
+                  style={{ width: "100%" }}
+                  onClick={() => setModal({ kind: "none" })}
+                  disabled={busy}
+                >
+                  {L.back}
+                </button>
+              }
+            >
+              <div style={{ marginTop: 2, paddingBottom: 6 }}>
+                {pendingLines.length ? (
+                  <>
+                    <div style={{ fontWeight: 1000, marginBottom: 6 }}>{L.pending}</div>
+                    {pendingLines.map((x) => (
+                      <div key={x.key} className="cc-line">
+                        <div style={{ fontWeight: 900 }}>{x.productName}</div>
+                        <div className="cc-muted" style={{ fontSize: "0.95rem" }}>
+                          {x.needQty} {x.unitCapture || ""}{" "}
+                          {typeof (x as any).count === "number" && (x as any).count > 1
+                            ? ` • ${(x as any).count} ${lang === "en" ? "rows" : "renglones"}`
+                            : ""}{" "}
+                          {safe(x.note) ? ` • ${safe(x.note)}` : ""}
+                        </div>
+                        {x.lastAttempt ? (
+                          <div className="cc-muted" style={{ fontSize: "0.9rem", marginTop: 4 }}>
+                            {lang === "en" ? "Previous try" : "Intento previo"}: {formatAttempt(x.lastAttempt, lang)}
+                            {safe(x.lastAttempt.reason)
+                              ? ` • ${(lang === "en" ? "Reason" : "Motivo")}: ${safe(x.lastAttempt.reason)}`
+                              : ""}
+                          </div>
+                        ) : null}
+                      </div>
+                    ))}
+                  </>
+                ) : null}
+
+                {boughtLines.length ? (
+                  <>
+                    <div style={{ fontWeight: 1000, marginTop: pendingLines.length ? 14 : 0, marginBottom: 6 }}>
+                      {L.bought}
+                    </div>
+                    {boughtLines.map((x) => (
+                      <div key={x.key} className="cc-line">
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                          <div style={{ fontWeight: 900, minWidth: 0 }} className="cc-ellipsis">
+                            {x.productName}
+                          </div>
+                          <div className="cc-badge cc-badge--green">C</div>
+                        </div>
+                        <div className="cc-muted" style={{ fontSize: "0.95rem" }}>
+                          {x.needQty} {x.unitCapture || ""}{" "}
+                          {typeof (x as any).count === "number" && (x as any).count > 1
+                            ? ` • ${(x as any).count} ${lang === "en" ? "rows" : "renglones"}`
+                            : ""}{" "}
+                          {safe(x.note) ? ` • ${safe(x.note)}` : ""}
+                        </div>
+                        {x.lastAttempt ? (
+                          <div className="cc-muted" style={{ fontSize: "0.9rem", marginTop: 4 }}>
+                            {lang === "en" ? "Previous try" : "Intento previo"}: {formatAttempt(x.lastAttempt, lang)}
+                            {safe(x.lastAttempt.reason)
+                              ? ` • ${(lang === "en" ? "Reason" : "Motivo")}: ${safe(x.lastAttempt.reason)}`
+                              : ""}
+                          </div>
+                        ) : null}
+                      </div>
+                    ))}
+                  </>
+                ) : null}
+
+                {notBoughtLines.length ? (
+                  <>
+                    <div
+                      style={{
+                        fontWeight: 1000,
+                        marginTop: pendingLines.length || boughtLines.length ? 14 : 0,
+                        marginBottom: 6,
+                      }}
+                    >
+                      {L.notBought}
+                    </div>
+                    {notBoughtLines.map((x) => (
+                      <div key={x.key} className="cc-line">
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                          <div style={{ fontWeight: 900, minWidth: 0 }} className="cc-ellipsis">
+                            {x.productName}
+                          </div>
+                          <div className="cc-badge cc-badge--red">N/C</div>
+                        </div>
+                        <div className="cc-muted" style={{ fontSize: "0.95rem" }}>
+                          {x.needQty} {x.unitCapture || ""}{" "}
+                          {typeof (x as any).count === "number" && (x as any).count > 1
+                            ? ` • ${(x as any).count} ${lang === "en" ? "rows" : "renglones"}`
+                            : ""}{" "}
+                          {safe(x.note) ? ` • ${safe(x.note)}` : ""}
+                        </div>
+                        {x.lastAttempt ? (
+                          <div className="cc-muted" style={{ fontSize: "0.9rem", marginTop: 4 }}>
+                            {lang === "en" ? "Previous try" : "Intento previo"}: {formatAttempt(x.lastAttempt, lang)}
+                            {safe(x.lastAttempt.reason)
+                              ? ` • ${(lang === "en" ? "Reason" : "Motivo")}: ${safe(x.lastAttempt.reason)}`
+                              : ""}
+                          </div>
+                        ) : null}
+                        {safe(x.reason) ? (
+                          <div className="cc-muted" style={{ fontSize: "0.95rem", color: "#b91c1c", marginTop: 4 }}>
+                            {L.reason}: {x.reason}
+                          </div>
+                        ) : null}
+                      </div>
+                    ))}
+                  </>
+                ) : null}
+
+                {!pendingLines.length && !boughtLines.length && !notBoughtLines.length ? (
+                  <div className="cc-muted">{L.noResults}</div>
+                ) : null}
+              </div>
+            </ModalShell>
+          );
+        })()}
+
+      {toast ? <div className="cc-toast">{toast}</div> : null}
+
+      <style jsx global>{`
+        .cc-main {
+          max-width: 840px;
+          margin: 0 auto;
+          padding: 14px;
+          font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
+          overflow-x: hidden;
+        }
+        .cc-topbar {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 10px;
+        }
+        .cc-alert {
+          margin-top: 10px;
+          padding: 10px 12px;
+          border: 1px solid #f3c;
+          border-radius: 12px;
+          background: #fff5fb;
+          color: #a20055;
+          font-weight: 700;
+        }
+        .cc-muted {
+          opacity: 0.75;
+        }
+        button {
+          color: inherit;
+        }
+
+        .cc-tabs {
+          display: flex;
+          gap: 8px;
+          margin-top: 12px;
+          flex-wrap: wrap;
+        }
+        .cc-tab {
+          padding: 10px 12px;
+          border-radius: 14px;
+          border: 1px solid #ddd;
+          background: #fff;
+          font-weight: 1000;
+
+          color: #111;
+        }
+        .cc-tab--active {
+          background: #111;
+          color: #fff;
+          border-color: #111;
+        }
+        .cc-btn {
+          padding: 10px 12px;
+          border-radius: 14px;
+          border: 1px solid #ddd;
+          background: #fff;
+          font-weight: 900;
+
+          color: #111;
+        }
+        .cc-btn--primary {
+          background: #111;
+          color: #fff;
+          border-color: #111;
+        }
+        .cc-btn--danger {
+          background: #b91c1c;
+          color: #fff;
+          border-color: transparent;
+        }
+        .cc-card {
+          border: 1px solid #eee;
+          border-radius: 16px;
+          padding: 12px;
+          background: #fff;
+          box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02);
+          text-align: left;
+          max-width: 100%;
+          overflow-x: hidden;
+
+          color: #111;
+        }
+        .cc-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 10px;
+          min-width: 0;
+        }
+
+        .cc-row > * {
+          min-width: 0;
+        }
+
+        .cc-ellipsis {
+          overflow: hidden;
+          white-space: nowrap;
+          text-overflow: ellipsis;
+        }
+        .cc-pill {
+          display: inline-flex;
+          min-width: 38px;
+          height: 32px;
+          align-items: center;
+          justify-content: center;
+          border-radius: 999px;
+          border: 1px solid #eee;
+          font-weight: 1000;
+        }
+        .cc-badge {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-width: 46px;
+          height: 32px;
+          padding: 0 10px;
+          border-radius: 999px;
+          font-weight: 1000;
+          color: #fff;
+        }
+        .cc-badge--green {
+          background: #16a34a;
+        }
+        .cc-badge--red {
+          background: #b91c1c;
+        }
+        .cc-line {
+          padding: 10px 0;
+          border-bottom: 1px solid #f2f2f2;
+        }
+        .cc-line:last-child {
+          border-bottom: 0;
+        }
+
+        .cc-clamp1 {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          min-width: 0;
+          max-width: 100%;
+          display: block;
+        }
+
+        .cc-break {
+          overflow-wrap: anywhere;
+          word-break: break-word;
+        }
+
+        .cc-link {
+          margin-top: 4px;
+          padding: 0;
+          border: 0;
+          background: transparent;
+          font-weight: 900;
+          text-decoration: underline;
+          cursor: pointer;
+        }
+        .cc-pill-ncprev {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          height: 20px;
+          padding: 0 8px;
+          border-radius: 999px;
+          font-weight: 1000;
+          background: #b91c1c;
+          color: #fff;
+          font-size: 12px;
+          line-height: 1;
+        }
+
+        .cc-toast {
+          position: fixed;
+          left: 50%;
+          transform: translateX(-50%);
+          bottom: calc(18px + env(safe-area-inset-bottom));
+          padding: 10px 12px;
+          border-radius: 999px;
+          background: rgba(17, 17, 17, 0.92);
+          color: #fff;
+          font-weight: 900;
+          z-index: 9999;
+          max-width: calc(100vw - 28px);
+          text-align: center;
+          box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+        }
+      `}</style>
+    </main>
+  );
+}

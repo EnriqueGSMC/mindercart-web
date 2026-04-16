@@ -1,0 +1,17 @@
+username y pasword
+node scripts\seed.mjs --org org_el_cliente --branch sucursal-a --adminUsername admin --adminPassword "cifurub1" --catalog .\catalogo_normalizado_v1_1.json
+
+cd /d C:\dev\compras-web
+
+para copiar y generar un archgivo para subir (EJEMPLO)
+copy src\app\api\orders\create\route.ts C:\dev\orders_create_route.ts
+y despues subir el archivo de (EJEMPLO)
+C:\dev\orders_create_route.ts
+
+
+
+Windows
+win R	(abre ventana de Run)
+	msedge  --disable-extensions (abre edge)
+	taskmgr
+	services.msc

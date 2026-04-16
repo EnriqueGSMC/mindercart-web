@@ -1,0 +1,277 @@
+// ============================================================================
+// FILE: src/app/purchases/[supplierId]/page.tsx  (REEMPLAZA COMPLETO)
+// - Muestra lista de needs OPEN del proveedor
+// - Botón "Generar pedido" => POST /api/orders/create (crea/reusa)
+// - Luego elegir Abrir / WhatsApp / PDF (mismo flujo)
+// ============================================================================
+"use client";
+
+import React from "react";
+import { onAuthStateChanged, type User } from "firebase/auth";
+import { clientAuth } from "@/lib/firebase/client";
+import { useRouter, useSearchParams, useParams } from "next/navigation";
+import { getLang, type Lang } from "@/lib/i18n";
+
+async function apiFetch(user: User, path: string, init: RequestInit = {}) {
+  const token = await user.getIdToken();
+  const headers = new Headers(init.headers || {});
+  headers.set("authorization", `Bearer ${token}`);
+  return fetch(path, { ...init, headers });
+}
+
+const TXT2 = {
+  back: { es: "← Proveedores", en: "← Suppliers" },
+  openItems: { es: "artículo(s) abierto(s)", en: "open item(s)" },
+  generating: { es: "Generando…", en: "Generating…" },
+  create: { es: "Generar pedido", en: "Create order" },
+  qty: { es: "Cantidad", en: "Qty" },
+  note: { es: "Nota", en: "Note" },
+  prevNotBought: { es: "No comprado antes:", en: "Previously not bought:" },
+  confirmTitle: { es: "Realizar pedido", en: "Create order" },
+  confirmYes: { es: "Sí, realizar", en: "Yes, create" },
+  confirmNo: { es: "Cancelar", en: "Cancel" },
+  ready: { es: "Pedido listo", en: "Order ready" },
+  open: { es: "Abrir", en: "Open" },
+  whatsapp: { es: "WhatsApp", en: "WhatsApp" },
+  pdf: { es: "PDF", en: "PDF" },
+  close: { es: "Cerrar", en: "Close" },
+};
+
+function tr2(lang: Lang, k: keyof typeof TXT2) {
+  return TXT2[k][lang] || TXT2[k].es;
+}
+
+type ModalState =
+  | { stage: "closed" }
+  | { stage: "confirm" }
+  | { stage: "actions"; orderId: string };
+
+export default function SupplierNeedsPage() {
+  const r = useRouter();
+  const sp = useSearchParams();
+  const params = useParams<{ supplierId: string }>();
+
+  const [lang, setLang] = React.useState<Lang>("es");
+  const [user, setUser] = React.useState<User | null>(null);
+  const [msg, setMsg] = React.useState("");
+  const [supplierName, setSupplierName] = React.useState("");
+  const [rows, setRows] = React.useState<any[]>([]);
+  const [busy, setBusy] = React.useState(false);
+  const [modal, setModal] = React.useState<ModalState>({ stage: "closed" });
+
+  const branch = sp.get("branch") || "sucursal-a";
+  const supplierId = decodeURIComponent(params.supplierId || "");
+
+  React.useEffect(() => {
+    const sync = () => setLang(getLang());
+    sync();
+    window.addEventListener("langchange", sync);
+    return () => window.removeEventListener("langchange", sync);
+  }, []);
+
+  React.useEffect(() => {
+    const unsub = onAuthStateChanged(clientAuth(), (u) => {
+      if (!u) return r.replace("/login");
+      setUser(u);
+    });
+    return () => unsub();
+  }, [r]);
+
+  const load = React.useCallback(async () => {
+    if (!user) return;
+    setMsg("");
+    const res = await apiFetch(
+      user,
+      `/api/purchases/supplier?supplierId=${encodeURIComponent(supplierId)}&branch=${encodeURIComponent(branch)}`
+    );
+    const json = await res.json();
+    if (!res.ok) throw new Error(json?.error || "Error");
+    setRows(json.rows || []);
+    setSupplierName(json.supplierName || supplierId);
+  }, [user, supplierId, branch]);
+
+  React.useEffect(() => {
+    if (!user) return;
+    void load().catch((e) => setMsg(`⚠ ${String(e?.message || e)}`));
+    const t = window.setInterval(() => void load().catch(() => {}), 5000);
+    return () => window.clearInterval(t);
+  }, [user, load]);
+
+  const openOrder = (orderId: string) => {
+    r.push(`/orders/${encodeURIComponent(orderId)}?branch=${encodeURIComponent(branch)}`);
+  };
+
+  const openPdf = (orderId: string) => {
+    r.push(`/orders/${encodeURIComponent(orderId)}/print?branch=${encodeURIComponent(branch)}`);
+  };
+
+  const sendWhatsApp = async (orderId: string) => {
+    if (!user) return;
+    setBusy(true);
+    setMsg("");
+    try {
+      const res = await apiFetch(
+        user,
+        `/api/orders/whatsapp-text?orderId=${encodeURIComponent(orderId)}&branch=${encodeURIComponent(branch)}&lang=${encodeURIComponent(lang)}`
+      );
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || "Error");
+      window.open(`https://wa.me/?text=${encodeURIComponent(String(json.text || ""))}`, "_blank");
+      await load();
+    } catch (e: any) {
+      setMsg(`⚠ ${String(e?.message || e)}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const createOrder = async () => {
+    if (!user) return;
+    setBusy(true);
+    setMsg("");
+    try {
+      const res = await apiFetch(user, "/api/orders/create", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ supplierId, supplierName, branchId: branch }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || "Error");
+      const orderId = String(json.orderId || "").trim();
+      if (!orderId) throw new Error("No se pudo generar el pedido (orderId vacío)");
+      setModal({ stage: "actions", orderId });
+      await load();
+    } catch (e: any) {
+      setMsg(`⚠ ${String(e?.message || e)}`);
+      setModal({ stage: "closed" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <main style={{ maxWidth: 520, margin: "0 auto", padding: 14, fontFamily: "system-ui" }}>
+      <button onClick={() => r.push("/purchases")} style={{ marginBottom: 10 }}>
+        {tr2(lang, "back")}
+      </button>
+
+      <h2 style={{ margin: 0 }}>{supplierName}</h2>
+      <div style={{ opacity: 0.75, marginTop: 6 }}>
+        {rows.length} {tr2(lang, "openItems")}
+      </div>
+
+      <button
+        disabled={busy || rows.length === 0}
+        onClick={() => setModal({ stage: "confirm" })}
+        style={{
+          width: "100%",
+          marginTop: 12,
+          padding: 14,
+          borderRadius: 14,
+          border: "1px solid #111",
+          background: busy ? "#999" : "#111",
+          color: "white",
+          fontWeight: 900,
+        }}
+      >
+        {busy ? tr2(lang, "generating") : tr2(lang, "create")}
+      </button>
+
+      {msg ? <div style={{ marginTop: 10, color: "crimson" }}>{msg}</div> : null}
+
+      <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
+        {rows.map((n) => (
+          <div key={n.id} style={{ border: "1px solid #eee", borderRadius: 14, padding: 12, background: "white" }}>
+            <div style={{ fontWeight: 900 }}>{n.productName}</div>
+            <div style={{ marginTop: 6, opacity: 0.8 }}>
+              {tr2(lang, "qty")}: <b>{n.needQty}</b> {n.unitCapture || ""} • {n.categoryName || ""}
+            </div>
+            {n.note ? (
+              <div style={{ marginTop: 6, opacity: 0.85 }}>
+                {tr2(lang, "note")}: {n.note}
+              </div>
+            ) : null}
+            {n.warning?.reasonText ? (
+              <div style={{ marginTop: 6, color: "crimson" }}>
+                ⚠ {tr2(lang, "prevNotBought")} {n.warning.reasonText}
+              </div>
+            ) : null}
+          </div>
+        ))}
+      </div>
+
+      {/* MODAL */}
+      {modal.stage !== "closed" ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.35)",
+            display: "grid",
+            placeItems: "center",
+            padding: 14,
+            zIndex: 50,
+          }}
+          onClick={() => setModal({ stage: "closed" })}
+        >
+          <div
+            style={{ width: "100%", maxWidth: 520, background: "white", borderRadius: 18, padding: 14 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {modal.stage === "confirm" ? (
+              <>
+                <div style={{ fontWeight: 1000, fontSize: 18 }}>{tr2(lang, "confirmTitle")}</div>
+                <div style={{ marginTop: 8, opacity: 0.85 }}>
+                  Proveedor: <b>{supplierName}</b>
+                </div>
+                <div style={{ marginTop: 6, opacity: 0.85 }}>
+                  Pendientes: <b>{rows.length}</b>
+                </div>
+
+                <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
+                  <button style={{ flex: 1, padding: 12 }} onClick={() => setModal({ stage: "closed" })} disabled={busy}>
+                    {tr2(lang, "confirmNo")}
+                  </button>
+                  <button
+                    style={{ flex: 1, padding: 12, background: "#111", color: "white", fontWeight: 900, borderRadius: 12 }}
+                    onClick={() => void createOrder()}
+                    disabled={busy}
+                  >
+                    {busy ? tr2(lang, "generating") : tr2(lang, "confirmYes")}
+                  </button>
+                </div>
+              </>
+            ) : null}
+
+            {modal.stage === "actions" ? (
+              <>
+                <div style={{ fontWeight: 1000, fontSize: 18 }}>{tr2(lang, "ready")}</div>
+                <div style={{ marginTop: 8, opacity: 0.85 }}>
+                  Proveedor: <b>{supplierName}</b>
+                </div>
+
+                <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
+                  <button style={{ padding: 14, fontWeight: 900 }} onClick={() => openOrder(modal.orderId)}>
+                    {tr2(lang, "open")}
+                  </button>
+                  <button style={{ padding: 14, fontWeight: 900 }} onClick={() => void sendWhatsApp(modal.orderId)} disabled={busy}>
+                    {tr2(lang, "whatsapp")}
+                  </button>
+                  <button style={{ padding: 14, fontWeight: 900 }} onClick={() => openPdf(modal.orderId)}>
+                    {tr2(lang, "pdf")}
+                  </button>
+                </div>
+
+                <button style={{ width: "100%", marginTop: 10, padding: 12 }} onClick={() => setModal({ stage: "closed" })}>
+                  {tr2(lang, "close")}
+                </button>
+              </>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+    </main>
+  );
+}

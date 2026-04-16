@@ -1,0 +1,3895 @@
+{
+  "meta": {
+    "sourceFile": "Control_de_compras_catalogo_v1_1.xlsx"
+  },
+  "categories": [
+    {
+      "id": "abarrotes",
+      "name": "Abarrotes"
+    },
+    {
+      "id": "bebidas",
+      "name": "Bebidas"
+    },
+    {
+      "id": "carnes",
+      "name": "Carnes"
+    },
+    {
+      "id": "condimentos-y-chiles",
+      "name": "Condimentos y chiles"
+    },
+    {
+      "id": "desechables-y-empaques",
+      "name": "Desechables y empaques"
+    },
+    {
+      "id": "lacteos-y-refrigerados",
+      "name": "Lácteos y refrigerados"
+    },
+    {
+      "id": "operacion-caja",
+      "name": "Operación / caja"
+    },
+    {
+      "id": "postres",
+      "name": "Postres"
+    },
+    {
+      "id": "tortilleria",
+      "name": "Tortillería"
+    },
+    {
+      "id": "verdura-y-fruta",
+      "name": "Verdura y fruta"
+    }
+  ],
+  "units": [
+    "lb",
+    "pza",
+    "bolsa",
+    "caja",
+    "paquete",
+    "rollo",
+    "galón",
+    "litro",
+    "manojo",
+    "costal",
+    "bote",
+    "botella"
+  ],
+  "suppliers": [
+    {
+      "id": "4-aces",
+      "name": "4 Aces",
+      "type": "PRESENCIAL"
+    },
+    {
+      "id": "amigos-meat",
+      "name": "Amigos Meat",
+      "type": "DELIVERY"
+    },
+    {
+      "id": "bolsas-2520-airline-dr",
+      "name": "Bolsas 2520 Airline Dr",
+      "type": "PRESENCIAL"
+    },
+    {
+      "id": "costco",
+      "name": "Costco",
+      "type": "PRESENCIAL"
+    },
+    {
+      "id": "frutiva",
+      "name": "Frutiva",
+      "type": "DELIVERY"
+    },
+    {
+      "id": "heb",
+      "name": "HEB",
+      "type": "PRESENCIAL"
+    },
+    {
+      "id": "home-depot",
+      "name": "Home Depot",
+      "type": "PRESENCIAL"
+    },
+    {
+      "id": "kroger-gosling",
+      "name": "Kroger Gosling",
+      "type": "PRESENCIAL"
+    },
+    {
+      "id": "kroger-kuykendahl",
+      "name": "Kroger Kuykendahl",
+      "type": "PRESENCIAL"
+    },
+    {
+      "id": "lowes",
+      "name": "Lowes",
+      "type": "PRESENCIAL"
+    },
+    {
+      "id": "mendez-produce",
+      "name": "Mendez Produce",
+      "type": "DELIVERY"
+    },
+    {
+      "id": "postres",
+      "name": "Postres",
+      "type": "DELIVERY"
+    },
+    {
+      "id": "restaurant-depot-online",
+      "name": "Restaurant Depot Online",
+      "type": "ONLINE"
+    },
+    {
+      "id": "restaurant-depot-tomball",
+      "name": "Restaurant Depot Tomball",
+      "type": "PRESENCIAL"
+    },
+    {
+      "id": "sams",
+      "name": "Sam’s",
+      "type": "PRESENCIAL"
+    },
+    {
+      "id": "sams-online",
+      "name": "Sam’s Online",
+      "type": "ONLINE"
+    },
+    {
+      "id": "tortilleria-la-mejor",
+      "name": "Tortillería La Mejor",
+      "type": "PRESENCIAL"
+    }
+  ],
+  "products": [
+    {
+      "id": "aceite",
+      "name": "Aceite",
+      "categoryId": "abarrotes",
+      "unitCapture": "botella",
+      "suppliers": [
+        {
+          "supplierId": "heb",
+          "priority": 1,
+          "purchaseUnit": "botella",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "kroger-kuykendahl",
+          "priority": 2,
+          "purchaseUnit": "botella",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 3,
+          "purchaseUnit": "botella",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "arroz",
+      "name": "Arroz",
+      "categoryId": "abarrotes",
+      "unitCapture": "lb",
+      "suppliers": [
+        {
+          "supplierId": "heb",
+          "priority": 1,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "kroger-kuykendahl",
+          "priority": 2,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 3,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "bolillo",
+      "name": "Bolillo",
+      "categoryId": "abarrotes",
+      "unitCapture": "pza",
+      "suppliers": [
+        {
+          "supplierId": "heb",
+          "priority": 1,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "kroger-kuykendahl",
+          "priority": 2,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 3,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "carnation",
+      "name": "Carnation",
+      "categoryId": "abarrotes",
+      "unitCapture": "pza",
+      "suppliers": [
+        {
+          "supplierId": "heb",
+          "priority": 1,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "kroger-kuykendahl",
+          "priority": 2,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 3,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "chipotle",
+      "name": "Chipotle",
+      "categoryId": "abarrotes",
+      "unitCapture": "pza",
+      "suppliers": [
+        {
+          "supplierId": "heb",
+          "priority": 1,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "kroger-kuykendahl",
+          "priority": 2,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 3,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "frijoles",
+      "name": "Frijoles",
+      "categoryId": "abarrotes",
+      "unitCapture": "lb",
+      "suppliers": [
+        {
+          "supplierId": "heb",
+          "priority": 1,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "kroger-kuykendahl",
+          "priority": 2,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 3,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "jalapenos-enteros",
+      "name": "Jalapeños enteros",
+      "categoryId": "abarrotes",
+      "unitCapture": "pza",
+      "suppliers": [
+        {
+          "supplierId": "heb",
+          "priority": 1,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "kroger-kuykendahl",
+          "priority": 2,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 3,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "maruchan",
+      "name": "Maruchan",
+      "categoryId": "abarrotes",
+      "unitCapture": "pza",
+      "suppliers": [
+        {
+          "supplierId": "heb",
+          "priority": 1,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "kroger-kuykendahl",
+          "priority": 2,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 3,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "pina",
+      "name": "Piña",
+      "categoryId": "abarrotes",
+      "unitCapture": "pza",
+      "suppliers": [
+        {
+          "supplierId": "heb",
+          "priority": 1,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "kroger-kuykendahl",
+          "priority": 2,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 3,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "rajas-de-jalapeno",
+      "name": "Rajas de jalapeño",
+      "categoryId": "abarrotes",
+      "unitCapture": "pza",
+      "suppliers": [
+        {
+          "supplierId": "heb",
+          "priority": 1,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "kroger-kuykendahl",
+          "priority": 2,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 3,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "vinagre",
+      "name": "Vinagre",
+      "categoryId": "abarrotes",
+      "unitCapture": "botella",
+      "suppliers": [
+        {
+          "supplierId": "heb",
+          "priority": 1,
+          "purchaseUnit": "botella",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "kroger-kuykendahl",
+          "priority": 2,
+          "purchaseUnit": "botella",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 3,
+          "purchaseUnit": "botella",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "agua-natural",
+      "name": "Agua natural",
+      "categoryId": "bebidas",
+      "unitCapture": "caja",
+      "suppliers": [
+        {
+          "supplierId": "sams",
+          "priority": 1,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 2,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "heb",
+          "priority": 3,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "coca-mexicana",
+      "name": "Coca Mexicana",
+      "categoryId": "bebidas",
+      "unitCapture": "caja",
+      "suppliers": [
+        {
+          "supplierId": "mendez-produce",
+          "priority": 1,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 2,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 3,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "coca-normal-lata",
+      "name": "Coca Normal (lata)",
+      "categoryId": "bebidas",
+      "unitCapture": "caja",
+      "suppliers": [
+        {
+          "supplierId": "sams",
+          "priority": 1,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 2,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 3,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "coca-zero-lata",
+      "name": "Coca Zero (lata)",
+      "categoryId": "bebidas",
+      "unitCapture": "caja",
+      "suppliers": [
+        {
+          "supplierId": "sams",
+          "priority": 1,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 2,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 3,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "sprite",
+      "name": "Sprite",
+      "categoryId": "bebidas",
+      "unitCapture": "caja",
+      "suppliers": [
+        {
+          "supplierId": "4-aces",
+          "priority": 1,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "sams",
+          "priority": 2,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 3,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "squirt",
+      "name": "Squirt",
+      "categoryId": "bebidas",
+      "unitCapture": "caja",
+      "suppliers": [
+        {
+          "supplierId": "4-aces",
+          "priority": 1,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "sams",
+          "priority": 2,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 3,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "sunkist",
+      "name": "Sunkist",
+      "categoryId": "bebidas",
+      "unitCapture": "caja",
+      "suppliers": [
+        {
+          "supplierId": "4-aces",
+          "priority": 1,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "sams",
+          "priority": 2,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 3,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "topo-chico",
+      "name": "Topo Chico",
+      "categoryId": "bebidas",
+      "unitCapture": "caja",
+      "suppliers": [
+        {
+          "supplierId": "sams",
+          "priority": 1,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 2,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 3,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "barbacoa",
+      "name": "Barbacoa",
+      "categoryId": "carnes",
+      "unitCapture": "lb",
+      "suppliers": [
+        {
+          "supplierId": "amigos-meat",
+          "priority": 1,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 2,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 3,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "birria",
+      "name": "Birria",
+      "categoryId": "carnes",
+      "unitCapture": "lb",
+      "suppliers": [
+        {
+          "supplierId": "amigos-meat",
+          "priority": 1,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 2,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 3,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "buche-carnitas",
+      "name": "Buche (Carnitas)",
+      "categoryId": "carnes",
+      "unitCapture": "lb",
+      "suppliers": [
+        {
+          "supplierId": "amigos-meat",
+          "priority": 1,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 2,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "sams",
+          "priority": 3,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "carnitas",
+      "name": "Carnitas",
+      "categoryId": "carnes",
+      "unitCapture": "lb",
+      "suppliers": [
+        {
+          "supplierId": "amigos-meat",
+          "priority": 1,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 2,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 3,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "consome",
+      "name": "Consomé",
+      "categoryId": "carnes",
+      "unitCapture": "litro",
+      "suppliers": [
+        {
+          "supplierId": "amigos-meat",
+          "priority": 1,
+          "purchaseUnit": "litro",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 2,
+          "purchaseUnit": "litro",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 3,
+          "purchaseUnit": "litro",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "costilla",
+      "name": "Costilla",
+      "categoryId": "carnes",
+      "unitCapture": "lb",
+      "suppliers": [
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 1,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "sams",
+          "priority": 2,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "heb",
+          "priority": 3,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "cuerito-carnitas",
+      "name": "Cuerito (Carnitas)",
+      "categoryId": "carnes",
+      "unitCapture": "lb",
+      "suppliers": [
+        {
+          "supplierId": "amigos-meat",
+          "priority": 1,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 2,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "sams",
+          "priority": 3,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "fajita",
+      "name": "Fajita",
+      "categoryId": "carnes",
+      "unitCapture": "lb",
+      "suppliers": [
+        {
+          "supplierId": "amigos-meat",
+          "priority": 1,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 2,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 3,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "pastor",
+      "name": "Pastor",
+      "categoryId": "carnes",
+      "unitCapture": "lb",
+      "suppliers": [
+        {
+          "supplierId": "amigos-meat",
+          "priority": 1,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 2,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 3,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "pollo",
+      "name": "Pollo",
+      "categoryId": "carnes",
+      "unitCapture": "lb",
+      "suppliers": [
+        {
+          "supplierId": "amigos-meat",
+          "priority": 1,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 2,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 3,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "pork-belly",
+      "name": "Pork Belly",
+      "categoryId": "carnes",
+      "unitCapture": "lb",
+      "suppliers": [
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 1,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 2,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "sams",
+          "priority": 3,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "porkbut-carnitas",
+      "name": "PorkBut (Carnitas)",
+      "categoryId": "carnes",
+      "unitCapture": "caja",
+      "suppliers": [
+        {
+          "supplierId": "amigos-meat",
+          "priority": 1,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 2,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "sams",
+          "priority": 3,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "ajo-condimento",
+      "name": "Ajo (condimento)",
+      "categoryId": "condimentos-y-chiles",
+      "unitCapture": "pza",
+      "suppliers": [
+        {
+          "supplierId": "heb",
+          "priority": 1,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "kroger-kuykendahl",
+          "priority": 2,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 3,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "chile-ancho",
+      "name": "Chile ancho",
+      "categoryId": "condimentos-y-chiles",
+      "unitCapture": "lb",
+      "suppliers": [
+        {
+          "supplierId": "heb",
+          "priority": 1,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "kroger-kuykendahl",
+          "priority": 2,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 3,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "chile-de-arbol",
+      "name": "Chile de Árbol",
+      "categoryId": "condimentos-y-chiles",
+      "unitCapture": "lb",
+      "suppliers": [
+        {
+          "supplierId": "mendez-produce",
+          "priority": 1,
+          "purchaseUnit": "costal",
+          "contentPerPurchaseUnit": 5.0,
+          "orderStep": 0.5,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "heb",
+          "priority": 2,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 3,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "chile-guajillo",
+      "name": "Chile guajillo",
+      "categoryId": "condimentos-y-chiles",
+      "unitCapture": "lb",
+      "suppliers": [
+        {
+          "supplierId": "heb",
+          "priority": 1,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "kroger-kuykendahl",
+          "priority": 2,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 3,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "comino",
+      "name": "Comino",
+      "categoryId": "condimentos-y-chiles",
+      "unitCapture": "bote",
+      "suppliers": [
+        {
+          "supplierId": "sams",
+          "priority": 1,
+          "purchaseUnit": "bote",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 2,
+          "purchaseUnit": "bote",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 3,
+          "purchaseUnit": "bote",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "hojas-de-laurel",
+      "name": "Hojas de laurel",
+      "categoryId": "condimentos-y-chiles",
+      "unitCapture": "paquete",
+      "suppliers": [
+        {
+          "supplierId": "heb",
+          "priority": 1,
+          "purchaseUnit": "paquete",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "kroger-kuykendahl",
+          "priority": 2,
+          "purchaseUnit": "paquete",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 3,
+          "purchaseUnit": "paquete",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "norzuiza-knorr-suiza",
+      "name": "Norzuiza (Knorr Suiza)",
+      "categoryId": "condimentos-y-chiles",
+      "unitCapture": "paquete",
+      "suppliers": [
+        {
+          "supplierId": "heb",
+          "priority": 1,
+          "purchaseUnit": "paquete",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "kroger-kuykendahl",
+          "priority": 2,
+          "purchaseUnit": "paquete",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "kroger-gosling",
+          "priority": 3,
+          "purchaseUnit": "paquete",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "oregano",
+      "name": "Orégano",
+      "categoryId": "condimentos-y-chiles",
+      "unitCapture": "pza",
+      "suppliers": [
+        {
+          "supplierId": "heb",
+          "priority": 1,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "kroger-kuykendahl",
+          "priority": 2,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 3,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "pimienta",
+      "name": "Pimienta",
+      "categoryId": "condimentos-y-chiles",
+      "unitCapture": "bote",
+      "suppliers": [
+        {
+          "supplierId": "sams",
+          "priority": 1,
+          "purchaseUnit": "bote",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 2,
+          "purchaseUnit": "bote",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 3,
+          "purchaseUnit": "bote",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "sal-granel",
+      "name": "Sal (granel)",
+      "categoryId": "condimentos-y-chiles",
+      "unitCapture": "lb",
+      "suppliers": [
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 1,
+          "purchaseUnit": "costal",
+          "contentPerPurchaseUnit": 25.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "heb",
+          "priority": 2,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "kroger-kuykendahl",
+          "priority": 3,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "sal-sobres",
+      "name": "Sal (sobres)",
+      "categoryId": "condimentos-y-chiles",
+      "unitCapture": "bolsa",
+      "suppliers": [
+        {
+          "supplierId": "sams-online",
+          "priority": 1,
+          "purchaseUnit": "bolsa",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "sams",
+          "priority": 2,
+          "purchaseUnit": "bolsa",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 3,
+          "purchaseUnit": "bolsa",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "tomillo",
+      "name": "Tomillo",
+      "categoryId": "condimentos-y-chiles",
+      "unitCapture": "pza",
+      "suppliers": [
+        {
+          "supplierId": "heb",
+          "priority": 1,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "kroger-kuykendahl",
+          "priority": 2,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 3,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "vainilla",
+      "name": "Vainilla",
+      "categoryId": "condimentos-y-chiles",
+      "unitCapture": "botella",
+      "suppliers": [
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 1,
+          "purchaseUnit": "botella",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "heb",
+          "priority": 2,
+          "purchaseUnit": "botella",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "kroger-kuykendahl",
+          "priority": 3,
+          "purchaseUnit": "botella",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "bolsa-para-crema-y-queso",
+      "name": "Bolsa para crema y queso",
+      "categoryId": "desechables-y-empaques",
+      "unitCapture": "caja",
+      "suppliers": [
+        {
+          "supplierId": "bolsas-2520-airline-dr",
+          "priority": 1,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 2,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 3,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "bolsa-plastica-thank-you",
+      "name": "Bolsa plástica THANK YOU",
+      "categoryId": "desechables-y-empaques",
+      "unitCapture": "caja",
+      "suppliers": [
+        {
+          "supplierId": "bolsas-2520-airline-dr",
+          "priority": 1,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 2,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 3,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "bolsa-ziploc-chica",
+      "name": "Bolsa ziploc chica",
+      "categoryId": "desechables-y-empaques",
+      "unitCapture": "caja",
+      "suppliers": [
+        {
+          "supplierId": "bolsas-2520-airline-dr",
+          "priority": 1,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 2,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 3,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "bolsas-de-basura",
+      "name": "Bolsas de basura",
+      "categoryId": "desechables-y-empaques",
+      "unitCapture": "caja",
+      "suppliers": [
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 1,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 2,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "sams",
+          "priority": 3,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "bolsas-de-papel",
+      "name": "Bolsas de papel",
+      "categoryId": "desechables-y-empaques",
+      "unitCapture": "paquete",
+      "suppliers": [
+        {
+          "supplierId": "bolsas-2520-airline-dr",
+          "priority": 1,
+          "purchaseUnit": "paquete",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 2,
+          "purchaseUnit": "paquete",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 3,
+          "purchaseUnit": "paquete",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "bolsas-para-jalapenos",
+      "name": "Bolsas para jalapeños",
+      "categoryId": "desechables-y-empaques",
+      "unitCapture": "caja",
+      "suppliers": [
+        {
+          "supplierId": "bolsas-2520-airline-dr",
+          "priority": 1,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 2,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 3,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "bolsas-para-salsa-rollo",
+      "name": "Bolsas para salsa (rollo)",
+      "categoryId": "desechables-y-empaques",
+      "unitCapture": "rollo",
+      "suppliers": [
+        {
+          "supplierId": "bolsas-2520-airline-dr",
+          "priority": 1,
+          "purchaseUnit": "rollo",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 2,
+          "purchaseUnit": "rollo",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 3,
+          "purchaseUnit": "rollo",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "bolsas-para-salsa-chilaquiles",
+      "name": "Bolsas para salsa chilaquiles",
+      "categoryId": "desechables-y-empaques",
+      "unitCapture": "caja",
+      "suppliers": [
+        {
+          "supplierId": "bolsas-2520-airline-dr",
+          "priority": 1,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 2,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 3,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "charolas",
+      "name": "Charolas",
+      "categoryId": "desechables-y-empaques",
+      "unitCapture": "caja",
+      "suppliers": [
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 1,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 2,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "sams",
+          "priority": 3,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "charolas-de-aluminio",
+      "name": "Charolas de aluminio",
+      "categoryId": "desechables-y-empaques",
+      "unitCapture": "caja",
+      "suppliers": [
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 1,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 2,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "sams",
+          "priority": 3,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "cubiertos",
+      "name": "Cubiertos",
+      "categoryId": "desechables-y-empaques",
+      "unitCapture": "caja",
+      "suppliers": [
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 1,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 2,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "sams",
+          "priority": 3,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "cucharas",
+      "name": "Cucharas",
+      "categoryId": "desechables-y-empaques",
+      "unitCapture": "caja",
+      "suppliers": [
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 1,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 2,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "sams",
+          "priority": 3,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "cup-1-oz",
+      "name": "Cup 1 oz",
+      "categoryId": "desechables-y-empaques",
+      "unitCapture": "caja",
+      "suppliers": [
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 1,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 2,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "sams",
+          "priority": 3,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "cup-2-oz",
+      "name": "Cup 2 oz",
+      "categoryId": "desechables-y-empaques",
+      "unitCapture": "caja",
+      "suppliers": [
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 1,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 2,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "sams",
+          "priority": 3,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "envase-barbacoa-16-oz",
+      "name": "Envase barbacoa 16 oz",
+      "categoryId": "desechables-y-empaques",
+      "unitCapture": "caja",
+      "suppliers": [
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 1,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 2,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "sams",
+          "priority": 3,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "envase-barbacoa-grande",
+      "name": "Envase barbacoa grande",
+      "categoryId": "desechables-y-empaques",
+      "unitCapture": "caja",
+      "suppliers": [
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 1,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 2,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "sams",
+          "priority": 3,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "envase-birria-tamano-por-definir",
+      "name": "Envase birria (tamaño por definir)",
+      "categoryId": "desechables-y-empaques",
+      "unitCapture": "caja",
+      "suppliers": [
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 1,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 2,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "sams",
+          "priority": 3,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "envase-chilaquiles",
+      "name": "Envase chilaquiles",
+      "categoryId": "desechables-y-empaques",
+      "unitCapture": "caja",
+      "suppliers": [
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 1,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 2,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "sams",
+          "priority": 3,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "guantes-m",
+      "name": "Guantes M",
+      "categoryId": "desechables-y-empaques",
+      "unitCapture": "caja",
+      "suppliers": [
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 1,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 2,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "sams",
+          "priority": 3,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "guantes-xl",
+      "name": "Guantes XL",
+      "categoryId": "desechables-y-empaques",
+      "unitCapture": "caja",
+      "suppliers": [
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 1,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 2,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "sams",
+          "priority": 3,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "palillos",
+      "name": "Palillos",
+      "categoryId": "desechables-y-empaques",
+      "unitCapture": "caja",
+      "suppliers": [
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 1,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 2,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "sams",
+          "priority": 3,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "papel-aluminio",
+      "name": "Papel aluminio",
+      "categoryId": "desechables-y-empaques",
+      "unitCapture": "rollo",
+      "suppliers": [
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 1,
+          "purchaseUnit": "rollo",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 2,
+          "purchaseUnit": "rollo",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "sams",
+          "priority": 3,
+          "purchaseUnit": "rollo",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "papel-aluminio-grande-4x10",
+      "name": "Papel aluminio grande 4x10",
+      "categoryId": "desechables-y-empaques",
+      "unitCapture": "paquete",
+      "suppliers": [
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 1,
+          "purchaseUnit": "paquete",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 2,
+          "purchaseUnit": "paquete",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "sams",
+          "priority": 3,
+          "purchaseUnit": "paquete",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "papel-aluminio-grande-4x6",
+      "name": "Papel aluminio grande 4x6",
+      "categoryId": "desechables-y-empaques",
+      "unitCapture": "paquete",
+      "suppliers": [
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 1,
+          "purchaseUnit": "paquete",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 2,
+          "purchaseUnit": "paquete",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "sams",
+          "priority": 3,
+          "purchaseUnit": "paquete",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "papel-blanco-encerado",
+      "name": "Papel blanco encerado",
+      "categoryId": "desechables-y-empaques",
+      "unitCapture": "rollo",
+      "suppliers": [
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 1,
+          "purchaseUnit": "rollo",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 2,
+          "purchaseUnit": "rollo",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "sams",
+          "priority": 3,
+          "purchaseUnit": "rollo",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "papel-cuadritos",
+      "name": "Papel cuadritos",
+      "categoryId": "desechables-y-empaques",
+      "unitCapture": "paquete",
+      "suppliers": [
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 1,
+          "purchaseUnit": "paquete",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 2,
+          "purchaseUnit": "paquete",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "sams",
+          "priority": 3,
+          "purchaseUnit": "paquete",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "platos",
+      "name": "Platos",
+      "categoryId": "desechables-y-empaques",
+      "unitCapture": "caja",
+      "suppliers": [
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 1,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 2,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "sams",
+          "priority": 3,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "popotes",
+      "name": "Popotes",
+      "categoryId": "desechables-y-empaques",
+      "unitCapture": "caja",
+      "suppliers": [
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 1,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 2,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "sams",
+          "priority": 3,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "portavasos",
+      "name": "Portavasos",
+      "categoryId": "desechables-y-empaques",
+      "unitCapture": "caja",
+      "suppliers": [
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 1,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 2,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "sams",
+          "priority": 3,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "servilletas",
+      "name": "Servilletas",
+      "categoryId": "desechables-y-empaques",
+      "unitCapture": "paquete",
+      "suppliers": [
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 1,
+          "purchaseUnit": "paquete",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 2,
+          "purchaseUnit": "paquete",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "sams",
+          "priority": 3,
+          "purchaseUnit": "paquete",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "servilletero-porta-servilletas",
+      "name": "Servilletero (porta servilletas)",
+      "categoryId": "desechables-y-empaques",
+      "unitCapture": "pza",
+      "suppliers": [
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 1,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 2,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "sams",
+          "priority": 3,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "servitoallas",
+      "name": "Servitoallas",
+      "categoryId": "desechables-y-empaques",
+      "unitCapture": "paquete",
+      "suppliers": [
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 1,
+          "purchaseUnit": "paquete",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 2,
+          "purchaseUnit": "paquete",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "sams",
+          "priority": 3,
+          "purchaseUnit": "paquete",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "tapa-cup-1-oz",
+      "name": "Tapa cup 1 oz",
+      "categoryId": "desechables-y-empaques",
+      "unitCapture": "caja",
+      "suppliers": [
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 1,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 2,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "sams",
+          "priority": 3,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "tapa-cup-2-oz",
+      "name": "Tapa cup 2 oz",
+      "categoryId": "desechables-y-empaques",
+      "unitCapture": "caja",
+      "suppliers": [
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 1,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 2,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "sams",
+          "priority": 3,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "tapa-envase-chilaquiles",
+      "name": "Tapa envase chilaquiles",
+      "categoryId": "desechables-y-empaques",
+      "unitCapture": "caja",
+      "suppliers": [
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 1,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 2,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "sams",
+          "priority": 3,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "tapa-vaso-20-oz",
+      "name": "Tapa vaso 20 oz",
+      "categoryId": "desechables-y-empaques",
+      "unitCapture": "caja",
+      "suppliers": [
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 1,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 2,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "sams",
+          "priority": 3,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "tapa-vaso-32-oz",
+      "name": "Tapa vaso 32 oz",
+      "categoryId": "desechables-y-empaques",
+      "unitCapture": "caja",
+      "suppliers": [
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 1,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 2,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "sams",
+          "priority": 3,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "tapa-vaso-birria",
+      "name": "Tapa vaso birria",
+      "categoryId": "desechables-y-empaques",
+      "unitCapture": "caja",
+      "suppliers": [
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 1,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 2,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "sams",
+          "priority": 3,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "vaso-20-oz",
+      "name": "Vaso 20 oz",
+      "categoryId": "desechables-y-empaques",
+      "unitCapture": "caja",
+      "suppliers": [
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 1,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 2,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "sams",
+          "priority": 3,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "vaso-32-oz",
+      "name": "Vaso 32 oz",
+      "categoryId": "desechables-y-empaques",
+      "unitCapture": "caja",
+      "suppliers": [
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 1,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 2,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "sams",
+          "priority": 3,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "vaso-birria",
+      "name": "Vaso birria",
+      "categoryId": "desechables-y-empaques",
+      "unitCapture": "caja",
+      "suppliers": [
+        {
+          "supplierId": "restaurant-depot-tomball",
+          "priority": 1,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 2,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "sams",
+          "priority": 3,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "crema-salvador",
+      "name": "Crema Salvador",
+      "categoryId": "lacteos-y-refrigerados",
+      "unitCapture": "pza",
+      "suppliers": [
+        {
+          "supplierId": "heb",
+          "priority": 1,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "kroger-kuykendahl",
+          "priority": 2,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 3,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "crema-para-lonches",
+      "name": "Crema para lonches",
+      "categoryId": "lacteos-y-refrigerados",
+      "unitCapture": "pza",
+      "suppliers": [
+        {
+          "supplierId": "heb",
+          "priority": 1,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "kroger-kuykendahl",
+          "priority": 2,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 3,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "mantequilla",
+      "name": "Mantequilla",
+      "categoryId": "lacteos-y-refrigerados",
+      "unitCapture": "pza",
+      "suppliers": [
+        {
+          "supplierId": "heb",
+          "priority": 1,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "kroger-kuykendahl",
+          "priority": 2,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 3,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "mayonesa",
+      "name": "Mayonesa",
+      "categoryId": "lacteos-y-refrigerados",
+      "unitCapture": "pza",
+      "suppliers": [
+        {
+          "supplierId": "heb",
+          "priority": 1,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "kroger-kuykendahl",
+          "priority": 2,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 3,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "queso-para-quesadillas",
+      "name": "Queso para quesadillas",
+      "categoryId": "lacteos-y-refrigerados",
+      "unitCapture": "lb",
+      "suppliers": [
+        {
+          "supplierId": "heb",
+          "priority": 1,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "kroger-kuykendahl",
+          "priority": 2,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 3,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "queso-seco",
+      "name": "Queso seco",
+      "categoryId": "lacteos-y-refrigerados",
+      "unitCapture": "lb",
+      "suppliers": [
+        {
+          "supplierId": "heb",
+          "priority": 1,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "kroger-kuykendahl",
+          "priority": 2,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 3,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "rollo-terminal",
+      "name": "Rollo terminal",
+      "categoryId": "operacion-caja",
+      "unitCapture": "rollo",
+      "suppliers": [
+        {
+          "supplierId": "heb",
+          "priority": 1,
+          "purchaseUnit": "rollo",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "sams",
+          "priority": 2,
+          "purchaseUnit": "rollo",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 3,
+          "purchaseUnit": "rollo",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "jericallas",
+      "name": "Jericallas",
+      "categoryId": "postres",
+      "unitCapture": "pza",
+      "suppliers": [
+        {
+          "supplierId": "postres",
+          "priority": 1,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "costco",
+          "priority": 2,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "heb",
+          "priority": 3,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "harina",
+      "name": "Harina",
+      "categoryId": "tortilleria",
+      "unitCapture": "lb",
+      "suppliers": [
+        {
+          "supplierId": "tortilleria-la-mejor",
+          "priority": 1,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "heb",
+          "priority": 2,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "kroger-kuykendahl",
+          "priority": 3,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "maiz",
+      "name": "Maíz",
+      "categoryId": "tortilleria",
+      "unitCapture": "lb",
+      "suppliers": [
+        {
+          "supplierId": "tortilleria-la-mejor",
+          "priority": 1,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "heb",
+          "priority": 2,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "kroger-kuykendahl",
+          "priority": 3,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "tortilla-para-burrito",
+      "name": "Tortilla para burrito",
+      "categoryId": "tortilleria",
+      "unitCapture": "paquete",
+      "suppliers": [
+        {
+          "supplierId": "tortilleria-la-mejor",
+          "priority": 1,
+          "purchaseUnit": "paquete",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "heb",
+          "priority": 2,
+          "purchaseUnit": "paquete",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "kroger-kuykendahl",
+          "priority": 3,
+          "purchaseUnit": "paquete",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "tortillas-de-maiz",
+      "name": "Tortillas de maíz",
+      "categoryId": "tortilleria",
+      "unitCapture": "caja",
+      "suppliers": [
+        {
+          "supplierId": "tortilleria-la-mejor",
+          "priority": 1,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "heb",
+          "priority": 2,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "kroger-kuykendahl",
+          "priority": 3,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "aguacate",
+      "name": "Aguacate",
+      "categoryId": "verdura-y-fruta",
+      "unitCapture": "lb",
+      "suppliers": [
+        {
+          "supplierId": "mendez-produce",
+          "priority": 1,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "heb",
+          "priority": 2,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "kroger-kuykendahl",
+          "priority": 3,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "cebolla",
+      "name": "Cebolla",
+      "categoryId": "verdura-y-fruta",
+      "unitCapture": "lb",
+      "suppliers": [
+        {
+          "supplierId": "mendez-produce",
+          "priority": 1,
+          "purchaseUnit": "costal",
+          "contentPerPurchaseUnit": 50.0,
+          "orderStep": 0.5,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "heb",
+          "priority": 2,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "kroger-kuykendahl",
+          "priority": 3,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": "Alterno: Kroger Gosling"
+        }
+      ]
+    },
+    {
+      "id": "chile-habanero",
+      "name": "Chile habanero",
+      "categoryId": "verdura-y-fruta",
+      "unitCapture": "lb",
+      "suppliers": [
+        {
+          "supplierId": "mendez-produce",
+          "priority": 1,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "heb",
+          "priority": 2,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "kroger-kuykendahl",
+          "priority": 3,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "chile-serrano",
+      "name": "Chile serrano",
+      "categoryId": "verdura-y-fruta",
+      "unitCapture": "lb",
+      "suppliers": [
+        {
+          "supplierId": "mendez-produce",
+          "priority": 1,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "heb",
+          "priority": 2,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "kroger-kuykendahl",
+          "priority": 3,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "cilantro",
+      "name": "Cilantro",
+      "categoryId": "verdura-y-fruta",
+      "unitCapture": "manojo",
+      "suppliers": [
+        {
+          "supplierId": "mendez-produce",
+          "priority": 1,
+          "purchaseUnit": "manojo",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "heb",
+          "priority": 2,
+          "purchaseUnit": "manojo",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "kroger-kuykendahl",
+          "priority": 3,
+          "purchaseUnit": "manojo",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "col",
+      "name": "Col",
+      "categoryId": "verdura-y-fruta",
+      "unitCapture": "pza",
+      "suppliers": [
+        {
+          "supplierId": "mendez-produce",
+          "priority": 1,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "heb",
+          "priority": 2,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "kroger-kuykendahl",
+          "priority": 3,
+          "purchaseUnit": "pza",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "limon",
+      "name": "Limón",
+      "categoryId": "verdura-y-fruta",
+      "unitCapture": "lb",
+      "suppliers": [
+        {
+          "supplierId": "mendez-produce",
+          "priority": 1,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "heb",
+          "priority": 2,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "kroger-kuykendahl",
+          "priority": 3,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "papa",
+      "name": "Papa",
+      "categoryId": "verdura-y-fruta",
+      "unitCapture": "lb",
+      "suppliers": [
+        {
+          "supplierId": "mendez-produce",
+          "priority": 1,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "heb",
+          "priority": 2,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "kroger-kuykendahl",
+          "priority": 3,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        }
+      ]
+    },
+    {
+      "id": "tomate-roma",
+      "name": "Tomate Roma",
+      "categoryId": "verdura-y-fruta",
+      "unitCapture": "lb",
+      "suppliers": [
+        {
+          "supplierId": "mendez-produce",
+          "priority": 1,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 25.0,
+          "orderStep": 0.5,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "heb",
+          "priority": 2,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "kroger-kuykendahl",
+          "priority": 3,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": "Alterno: Kroger Gosling"
+        }
+      ]
+    },
+    {
+      "id": "tomatillo",
+      "name": "Tomatillo",
+      "categoryId": "verdura-y-fruta",
+      "unitCapture": "lb",
+      "suppliers": [
+        {
+          "supplierId": "mendez-produce",
+          "priority": 1,
+          "purchaseUnit": "caja",
+          "contentPerPurchaseUnit": 35.0,
+          "orderStep": 0.5,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "heb",
+          "priority": 2,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": null
+        },
+        {
+          "supplierId": "kroger-kuykendahl",
+          "priority": 3,
+          "purchaseUnit": "lb",
+          "contentPerPurchaseUnit": 1.0,
+          "orderStep": 1.0,
+          "defaultPurchaseQty": 1.0,
+          "notes": "Alterno: Kroger Gosling"
+        }
+      ]
+    }
+  ]
+}

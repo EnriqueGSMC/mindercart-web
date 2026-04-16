@@ -1,0 +1,391 @@
+// FILE: src/app/basic/entregas/page.tsx
+"use client";
+
+import React, { useEffect, useMemo, useState } from "react";
+import type { PurchaseOrder, UserLite } from "@/lib/types";
+
+type TabKey = "recibido" | "historial";
+
+function Badge({ kind, children }: { kind: "ok" | "bad"; children: React.ReactNode }) {
+  return <span className={`badge ${kind === "ok" ? "badge-ok" : "badge-bad"}`}>{children}</span>;
+}
+
+function Modal(props: { open: boolean; title: string; onClose: () => void; children: React.ReactNode }) {
+  if (!props.open) return null;
+  return (
+    <div className="modal-backdrop" role="dialog" aria-modal="true" onMouseDown={props.onClose}>
+      <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <div style={{ fontWeight: 700 }}>{props.title}</div>
+            <div className="muted" style={{ fontSize: 13 }}>Checklist de recepción</div>
+          </div>
+          <button className="btn" onClick={props.onClose}>Cerrar</button>
+        </div>
+        <div className="modal-body">{props.children}</div>
+      </div>
+    </div>
+  );
+}
+
+function formatDate(iso?: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleString();
+}
+
+export default function BasicEntregasPage() {
+  const [tab, setTab] = useState<TabKey>("recibido");
+
+  const [users, setUsers] = useState<UserLite[]>([]);
+  const [deliveredByUserId, setDeliveredByUserId] = useState<string>("");
+
+  const [q, setQ] = useState<string>("");
+  const [loading, setLoading] = useState(false);
+  const [orders, setOrders] = useState<PurchaseOrder[]>([]);
+  const [history, setHistory] = useState<PurchaseOrder[]>([]);
+
+  const [activeOrder, setActiveOrder] = useState<PurchaseOrder | null>(null);
+  const [checked, setChecked] = useState<Record<string, boolean>>({});
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string>("");
+
+  useEffect(() => {
+    (async () => {
+      const res = await fetch("/api/users", { cache: "no-store" });
+      const data = await res.json();
+      setUsers((data.users ?? []) as UserLite[]);
+    })();
+  }, []);
+
+  async function loadTabData(nextTab: TabKey, query: string) {
+    setLoading(true);
+    setError("");
+    try {
+      if (nextTab === "recibido") {
+        const res = await fetch(`/api/basic/receiving/deliveries?q=${encodeURIComponent(query)}`, { cache: "no-store" });
+        const data = await res.json();
+        setOrders((data.orders ?? []) as PurchaseOrder[]);
+      } else {
+        const res = await fetch(`/api/basic/receiving/history?q=${encodeURIComponent(query)}`, { cache: "no-store" });
+        const data = await res.json();
+        setHistory((data.orders ?? []) as PurchaseOrder[]);
+      }
+    } catch (e: any) {
+      setError(e?.message ?? "Error cargando datos");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadTabData(tab, q);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
+
+  const list = tab === "recibido" ? orders : history;
+
+  const groupedForRecibido = useMemo(() => {
+    if (tab !== "recibido") return [];
+    const map = new Map<string, PurchaseOrder[]>();
+    for (const o of orders) {
+      const key = o.supplierName || "Sin proveedor";
+      const arr = map.get(key) ?? [];
+      arr.push(o);
+      map.set(key, arr);
+    }
+    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  }, [orders, tab]);
+
+  function openOrder(o: PurchaseOrder) {
+    setActiveOrder(o);
+    const init: Record<string, boolean> = {};
+    for (const it of o.items ?? []) init[it.id] = false;
+    setChecked(init);
+  }
+
+  function allChecked(): boolean {
+    if (!activeOrder) return false;
+    const ids = (activeOrder.items ?? []).map(i => i.id);
+    return ids.length > 0 && ids.every(id => checked[id] === true);
+  }
+
+  async function saveReceive() {
+    if (!activeOrder) return;
+    if (!deliveredByUserId) {
+      setError("Selecciona quién entrega antes de recibir.");
+      return;
+    }
+    if (!allChecked()) {
+      setError("Recepción parcial no permitida: marca todos los artículos.");
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+    try {
+      const receivedItemIds = Object.entries(checked).filter(([, v]) => v).map(([k]) => k);
+      const res = await fetch("/api/basic/receiving/receive", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId: activeOrder.id,
+          deliveredByUserId,
+          receivedItemIds,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error ?? "No se pudo guardar");
+
+      setActiveOrder(null);
+      setChecked({});
+      await loadTabData("recibido", q);
+      await loadTabData("historial", q);
+    } catch (e: any) {
+      setError(e?.message ?? "Error guardando recepción");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="container">
+      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+        <div>
+          <div style={{ fontSize: 22, fontWeight: 800 }}>Entregas / Recepción</div>
+          <div className="muted" style={{ marginTop: 4 }}>
+            BASIC: Recibe órdenes cerradas (sin recepción parcial).
+          </div>
+        </div>
+
+        <div className="tabs" aria-label="tabs">
+          <button className={`tab ${tab === "recibido" ? "tab-active" : ""}`} onClick={() => setTab("recibido")}>Recibido</button>
+          <button className={`tab ${tab === "historial" ? "tab-active" : ""}`} onClick={() => setTab("historial")}>Historial</button>
+        </div>
+      </div>
+
+      <div className="hr" style={{ margin: "14px 0" }} />
+
+      {tab === "recibido" && (
+        <div className="grid" style={{ marginBottom: 12 }}>
+          <div className="col-6">
+            <div className="label">¿Quién entrega?</div>
+            <select
+              className="select"
+              value={deliveredByUserId}
+              onChange={(e) => setDeliveredByUserId(e.target.value)}
+            >
+              <option value="">Selecciona usuario…</option>
+              {users.map(u => (
+                <option key={u.id} value={u.id}>{u.name}</option>
+              ))}
+            </select>
+            <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+              Se guarda en la orden como <span style={{ color: "#000" }}>deliveredBy</span>.
+            </div>
+          </div>
+
+          <div className="col-6">
+            <div className="label">Buscar (proveedor o # orden)</div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <input className="input" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ej: Coca, 10492…" />
+              <button className="btn" onClick={() => loadTabData(tab, q)} disabled={loading}>Buscar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tab === "historial" && (
+        <div className="grid" style={{ marginBottom: 12 }}>
+          <div className="col-12">
+            <div className="label">Buscar (proveedor o # orden)</div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <input className="input" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ej: Bimbo, 9381…" />
+              <button className="btn" onClick={() => loadTabData(tab, q)} disabled={loading}>Buscar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {error && (
+        <div className="card" style={{ borderColor: "#b00020", color: "#b00020", marginBottom: 12 }}>
+          {error}
+        </div>
+      )}
+
+      {loading && <div className="muted">Cargando…</div>}
+
+      {!loading && tab === "recibido" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {groupedForRecibido.length === 0 ? (
+            <div className="muted">No hay órdenes por recibir.</div>
+          ) : (
+            groupedForRecibido.map(([supplier, ordersBySupplier]) => (
+              <div key={supplier} className="card">
+                <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                  <div style={{ fontWeight: 800, fontSize: 16 }}>{supplier}</div>
+                  <div className="muted" style={{ fontSize: 13 }}>
+                    {ordersBySupplier.length} orden(es)
+                  </div>
+                </div>
+
+                <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 10 }}>
+                  {ordersBySupplier.map(o => (
+                    <div key={o.id} className="card" style={{ borderRadius: 14 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                        <div style={{ fontWeight: 700 }}>
+                          #{o.orderNumber ?? o.id.slice(0, 8)}
+                        </div>
+                        <div className="muted" style={{ fontSize: 12 }}>
+                          {o.items?.length ?? 0} art.
+                        </div>
+                      </div>
+
+                      <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+                        Cerrada: {formatDate(o.closedAt)}
+                      </div>
+
+                      <div style={{ marginTop: 10, display: "flex", justifyContent: "space-between", gap: 10 }}>
+                        <button
+                          className="btn btn-primary"
+                          onClick={() => openOrder(o)}
+                          disabled={!deliveredByUserId}
+                          title={!deliveredByUserId ? "Selecciona quién entrega primero" : ""}
+                        >
+                          Recibir
+                        </button>
+                        <button className="btn" onClick={() => openOrder(o)}>Ver checklist</button>
+                      </div>
+
+                      {!deliveredByUserId && (
+                        <div className="muted" style={{ fontSize: 12, marginTop: 8 }}>
+                          Selecciona “Quién entrega” para habilitar recepción.
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {!loading && tab === "historial" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {history.length === 0 ? (
+            <div className="muted">No hay historial.</div>
+          ) : (
+            history.map(o => (
+              <div key={o.id} className="card">
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                    <div style={{ fontWeight: 800 }}>
+                      {o.supplierName} — #{o.orderNumber ?? o.id.slice(0, 8)}
+                    </div>
+                    <div className="muted" style={{ fontSize: 12 }}>
+                      Recibida: {formatDate(o.receivedAt)} · Entrega: {o.deliveredByName ?? "—"}
+                    </div>
+                  </div>
+                  <div className="muted" style={{ fontSize: 12 }}>{o.items?.length ?? 0} art.</div>
+                </div>
+                <div style={{ marginTop: 10 }}>
+                  <button className="btn" onClick={() => openOrder(o)}>Ver detalle</button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      <Modal
+        open={!!activeOrder}
+        title={activeOrder ? `${activeOrder.supplierName} — #${activeOrder.orderNumber ?? activeOrder.id.slice(0, 8)}` : ""}
+        onClose={() => setActiveOrder(null)}
+      >
+        {activeOrder && (
+          <>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
+              <div className="muted" style={{ fontSize: 13 }}>
+                {tab === "recibido" ? "Marca todos para completar recepción." : "Detalle (solo lectura)."}
+              </div>
+
+              {tab === "recibido" && (
+                <>
+                  <button
+                    className="btn"
+                    onClick={() => {
+                      const next: Record<string, boolean> = {};
+                      for (const it of activeOrder.items ?? []) next[it.id] = true;
+                      setChecked(next);
+                    }}
+                  >
+                    Marcar todo
+                  </button>
+                  <button
+                    className="btn"
+                    onClick={() => {
+                      const next: Record<string, boolean> = {};
+                      for (const it of activeOrder.items ?? []) next[it.id] = false;
+                      setChecked(next);
+                    }}
+                  >
+                    Desmarcar todo
+                  </button>
+                </>
+              )}
+            </div>
+
+            <table className="table">
+              <thead>
+                <tr>
+                  {tab === "recibido" && <th style={{ width: 80 }}>Recibido</th>}
+                  <th>Artículo</th>
+                  <th style={{ width: 120 }}>Cantidad</th>
+                  <th style={{ width: 110 }}>Estatus</th>
+                  <th>Nota</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(activeOrder.items ?? []).map(it => (
+                  <tr key={it.id}>
+                    {tab === "recibido" && (
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={!!checked[it.id]}
+                          onChange={(e) => setChecked(prev => ({ ...prev, [it.id]: e.target.checked }))}
+                        />
+                      </td>
+                    )}
+                    <td style={{ fontWeight: 650 }}>{it.name}</td>
+                    <td className="muted">{it.qty} {it.unit ?? ""}</td>
+                    <td>
+                      {it.purchaseStatus === "C" ? <Badge kind="ok">C</Badge> : <Badge kind="bad">NC</Badge>}
+                    </td>
+                    <td className="muted">{it.note ?? ""}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {tab === "recibido" && (
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginTop: 14, flexWrap: "wrap" }}>
+                <div className="muted" style={{ fontSize: 13 }}>
+                  Guardar habilitado cuando <span style={{ color: "#000" }}>todos</span> estén marcados.
+                </div>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button className="btn" onClick={() => setActiveOrder(null)} disabled={saving}>Cancelar</button>
+                  <button className="btn btn-primary" onClick={saveReceive} disabled={saving || !deliveredByUserId || !allChecked()}>
+                    {saving ? "Guardando…" : "Guardar recepción"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </Modal>
+    </div>
+  );
+}

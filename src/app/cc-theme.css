@@ -1,0 +1,370 @@
+:root{
+  --cc-bg:#f6f7f9;
+  --cc-surface:#ffffff;
+  --cc-surface2:#f2f4f7;
+  --cc-text:#0b0c0f;
+  --cc-muted:#6b7280;
+  --cc-border:#e5e7eb;
+
+  --cc-primary:#0b0c0f;
+  --cc-primaryText:#ffffff;
+
+  --cc-danger:#dc2626;
+  --cc-shadow: 0 1px 2px rgba(0,0,0,.06), 0 10px 30px rgba(0,0,0,.10);
+}
+
+@media (prefers-color-scheme: dark){
+  :root{
+    --cc-bg:#0b0c0f;
+    --cc-surface:#111318;
+    --cc-surface2:#171a21;
+    --cc-text:#f3f4f6;
+    --cc-muted:#a1a1aa;
+    --cc-border:#232634;
+
+    --cc-primary:#f3f4f6;
+    --cc-primaryText:#0b0c0f;
+
+    --cc-danger:#f87171;
+    --cc-shadow: 0 1px 2px rgba(0,0,0,.35), 0 10px 30px rgba(0,0,0,.55);
+  }
+}
+
+html, body{ height:100%; }
+body{
+  background: var(--cc-bg);
+  color: var(--cc-text);
+  min-height: 100dvh;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.cc-container{
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 14px;
+}
+
+.cc-title{ font-weight:1000; font-size:18px; }
+.cc-sub{ opacity:.75; font-size:12px; margin-top:6px; color:var(--cc-muted); }
+
+/* Tabs no se cortan (iPhone) */
+.cc-tabs{
+  display:flex;
+  gap:10px;
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+  padding-bottom:6px;
+  max-width:100%;
+}
+.cc-tab{ white-space:nowrap; }
+
+.cc-tab{
+  flex:0 0 auto;
+  min-height:48px;
+  padding:12px 16px;
+  border-radius:999px;
+  border:1px solid var(--cc-border);
+  background: var(--cc-surface2);
+  color: var(--cc-text);
+  font-weight:950;
+}
+.cc-tab--active{
+  background: var(--cc-primary);
+  color: var(--cc-primaryText);
+  border-color: transparent;
+}
+
+.cc-seg{ display:flex; gap:10px; padding:8px 2px; }
+.cc-segbtn{
+  flex:1;
+  min-height:48px;
+  padding:12px 14px;
+  border-radius:999px;
+  border:1px solid var(--cc-border);
+  background: var(--cc-surface2);
+  font-weight:950;
+  color: var(--cc-text);
+}
+.cc-segbtn--active{
+  background: var(--cc-primary);
+  color: var(--cc-primaryText);
+  border-color: transparent;
+}
+
+.cc-card{
+  border:1px solid var(--cc-border);
+  border-radius:18px;
+  padding:14px;
+  background: var(--cc-surface);
+  box-shadow: var(--cc-shadow);
+}
+
+.cc-row{ display:flex; justify-content:space-between; align-items:center; gap:12px; }
+.cc-ellipsis{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+.cc-pill{
+  display:inline-flex; align-items:center; justify-content:center;
+  min-width:40px; height:32px; padding:0 10px;
+  border-radius:999px;
+  background: var(--cc-surface2);
+  border:1px solid var(--cc-border);
+  font-weight:1000;
+}
+
+.cc-btn{
+  min-height:48px;
+  padding:12px 14px;
+  border-radius:14px;
+  border:1px solid var(--cc-border);
+  font-weight:950;
+  background: var(--cc-surface2);
+  color: var(--cc-text);
+}
+.cc-btn--primary{
+  background: var(--cc-primary);
+  color: var(--cc-primaryText);
+  border-color: transparent;
+}
+.cc-btn--ghost{ background: transparent; }
+
+.cc-btnrow{
+  display:grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap:10px;
+}
+@media (max-width:420px){
+  .cc-btnrow{ grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .cc-btnrow .cc-btn--primary{ grid-column:1 / -1; }
+}
+
+.cc-msg{ margin-top:10px; color: var(--cc-danger); font-weight:700; }
+
+/* Topbar (evita que ES/EN tape tabs) */
+.cc-topbar{
+  position: fixed;
+  inset: 0 0 auto 0;
+  padding-top: env(safe-area-inset-top);
+  height: calc(56px + env(safe-area-inset-top));
+  background: rgba(255,255,255,.82);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(0,0,0,.08);
+  z-index: 1200;
+}
+@media (prefers-color-scheme: dark){
+  .cc-topbar{
+    background: rgba(17,19,24,.82);
+    border-bottom: 1px solid rgba(255,255,255,.10);
+  }
+}
+.cc-topbar-inner{
+  height: 56px;
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  padding: 0 12px;
+  gap: 10px;
+}
+.cc-topbar-spacer{ height: calc(56px + env(safe-area-inset-top)); }
+.cc-topbar-spacer-left{ flex: 1; }
+
+/* ES/EN legible */
+.cc-langwrap{
+  border:1px solid var(--cc-border);
+  background: var(--cc-surface);
+  border-radius:999px;
+  padding: 6px 10px;
+  box-shadow: var(--cc-shadow);
+}
+.cc-langwrap, .cc-langwrap *{
+  font-weight: 1000 !important;
+}
+
+/* Bottom sheet */
+.cc-overlay{
+  position:fixed;
+  inset:0;
+  background: rgba(0,0,0,.45);
+  display:grid;
+  align-items:end;
+  padding:12px;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom));
+  z-index: 1500;
+}
+.cc-sheet{
+  width:100%;
+  max-width:920px;
+  margin:0 auto;
+  border:1px solid var(--cc-border);
+  border-radius:22px;
+  box-shadow: var(--cc-shadow);
+  overflow:hidden;
+  max-height: calc(100dvh - 24px - env(safe-area-inset-top));
+  display:grid;
+  grid-template-rows: auto 1fr auto;
+  background: var(--cc-surface);
+  color: var(--cc-text);
+}
+
+/* Square-contrast: el sheet SIEMPRE blanco/negro */
+.cc-sheet--square{
+  --cc-surface:#ffffff;
+  --cc-surface2:#f2f4f7;
+  --cc-text:#0b0c0f;
+  --cc-muted:#6b7280;
+  --cc-border:#e5e7eb;
+  --cc-primary:#0b0c0f;
+  --cc-primaryText:#ffffff;
+}
+
+.cc-sheet-header{ padding:14px; border-bottom:1px solid var(--cc-border); }
+.cc-sheet-title{ font-weight:1000; font-size:16px; }
+.cc-sheet-sub{ margin-top:6px; font-size:12px; color: var(--cc-muted); }
+.cc-sheet-body{ padding:12px 14px; overflow:auto; }
+.cc-sheet-footer{
+  padding:12px 14px;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom));
+  border-top:1px solid var(--cc-border);
+  background: linear-gradient(to bottom, rgba(0,0,0,0), var(--cc-surface));
+}
+
+.cc-list{ border:1px solid var(--cc-border); border-radius:16px; overflow:hidden; }
+.cc-listitem{ padding:12px 10px; border-top:1px solid var(--cc-border); }
+.cc-listitem:first-child{ border-top:none; }
+
+/* 1 renglón: nombre + qty unidad */
+.cc-lirow{ display:flex; justify-content:space-between; gap:10px; align-items:baseline; }
+.cc-liqty{ font-weight: 1000; white-space:nowrap; }
+.cc-linote{ margin-top:4px; font-size:12px; color: var(--cc-muted); }
+
+/* Modo guantes */
+.cc-glove .cc-btn,
+.cc-glove .cc-tab,
+.cc-glove .cc-segbtn{
+  min-height: 60px;
+  font-size: 18px;
+}
+.cc-glove input,
+.cc-glove textarea{
+  min-height: 58px;
+  font-size: 18px;
+}
+
+/* 2 botones centrados (para modales sin “Cancelar”) */
+.cc-btnrow2{
+  display:flex;
+  gap:10px;
+  justify-content:center;
+  flex-wrap:wrap;
+}
+.cc-btnrow2 .cc-btn{
+  flex:1;
+  min-width: 150px;
+  max-width: 260px;
+}
+
+/* =============================================================================
+   FILE: src/app/cc-theme.css  (AGREGA ESTO AL FINAL)
+   - Botón peligro (confirmaciones)
+   - Toast inferior
+   ============================================================================ */
+
+.cc-btn--danger{
+  background:#b91c1c;
+  color:#fff;
+  border-color: transparent;
+}
+
+.cc-toast{
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  display: grid;
+  place-items: center;
+  z-index: 2000;
+  pointer-events: none;
+}
+.cc-toast > div{
+  pointer-events: none;
+  background: rgba(0,0,0,.82);
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 999px;
+  font-weight: 950;
+  box-shadow: var(--cc-shadow);
+}
+
+// ============================================================================
+// FILE: src/app/cc-theme.css   (PATCH: PEGA AL FINAL)
+// - Arregla “blanco ilegible” en iPhone cuando iOS está en dark mode
+// - Tabs horizontales para que NO se corten
+// ============================================================================
+/* Dark-mode: cards oscuras + texto claro (evita letras claras sobre cards claras) */
+@media (prefers-color-scheme: dark){
+  body{ background:#0b0c0f; color:#f2f2f2; }
+  .cc-card, .cc-listitem, .cc-sheet{
+    background:#12141a !important;
+    color:#f2f2f2 !important;
+    border-color:rgba(255,255,255,.10) !important;
+  }
+  .cc-sub, .cc-muted{ color:rgba(255,255,255,.72) !important; }
+  .cc-btn{
+    background:#0f1116 !important;
+    color:#f2f2f2 !important;
+    border-color:rgba(255,255,255,.18) !important;
+  }
+  .cc-btn--primary{
+    background:#fff !important;
+    color:#111 !important;
+    border-color:transparent !important;
+  }
+}
+
+// ============================================================================
+// FILE: src/app/cc-theme.css  (PEGA AL FINAL)
+// - Tabs no se cortan en iPhone
+// - DARK MODE: fuerza contraste (arregla BASIC “todo blanco/ilegible”)
+// - Oculta cualquier toggle flotante viejo (ES/EN)
+// ============================================================================
+/* Tabs iPhone: scroll horizontal */
+.cc-tabs{
+  display:flex;
+  gap:10px;
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+  padding-bottom:6px;
+  max-width:100%;
+}
+.cc-tab{ white-space:nowrap; }
+
+/* Kill switch del botón ES/EN viejo */
+.cc-langwrap, .lang-toggle, [data-lang-toggle], .LangToggle{
+  display:none !important;
+}
+
+/* Dark-mode: fuerza contraste incluso si hay inline styles */
+@media (prefers-color-scheme: dark){
+  body{ background:#0b0c0f; color:#f2f2f2; }
+  .cc-container{ color:#f2f2f2; }
+
+  .cc-card, .cc-sheet, .cc-listitem{
+    background:#12141a !important;
+    border-color:rgba(255,255,255,.10) !important;
+  }
+  .cc-card *, .cc-sheet *, .cc-listitem *{
+    color:#f2f2f2 !important;
+  }
+  .cc-sub, .cc-muted{
+    color:rgba(255,255,255,.72) !important;
+  }
+  .cc-btn{
+    background:#0f1116 !important;
+    border-color:rgba(255,255,255,.18) !important;
+    color:#f2f2f2 !important;
+  }
+  .cc-btn--primary{
+    background:#fff !important;
+    color:#111 !important;
+    border-color:transparent !important;
+  }
+}

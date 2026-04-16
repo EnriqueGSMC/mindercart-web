@@ -1,0 +1,81 @@
+/* Global typography + grayscale palette (no blue links).
+   Why: iOS Safari/Chrome sometimes applies default link colors in nested components. */
+:root {
+  --app-font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+
+  --cc-text: #111;
+  --cc-muted: rgba(17, 17, 17, 0.72);
+  --cc-border: #e6e6e6;
+  --cc-bg: #fafafa;
+  --cc-card: #fff;
+
+  --cc-primary: #111;
+  --cc-danger: #b91c1c;
+  --cc-success: #16a34a;
+}
+
+html {
+  font-size: 16px;
+  overflow-x: hidden;
+}
+
+@media (max-width: 480px) {
+  html {
+    font-size: 17px; /* readability */
+  }
+}
+
+body {
+  margin: 0;
+  font-family: var(--app-font-family);
+  font-size: 1rem;
+  line-height: 1.35;
+  color: var(--cc-text);
+  background: var(--cc-bg);
+  -webkit-text-size-adjust: 100%;
+  overflow-x: hidden;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  color: inherit;
+}
+
+/* Avoid iOS zoom on focus and keep consistent sizing */
+input,
+select,
+textarea,
+button {
+  font-size: 16px;
+}
+
+.cc-wrap-anywhere {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.cc-toast {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(18px + env(safe-area-inset-bottom));
+  padding: 10px 12px;
+  border-radius: 999px;
+  background: rgba(17, 17, 17, 0.92);
+  color: #fff;
+  font-weight: 800;
+  z-index: 9999;
+  max-width: calc(100vw - 28px);
+  text-align: center;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+}

@@ -1,0 +1,26 @@
+// ================================
+// FILE: src/app/orders/[orderId]/page.tsx
+// (reemplaza SOLO resolveMode(...) por el helper + ajusta imports)
+// ================================
+import type { ComponentType } from "react";
+import type { SearchParams } from "@/lib/modes";
+import { resolveOrdersMode } from "@/lib/modes";
+
+export default async function OrderPage({
+  searchParams,
+}: {
+  searchParams?: SearchParams | Promise<SearchParams>;
+}) {
+  const sp = await Promise.resolve(searchParams ?? {});
+  const mode = resolveOrdersMode(sp);
+
+  const mod =
+    mode === "experimental"
+      ? await import("./page.experimental")
+      : mode === "frozenCopy"
+        ? await import("./page.frozenCopy")
+        : await import("./page.frozen");
+
+  const Component = mod.default as ComponentType;
+  return <Component />;
+}

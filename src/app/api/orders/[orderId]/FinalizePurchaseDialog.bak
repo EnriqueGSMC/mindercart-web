@@ -1,0 +1,54 @@
+/* =========================================================
+ * FILE: src/app/orders/[orderId]/FinalizePurchaseDialog.tsx
+ * ========================================================= */
+"use client";
+
+import * as React from "react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+
+export function FinalizePurchaseDialog(props: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  pendingCount: number;
+  onFinalize: () => Promise<void> | void;
+}) {
+  const { open, onOpenChange, pendingCount, onFinalize } = props;
+
+  const title =
+    pendingCount === 1
+      ? "Hay 1 artículo pendiente"
+      : `Hay ${pendingCount} artículos pendientes`;
+
+  const desc =
+    pendingCount === 1
+      ? "Si finalizas la compra, este artículo regresará a Necesidades como NC."
+      : "Si finalizas la compra, estos artículos regresarán a Necesidades como NC.";
+
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
+          <AlertDialogDescription>{desc}</AlertDialogDescription>
+        </AlertDialogHeader>
+
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          {/* Usamos un Button destructive para mantener coherencia visual */}
+          <AlertDialogAction asChild>
+            <Button
+              variant="destructive"
+              onClick={async () => {
+                await onFinalize();
+                onOpenChange(false);
+              }}
+            >
+              Finalizar de todos modos
+            </Button>
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}

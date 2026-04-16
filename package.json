@@ -1,0 +1,36 @@
+{
+  "name": "compras-web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --webpack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "purchases:backup": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\purchases-backup.ps1",
+    "purchases:restore": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\purchases-restore.ps1",
+    "purchases:restore:list": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\purchases-restore.ps1 -List",
+    "purchases:panic": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\purchases-panic.ps1"
+  },
+  "dependencies": {
+    "@opentelemetry/api": "^1.9.0",
+    "@zxing/browser": "^0.1.5",
+    "dotenv": "^17.3.1",
+    "firebase": "^12.9.0",
+    "firebase-admin": "^13.7.0",
+    "next": "16.1.6",
+    "qrcode": "^1.5.4",
+    "react": "19.2.3",
+    "react-dom": "19.2.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.1.6",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
