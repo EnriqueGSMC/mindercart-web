@@ -3,53 +3,80 @@
 
 import React from "react";
 import { AppShell, cardStyle } from "@/components/mindercart/Shell";
-import { addQuickNeed, readState } from "@/lib/mindercart/storage";
+import { t } from "@/lib/mindercart/i18n";
+import {
+  addQuickNeed,
+  buildSuggestions,
+  groupByStore,
+  removeActiveItem,
+} from "@/lib/mindercart/storage";
+import { useMinderCartState } from "@/lib/mindercart/hooks";
+import type { Suggestion } from "@/lib/mindercart/types";
 
-export default function HomePage() {
+export default function NeedsPage() {
+  const { activeShoppingListItems, settings, hydrated } = useMinderCartState();
+  const lang = settings.language;
+
   const [name, setName] = React.useState("");
   const [unit, setUnit] = React.useState("pza");
   const [quantity, setQuantity] = React.useState("1");
-  const [store, setStore] = React.useState("Walmart");
+  const [store, setStore] = React.useState(settings.preferredStore || "Walmart");
   const [message, setMessage] = React.useState("");
-  const [activeCount, setActiveCount] = React.useState(0);
+  const [suggestions, setSuggestions] = React.useState<Suggestion[]>([]);
 
   React.useEffect(() => {
-    const state = readState();
-    setStore(state.settings.preferredStore || "Walmart");
-    setActiveCount(state.activeShoppingListItems.length);
-  }, []);
+    if (!hydrated) return;
+    setStore(settings.preferredStore || "Walmart");
+  }, [hydrated, settings.preferredStore]);
+
+  React.useEffect(() => {
+    if (!hydrated) return;
+    setSuggestions(buildSuggestions(name));
+  }, [hydrated, name]);
+
+  function applySuggestion(suggestion: Suggestion) {
+    setName(suggestion.name);
+    setUnit(suggestion.unit || "pza");
+    setStore(suggestion.store || settings.preferredStore || "Walmart");
+    setSuggestions([]);
+  }
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
 
     try {
-      const state = addQuickNeed({ name, unit, quantity, store });
-      setMessage(`✅ ${name} agregado a la lista abierta`);
+      addQuickNeed({ name, unit, quantity, store });
+      setMessage(`✅ ${name} ${t(lang, "addedToList")}`);
       setName("");
       setQuantity("1");
-      setActiveCount(state.activeShoppingListItems.length);
+      setSuggestions([]);
     } catch (e: any) {
       setMessage(`⚠ ${String(e?.message || e)}`);
     }
   }
 
-  return (
-    <AppShell
-      title="MinderCart"
-      subtitle="Home / Quick Add · ES / EN"
-    >
-      <section style={cardStyle()}>
-        <div style={{ fontWeight: 1000, marginBottom: 10 }}>
-          ¿Qué necesitas? / What do you need?
-        </div>
+  if (!hydrated) {
+    return (
+      <AppShell title="Necesidades" subtitle="Captura rápida de lo que hace falta">
+        <section style={cardStyle()}>
+          <div style={{ fontSize: 14, opacity: 0.75 }}>Cargando…</div>
+        </section>
+      </AppShell>
+    );
+  }
 
+  const groups = groupByStore(activeShoppingListItems);
+
+  return (
+    <AppShell title={t(lang, "needsTitle")} subtitle={t(lang, "needsSubtitle")}>
+      <section style={cardStyle()}>
         <form onSubmit={onSubmit} style={{ display: "grid", gap: 12 }}>
           <div>
-            <div style={{ fontWeight: 900, marginBottom: 6 }}>Artículo / Item</div>
+            <div style={{ fontWeight: 900, marginBottom: 6 }}>{t(lang, "item")}</div>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="ej. leche / milk"
+              placeholder={lang === "en" ? "e.g. milk" : "ej. leche"}
               style={{
                 width: "100%",
                 padding: "14px 16px",
@@ -59,11 +86,57 @@ export default function HomePage() {
                 boxSizing: "border-box",
               }}
             />
+
+            {name.trim().length >= 2 ? (
+              <div
+                style={{
+                  marginTop: 8,
+                  border: "1px solid #eee",
+                  borderRadius: 14,
+                  overflow: "hidden",
+                  background: "#fff",
+                }}
+              >
+                {suggestions.length === 0 ? (
+                  <div style={{ padding: 12, fontSize: 14, opacity: 0.75 }}>
+                    {t(lang, "noSuggestions")}
+                  </div>
+                ) : (
+                  suggestions.map((row) => (
+                    <button
+                      key={`${row.source}_${row.id}`}
+                      type="button"
+                      onClick={() => applySuggestion(row)}
+                      style={{
+                        width: "100%",
+                        textAlign: "left",
+                        padding: 12,
+                        border: 0,
+                        borderBottom: "1px solid #f2f2f2",
+                        background: "#fff",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <div style={{ fontWeight: 900 }}>{row.name}</div>
+                      <div style={{ fontSize: 13, opacity: 0.75, marginTop: 4 }}>
+                        {row.unit} · {row.store}
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            ) : null}
           </div>
 
-          <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
+          <div
+            style={{
+              display: "grid",
+              gap: 12,
+              gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+            }}
+          >
             <div>
-              <div style={{ fontWeight: 900, marginBottom: 6 }}>Unidad / Unit</div>
+              <div style={{ fontWeight: 900, marginBottom: 6 }}>{t(lang, "unit")}</div>
               <select
                 value={unit}
                 onChange={(e) => setUnit(e.target.value)}
@@ -85,11 +158,10 @@ export default function HomePage() {
             </div>
 
             <div>
-              <div style={{ fontWeight: 900, marginBottom: 6 }}>Cantidad / Qty</div>
+              <div style={{ fontWeight: 900, marginBottom: 6 }}>{t(lang, "quantity")}</div>
               <input
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
-                placeholder="1"
                 style={{
                   width: "100%",
                   padding: "14px 16px",
@@ -101,11 +173,10 @@ export default function HomePage() {
             </div>
 
             <div>
-              <div style={{ fontWeight: 900, marginBottom: 6 }}>Tienda / Store</div>
+              <div style={{ fontWeight: 900, marginBottom: 6 }}>{t(lang, "store")}</div>
               <input
                 value={store}
                 onChange={(e) => setStore(e.target.value)}
-                placeholder="Walmart"
                 style={{
                   width: "100%",
                   padding: "14px 16px",
@@ -129,17 +200,68 @@ export default function HomePage() {
               fontWeight: 900,
             }}
           >
-            Add / Agregar
+            {t(lang, "add")}
           </button>
         </form>
 
-        {message ? (
-          <div style={{ marginTop: 12, fontSize: 14 }}>{message}</div>
-        ) : null}
+        {message ? <div style={{ marginTop: 12, fontSize: 14 }}>{message}</div> : null}
+      </section>
 
-        <div style={{ marginTop: 12, fontSize: 13, opacity: 0.75 }}>
-          Lista abierta actual: {activeCount} artículo(s)
-        </div>
+      <section style={cardStyle()}>
+        <div style={{ fontWeight: 1000, marginBottom: 10 }}>{t(lang, "currentNeeds")}</div>
+
+        {groups.length === 0 ? (
+          <div style={{ fontSize: 14, opacity: 0.75 }}>{t(lang, "noItemsYet")}</div>
+        ) : (
+          <div style={{ display: "grid", gap: 12 }}>
+            {groups.map((group) => (
+              <div key={group.store}>
+                <div style={{ fontWeight: 900, marginBottom: 8 }}>
+                  {group.store} · {group.items.filter((item) => !item.checked).length}{" "}
+                  {t(lang, "pending").toLowerCase()}
+                </div>
+
+                <div style={{ display: "grid", gap: 10 }}>
+                  {group.items.map((item) => (
+                    <div
+                      key={item.id}
+                      style={{
+                        border: "1px solid #f0f0f0",
+                        borderRadius: 14,
+                        padding: 12,
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: 10,
+                        alignItems: "center",
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 900 }}>{item.name}</div>
+                        <div style={{ fontSize: 13, opacity: 0.75, marginTop: 4 }}>
+                          {item.quantity} · {item.unit}
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => removeActiveItem(item.id)}
+                        style={{
+                          padding: "10px 12px",
+                          borderRadius: 12,
+                          border: "1px solid #ddd",
+                          background: "#fff",
+                          fontWeight: 900,
+                        }}
+                      >
+                        {t(lang, "remove")}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
     </AppShell>
   );

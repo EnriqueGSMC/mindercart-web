@@ -1,37 +1,38 @@
-// FILE: src/app/settings/page.tsx
 "use client";
 
 import React from "react";
 import { AppShell, cardStyle } from "@/components/mindercart/Shell";
-import { readState, saveSettings } from "@/lib/mindercart/storage";
+import { t } from "@/lib/mindercart/i18n";
+import { saveSettings } from "@/lib/mindercart/storage";
+import { useMinderCartState } from "@/lib/mindercart/hooks";
 import type { Language } from "@/lib/mindercart/types";
 
 export default function SettingsPage() {
-  const [language, setLanguage] = React.useState<Language>("es");
-  const [preferredStore, setPreferredStore] = React.useState("Walmart");
+  const { settings } = useMinderCartState();
+  const [language, setLanguage] = React.useState<Language>(settings.language);
+  const [preferredStore, setPreferredStore] = React.useState(settings.preferredStore);
   const [message, setMessage] = React.useState("");
 
   React.useEffect(() => {
-    const state = readState();
-    setLanguage(state.settings.language);
-    setPreferredStore(state.settings.preferredStore);
-  }, []);
+    setLanguage(settings.language);
+    setPreferredStore(settings.preferredStore);
+  }, [settings.language, settings.preferredStore]);
 
   function onSave(e: React.FormEvent) {
     e.preventDefault();
     saveSettings({ language, preferredStore });
-    setMessage("✅ Settings guardados");
+    setMessage(`✅ ${t(language, "saved")}`);
   }
 
   return (
     <AppShell
-      title="Settings"
-      subtitle="Idioma, tienda preferida y preferencias básicas"
+      title={t(language, "settingsTitle")}
+      subtitle={t(language, "settingsSubtitle")}
     >
       <section style={cardStyle()}>
         <form onSubmit={onSave} style={{ display: "grid", gap: 12 }}>
           <div>
-            <div style={{ fontWeight: 900, marginBottom: 6 }}>Language / Idioma</div>
+            <div style={{ fontWeight: 900, marginBottom: 6 }}>{t(language, "language")}</div>
             <select
               value={language}
               onChange={(e) => setLanguage(e.target.value === "en" ? "en" : "es")}
@@ -48,9 +49,7 @@ export default function SettingsPage() {
           </div>
 
           <div>
-            <div style={{ fontWeight: 900, marginBottom: 6 }}>
-              Preferred store / Tienda preferida
-            </div>
+            <div style={{ fontWeight: 900, marginBottom: 6 }}>{t(language, "preferredStore")}</div>
             <input
               type="text"
               value={preferredStore}
@@ -77,7 +76,7 @@ export default function SettingsPage() {
               fontWeight: 900,
             }}
           >
-            Save
+            {t(language, "save")}
           </button>
         </form>
 

@@ -150,3 +150,17 @@ Y empezar a definir el modelo mínimo de datos del MVP.
 cd /d C:\dev\mindercart-web
 rmdir /s /q .next
 npm run build
+
+## Avance nuevo
+- Se creó la base local de MinderCart con:
+  - `src/components/mindercart/Shell.tsx`
+  - `src/lib/mindercart/types.ts`
+  - `src/lib/mindercart/storage.ts`
+- El flujo MVP ya quedó montado con localStorage:
+  - Home / Quick Add
+  - Shopping List
+  - General List
+  - In Store
+  - History
+  - Settings
+- Build local: OK

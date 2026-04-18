@@ -4,12 +4,19 @@ import type {
   ItemMaster,
   MinderCartState,
   ShoppingHistoryEntry,
+  Suggestion,
 } from "@/lib/mindercart/types";
 
+export const CHANGE_EVENT = "mindercart:changed";
 const STORAGE_KEY = "mindercart_state_v1";
 
 function now() {
   return Date.now();
+}
+
+function emitChange() {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(CHANGE_EVENT));
 }
 
 function safe(v: unknown) {
@@ -31,52 +38,21 @@ function uid() {
     : `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
+function escapeHtml(value: unknown) {
+  return safe(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
 const SEED_GENERAL_ITEMS: GeneralListItem[] = [
-  {
-    id: uid(),
-    name: "Leche",
-    unit: "pza",
-    quantity: "1",
-    store: "Walmart",
-    active: true,
-    lastUsedAt: null,
-  },
-  {
-    id: uid(),
-    name: "Huevos",
-    unit: "pza",
-    quantity: "1",
-    store: "Walmart",
-    active: true,
-    lastUsedAt: null,
-  },
-  {
-    id: uid(),
-    name: "Tortillas",
-    unit: "pza",
-    quantity: "1",
-    store: "Walmart",
-    active: true,
-    lastUsedAt: null,
-  },
-  {
-    id: uid(),
-    name: "Papel higiénico",
-    unit: "pza",
-    quantity: "1",
-    store: "Costco",
-    active: true,
-    lastUsedAt: null,
-  },
-  {
-    id: uid(),
-    name: "Detergente",
-    unit: "pza",
-    quantity: "1",
-    store: "Costco",
-    active: true,
-    lastUsedAt: null,
-  },
+  { id: uid(), name: "Leche", unit: "pza", quantity: "1", store: "Walmart", active: true, lastUsedAt: null },
+  { id: uid(), name: "Huevos", unit: "pza", quantity: "1", store: "Walmart", active: true, lastUsedAt: null },
+  { id: uid(), name: "Tortillas", unit: "pza", quantity: "1", store: "Walmart", active: true, lastUsedAt: null },
+  { id: uid(), name: "Papel higiénico", unit: "pza", quantity: "1", store: "Costco", active: true, lastUsedAt: null },
+  { id: uid(), name: "Detergente", unit: "pza", quantity: "1", store: "Costco", active: true, lastUsedAt: null },
 ];
 
 function defaultState(): MinderCartState {
@@ -112,11 +88,14 @@ export function readState(): MinderCartState {
       return initial;
     }
 
-    const parsed = JSON.parse(raw) as MinderCartState;
+    const parsed = JSON.parse(raw) as Partial<MinderCartState>;
+
     return {
       itemsMaster: Array.isArray(parsed.itemsMaster) ? parsed.itemsMaster : [],
       generalListItems: Array.isArray(parsed.generalListItems) ? parsed.generalListItems : [],
-      activeShoppingListItems: Array.isArray(parsed.activeShoppingListItems) ? parsed.activeShoppingListItems : [],
+      activeShoppingListItems: Array.isArray(parsed.activeShoppingListItems)
+        ? parsed.activeShoppingListItems
+        : [],
       shoppingHistory: Array.isArray(parsed.shoppingHistory) ? parsed.shoppingHistory : [],
       settings: {
         language: parsed.settings?.language === "en" ? "en" : "es",
@@ -133,16 +112,21 @@ export function readState(): MinderCartState {
 export function writeState(state: MinderCartState) {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  emitChange();
 }
 
 function numericSum(a: string, b: string) {
   const na = Number(String(a).replace(",", "."));
   const nb = Number(String(b).replace(",", "."));
-  if (Number.isFinite(na) && Number.isFinite(nb)) return String(na + nb);
+
+  if (Number.isFinite(na) && Number.isFinite(nb)) {
+    return String(na + nb);
+  }
+
   return safe(b) || safe(a) || "1";
 }
 
-function activeKey(item: { name: string; unit: string; store: string }) {
+export function itemKey(item: { name: string; unit: string; store: string }) {
   return `${normalize(item.name)}__${normalize(item.unit)}__${normalize(item.store)}`;
 }
 
@@ -151,6 +135,7 @@ function upsertItemMaster(
   input: { name: string; unit: string; store: string }
 ): ItemMaster[] {
   const key = `${normalize(input.name)}__${normalize(input.unit)}`;
+
   const existing = itemsMaster.find(
     (item) => `${normalize(item.name)}__${normalize(item.unit)}` === key
   );
@@ -185,6 +170,7 @@ function upsertGeneralListItem(
   input: { name: string; unit: string; quantity: string; store: string }
 ): GeneralListItem[] {
   const key = `${normalize(input.name)}__${normalize(input.unit)}`;
+
   const existing = generalListItems.find(
     (item) => `${normalize(item.name)}__${normalize(item.unit)}` === key
   );
@@ -234,8 +220,9 @@ export function addQuickNeed(input: {
     throw new Error("Artículo requerido");
   }
 
-  const key = activeKey({ name, unit, store });
-  const existing = state.activeShoppingListItems.find((item) => activeKey(item) === key);
+  const key = itemKey({ name, unit, store });
+
+  const existing = state.activeShoppingListItems.find((item) => itemKey(item) === key);
 
   const activeShoppingListItems = existing
     ? state.activeShoppingListItems.map((item) =>
@@ -286,8 +273,8 @@ export function addGeneralSelections(ids: string[]) {
   let generalListItems = [...state.generalListItems];
 
   for (const item of selected) {
-    const key = activeKey(item);
-    const existing = activeShoppingListItems.find((row) => activeKey(row) === key);
+    const key = itemKey(item);
+    const existing = activeShoppingListItems.find((row) => itemKey(row) === key);
 
     if (existing) {
       activeShoppingListItems = activeShoppingListItems.map((row) =>
@@ -358,24 +345,67 @@ export function removeActiveItem(id: string) {
   return next;
 }
 
+export function closeShoppingForStore(storeName: string) {
+  const state = readState();
+  const store = safe(storeName);
+
+  if (!store) return state;
+
+  const storeItems = state.activeShoppingListItems.filter(
+    (item) => safe(item.store) === store
+  );
+
+  if (storeItems.length === 0) return state;
+
+  const boughtItems = storeItems.filter((item) => item.checked);
+  const nextHistory =
+    boughtItems.length > 0
+      ? [
+          {
+            id: uid(),
+            closedAt: now(),
+            store,
+            items: boughtItems,
+          },
+          ...state.shoppingHistory,
+        ]
+      : state.shoppingHistory;
+
+  const next: MinderCartState = {
+    ...state,
+    shoppingHistory: nextHistory,
+    activeShoppingListItems: state.activeShoppingListItems.filter(
+      (item) => safe(item.store) !== store || !item.checked
+    ),
+  };
+
+  writeState(next);
+  return next;
+}
+
 export function closeActiveShoppingList() {
   const state = readState();
   if (state.activeShoppingListItems.length === 0) return state;
 
-  const store =
-    state.activeShoppingListItems[0]?.store || state.settings.preferredStore || "Walmart";
+  const boughtItems = state.activeShoppingListItems.filter((item) => item.checked);
+  if (boughtItems.length === 0) return state;
 
-  const entry: ShoppingHistoryEntry = {
-    id: uid(),
-    closedAt: now(),
-    store,
-    items: state.activeShoppingListItems,
-  };
+  const grouped = groupByStore(boughtItems);
+
+  const nextHistory = [
+    ...grouped.map<ShoppingHistoryEntry>((group) => ({
+      id: uid(),
+      closedAt: now(),
+      store: group.store,
+      items: group.items,
+    })),
+    ...state.shoppingHistory,
+  ];
 
   const next: MinderCartState = {
     ...state,
-    shoppingHistory: [entry, ...state.shoppingHistory],
-    activeShoppingListItems: [],
+    shoppingHistory: nextHistory,
+    activeShoppingListItems: state.activeShoppingListItems.filter((item) => !item.checked),
   };
 
   writeState(next);
@@ -395,4 +425,112 @@ export function saveSettings(input: { language: "es" | "en"; preferredStore: str
 
   writeState(next);
   return next;
+}
+
+export function buildSuggestions(query: string): Suggestion[] {
+  const state = readState();
+  const q = normalize(query);
+
+  if (q.length < 2) return [];
+
+  const raw: Suggestion[] = [
+    ...state.itemsMaster.map((item) => ({
+      id: item.id,
+      name: item.name,
+      unit: item.unit,
+      store: item.defaultStore,
+      source: "items_master" as const,
+    })),
+    ...state.generalListItems.map((item) => ({
+      id: item.id,
+      name: item.name,
+      unit: item.unit,
+      store: item.store,
+      source: "general_list" as const,
+    })),
+  ];
+
+  const starts = raw.filter((item) => normalize(item.name).startsWith(q));
+  const includes = raw.filter(
+    (item) => !normalize(item.name).startsWith(q) && normalize(item.name).includes(q)
+  );
+
+  const merged = [...starts, ...includes];
+  const seen = new Set<string>();
+
+  return merged
+    .filter((item) => {
+      const key = `${normalize(item.name)}__${normalize(item.unit)}__${normalize(item.store)}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 8);
+}
+
+export function groupByStore<T extends { store: string }>(rows: T[]) {
+  const map = new Map<string, T[]>();
+
+  for (const row of rows) {
+    const store = safe(row.store) || "Sin tienda";
+    const current = map.get(store) || [];
+    current.push(row);
+    map.set(store, current);
+  }
+
+  return [...map.entries()]
+    .map(([store, items]) => ({ store, items }))
+    .sort((a, b) => a.store.localeCompare(b.store));
+}
+
+export function buildShoppingListText() {
+  const state = readState();
+  const groups = groupByStore(state.activeShoppingListItems);
+
+  return groups
+    .map((group) =>
+      [group.store, ...group.items.map((item) => `${item.name} ${item.quantity}`)].join("\n")
+    )
+    .join("\n\n")
+    .trim();
+}
+
+export function buildShoppingListHtml() {
+  const state = readState();
+  const groups = groupByStore(state.activeShoppingListItems);
+
+  const body = groups
+    .map((group) => {
+      const rows = group.items
+        .map(
+          (item) => `
+            <div style="padding:8px 0;border-bottom:1px solid #eee;">
+              <div style="font-weight:700;">${escapeHtml(item.name)}</div>
+              <div style="font-size:12px;color:#555;">${escapeHtml(item.quantity)} ${escapeHtml(item.unit)}</div>
+            </div>
+          `
+        )
+        .join("");
+
+      return `
+        <section style="margin-bottom:20px;">
+          <div style="font-size:20px;font-weight:800;margin-bottom:8px;">${escapeHtml(group.store)}</div>
+          ${rows}
+        </section>
+      `;
+    })
+    .join("");
+
+  return `
+    <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>MinderCart PDF</title>
+      </head>
+      <body style="font-family:Arial,sans-serif;padding:24px;color:#111;">
+        <div style="font-size:28px;font-weight:900;margin-bottom:16px;">Lista de Compras</div>
+        ${body || '<div>No hay artículos.</div>'}
+      </body>
+    </html>
+  `;
 }

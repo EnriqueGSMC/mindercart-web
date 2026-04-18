@@ -1,4 +1,3 @@
-// FILE: src/lib/mindercart/types.ts
 export type Language = "es" | "en";
 
 export type ItemMaster = {
@@ -50,4 +49,12 @@ export type MinderCartState = {
   activeShoppingListItems: ActiveShoppingListItem[];
   shoppingHistory: ShoppingHistoryEntry[];
   settings: MinderCartSettings;
-}
+};
+
+export type Suggestion = {
+  id: string;
+  name: string;
+  unit: string;
+  store: string;
+  source: "items_master" | "general_list";
+};

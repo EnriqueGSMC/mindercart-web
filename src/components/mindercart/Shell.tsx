@@ -1,9 +1,10 @@
-// FILE: src/components/mindercart/Shell.tsx
 "use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import React from "react";
+import { t } from "@/lib/mindercart/i18n";
+import { useMinderCartState } from "@/lib/mindercart/hooks";
 
 function navLinkStyle(active = false): React.CSSProperties {
   return {
@@ -46,14 +47,15 @@ export function AppShell(props: {
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const { settings } = useMinderCartState();
+  const lang = settings.language;
 
   const navItems = [
-    { href: "/", label: "Home" },
-    { href: "/shopping-list", label: "Shopping List" },
-    { href: "/general-list", label: "General List" },
-    { href: "/in-store", label: "In Store" },
-    { href: "/history", label: "History" },
-    { href: "/settings", label: "Settings" },
+    { href: "/", label: t(lang, "navNeeds") },
+    { href: "/general-list", label: t(lang, "navShopping") },
+    { href: "/in-store", label: t(lang, "navInStore") },
+    { href: "/history", label: t(lang, "navHistory") },
+    { href: "/settings", label: t(lang, "navSettings") },
   ];
 
   return (
