@@ -8,7 +8,7 @@ import { useMinderCartState } from "@/lib/mindercart/hooks";
 import type { Language } from "@/lib/mindercart/types";
 
 export default function SettingsPage() {
-  const { settings } = useMinderCartState();
+  const { settings, hydrated } = useMinderCartState();
   const [language, setLanguage] = React.useState<Language>(settings.language);
   const [preferredStore, setPreferredStore] = React.useState(settings.preferredStore);
   const [message, setMessage] = React.useState("");
@@ -18,6 +18,16 @@ export default function SettingsPage() {
     setPreferredStore(settings.preferredStore);
   }, [settings.language, settings.preferredStore]);
 
+  if (!hydrated) {
+    return (
+      <AppShell title={t("es", "settingsTitle")} subtitle={t("es", "settingsSubtitle")}>
+        <section style={cardStyle()}>
+          <div style={{ fontSize: 14, opacity: 0.75 }}>{t("es", "loading")}</div>
+        </section>
+      </AppShell>
+    );
+  }
+
   function onSave(e: React.FormEvent) {
     e.preventDefault();
     saveSettings({ language, preferredStore });
@@ -25,10 +35,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <AppShell
-      title={t(language, "settingsTitle")}
-      subtitle={t(language, "settingsSubtitle")}
-    >
+    <AppShell title={t(language, "settingsTitle")} subtitle={t(language, "settingsSubtitle")}>
       <section style={cardStyle()}>
         <form onSubmit={onSave} style={{ display: "grid", gap: 12 }}>
           <div>

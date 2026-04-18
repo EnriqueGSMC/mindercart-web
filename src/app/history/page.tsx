@@ -6,15 +6,22 @@ import { formatDateTime, t } from "@/lib/mindercart/i18n";
 import { useMinderCartState } from "@/lib/mindercart/hooks";
 
 export default function HistoryPage() {
-  const { shoppingHistory, settings } = useMinderCartState();
+  const { shoppingHistory, settings, hydrated } = useMinderCartState();
   const lang = settings.language;
   const [expandedId, setExpandedId] = React.useState<string | null>(null);
 
+  if (!hydrated) {
+    return (
+      <AppShell title={t("es", "historyTitle")} subtitle={t("es", "historySubtitle")}>
+        <section style={cardStyle()}>
+          <div style={{ fontSize: 14, opacity: 0.75 }}>{t("es", "loading")}</div>
+        </section>
+      </AppShell>
+    );
+  }
+
   return (
-    <AppShell
-      title={t(lang, "historyTitle")}
-      subtitle={t(lang, "historySubtitle")}
-    >
+    <AppShell title={t(lang, "historyTitle")} subtitle={t(lang, "historySubtitle")}>
       {shoppingHistory.length === 0 ? (
         <section style={cardStyle()}>
           <div style={{ fontWeight: 900 }}>{t(lang, "noHistory")}</div>
@@ -39,7 +46,7 @@ export default function HistoryPage() {
                     fontWeight: 900,
                   }}
                 >
-                  {formatDateTime(row.closedAt, lang)} · {row.store} · {row.items.length} items
+                  {formatDateTime(row.closedAt, lang)} · {row.store} · {row.items.length} {t(lang, "itemsLabel")}
                 </button>
 
                 {expanded ? (

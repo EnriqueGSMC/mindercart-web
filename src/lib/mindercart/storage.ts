@@ -1,4 +1,3 @@
-// FILE: src/lib/mindercart/storage.ts
 import type {
   GeneralListItem,
   ItemMaster,
@@ -47,18 +46,32 @@ function escapeHtml(value: unknown) {
     .replaceAll("'", "&#39;");
 }
 
+export const CATEGORY_OPTIONS = [
+  "Abarrotes",
+  "Bebidas",
+  "Condimentos",
+  "Frutas",
+  "Higiene",
+  "Lácteos",
+  "Limpieza",
+  "Panadería",
+  "Verduras",
+  "General",
+] as const;
+
 const SEED_GENERAL_ITEMS: GeneralListItem[] = [
-  { id: uid(), name: "Leche", unit: "pza", quantity: "1", store: "Walmart", active: true, lastUsedAt: null },
-  { id: uid(), name: "Huevos", unit: "pza", quantity: "1", store: "Walmart", active: true, lastUsedAt: null },
-  { id: uid(), name: "Tortillas", unit: "pza", quantity: "1", store: "Walmart", active: true, lastUsedAt: null },
-  { id: uid(), name: "Papel higiénico", unit: "pza", quantity: "1", store: "Costco", active: true, lastUsedAt: null },
-  { id: uid(), name: "Detergente", unit: "pza", quantity: "1", store: "Costco", active: true, lastUsedAt: null },
+  { id: uid(), name: "Leche", category: "Lácteos", unit: "pza", quantity: "1", store: "Walmart", active: true, lastUsedAt: null },
+  { id: uid(), name: "Huevos", category: "Abarrotes", unit: "pza", quantity: "1", store: "Walmart", active: true, lastUsedAt: null },
+  { id: uid(), name: "Tortillas", category: "Abarrotes", unit: "pza", quantity: "1", store: "Walmart", active: true, lastUsedAt: null },
+  { id: uid(), name: "Papel higiénico", category: "Higiene", unit: "pza", quantity: "1", store: "Costco", active: true, lastUsedAt: null },
+  { id: uid(), name: "Detergente", category: "Limpieza", unit: "pza", quantity: "1", store: "Costco", active: true, lastUsedAt: null },
 ];
 
 function defaultState(): MinderCartState {
   const itemsMaster: ItemMaster[] = SEED_GENERAL_ITEMS.map((item) => ({
     id: uid(),
     name: item.name,
+    category: item.category,
     unit: item.unit,
     defaultStore: item.store,
     active: true,
@@ -132,7 +145,7 @@ export function itemKey(item: { name: string; unit: string; store: string }) {
 
 function upsertItemMaster(
   itemsMaster: ItemMaster[],
-  input: { name: string; unit: string; store: string }
+  input: { name: string; category: string; unit: string; store: string }
 ): ItemMaster[] {
   const key = `${normalize(input.name)}__${normalize(input.unit)}`;
 
@@ -145,6 +158,7 @@ function upsertItemMaster(
       item.id === existing.id
         ? {
             ...item,
+            category: safe(input.category) || item.category,
             defaultStore: safe(input.store) || item.defaultStore,
             active: true,
           }
@@ -156,6 +170,7 @@ function upsertItemMaster(
     {
       id: uid(),
       name: safe(input.name),
+      category: safe(input.category) || "General",
       unit: safe(input.unit),
       defaultStore: safe(input.store),
       active: true,
@@ -167,7 +182,7 @@ function upsertItemMaster(
 
 function upsertGeneralListItem(
   generalListItems: GeneralListItem[],
-  input: { name: string; unit: string; quantity: string; store: string }
+  input: { name: string; category: string; unit: string; quantity: string; store: string }
 ): GeneralListItem[] {
   const key = `${normalize(input.name)}__${normalize(input.unit)}`;
 
@@ -180,6 +195,7 @@ function upsertGeneralListItem(
       item.id === existing.id
         ? {
             ...item,
+            category: safe(input.category) || item.category,
             quantity: safe(input.quantity) || item.quantity,
             store: safe(input.store) || item.store,
             active: true,
@@ -193,6 +209,7 @@ function upsertGeneralListItem(
     {
       id: uid(),
       name: safe(input.name),
+      category: safe(input.category) || "General",
       unit: safe(input.unit),
       quantity: safe(input.quantity) || "1",
       store: safe(input.store),
@@ -205,6 +222,7 @@ function upsertGeneralListItem(
 
 export function addQuickNeed(input: {
   name: string;
+  category: string;
   unit: string;
   quantity: string;
   store: string;
@@ -212,6 +230,7 @@ export function addQuickNeed(input: {
   const state = readState();
 
   const name = safe(input.name);
+  const category = safe(input.category) || "General";
   const unit = safe(input.unit) || "pza";
   const quantity = safe(input.quantity) || "1";
   const store = safe(input.store) || state.settings.preferredStore || "Walmart";
@@ -221,7 +240,6 @@ export function addQuickNeed(input: {
   }
 
   const key = itemKey({ name, unit, store });
-
   const existing = state.activeShoppingListItems.find((item) => itemKey(item) === key);
 
   const activeShoppingListItems = existing
@@ -229,6 +247,7 @@ export function addQuickNeed(input: {
         item.id === existing.id
           ? {
               ...item,
+              category,
               quantity: numericSum(item.quantity, quantity),
               sourceTypes: Array.from(new Set([...item.sourceTypes, "quick_add"])),
             }
@@ -238,6 +257,7 @@ export function addQuickNeed(input: {
         {
           id: uid(),
           name,
+          category,
           unit,
           quantity,
           store,
@@ -251,9 +271,10 @@ export function addQuickNeed(input: {
 
   const next: MinderCartState = {
     ...state,
-    itemsMaster: upsertItemMaster(state.itemsMaster, { name, unit, store }),
+    itemsMaster: upsertItemMaster(state.itemsMaster, { name, category, unit, store }),
     generalListItems: upsertGeneralListItem(state.generalListItems, {
       name,
+      category,
       unit,
       quantity,
       store,
@@ -281,6 +302,7 @@ export function addGeneralSelections(ids: string[]) {
         row.id === existing.id
           ? {
               ...row,
+              category: item.category || row.category,
               quantity: numericSum(row.quantity, item.quantity),
               sourceTypes: Array.from(new Set([...row.sourceTypes, "general_list"])),
               sourceRefs: Array.from(new Set([...row.sourceRefs, item.id])),
@@ -292,6 +314,7 @@ export function addGeneralSelections(ids: string[]) {
         {
           id: uid(),
           name: item.name,
+          category: item.category || "General",
           unit: item.unit,
           quantity: item.quantity || "1",
           store: item.store || state.settings.preferredStore,
@@ -383,35 +406,6 @@ export function closeShoppingForStore(storeName: string) {
   return next;
 }
 
-export function closeActiveShoppingList() {
-  const state = readState();
-  if (state.activeShoppingListItems.length === 0) return state;
-
-  const boughtItems = state.activeShoppingListItems.filter((item) => item.checked);
-  if (boughtItems.length === 0) return state;
-
-  const grouped = groupByStore(boughtItems);
-
-  const nextHistory = [
-    ...grouped.map<ShoppingHistoryEntry>((group) => ({
-      id: uid(),
-      closedAt: now(),
-      store: group.store,
-      items: group.items,
-    })),
-    ...state.shoppingHistory,
-  ];
-
-  const next: MinderCartState = {
-    ...state,
-    shoppingHistory: nextHistory,
-    activeShoppingListItems: state.activeShoppingListItems.filter((item) => !item.checked),
-  };
-
-  writeState(next);
-  return next;
-}
-
 export function saveSettings(input: { language: "es" | "en"; preferredStore: string }) {
   const state = readState();
 
@@ -437,6 +431,7 @@ export function buildSuggestions(query: string): Suggestion[] {
     ...state.itemsMaster.map((item) => ({
       id: item.id,
       name: item.name,
+      category: item.category || "General",
       unit: item.unit,
       store: item.defaultStore,
       source: "items_master" as const,
@@ -444,6 +439,7 @@ export function buildSuggestions(query: string): Suggestion[] {
     ...state.generalListItems.map((item) => ({
       id: item.id,
       name: item.name,
+      category: item.category || "General",
       unit: item.unit,
       store: item.store,
       source: "general_list" as const,
@@ -481,6 +477,24 @@ export function groupByStore<T extends { store: string }>(rows: T[]) {
   return [...map.entries()]
     .map(([store, items]) => ({ store, items }))
     .sort((a, b) => a.store.localeCompare(b.store));
+}
+
+export function groupGeneralListByCategory(rows: GeneralListItem[]) {
+  const map = new Map<string, GeneralListItem[]>();
+
+  for (const row of rows) {
+    const category = safe(row.category) || "General";
+    const current = map.get(category) || [];
+    current.push(row);
+    map.set(category, current);
+  }
+
+  return [...map.entries()]
+    .map(([category, items]) => ({
+      category,
+      items: [...items].sort((a, b) => safe(a.name).localeCompare(safe(b.name))),
+    }))
+    .sort((a, b) => a.category.localeCompare(b.category));
 }
 
 export function buildShoppingListText() {
@@ -528,7 +542,7 @@ export function buildShoppingListHtml() {
         <title>MinderCart PDF</title>
       </head>
       <body style="font-family:Arial,sans-serif;padding:24px;color:#111;">
-        <div style="font-size:28px;font-weight:900;margin-bottom:16px;">Lista de Compras</div>
+        <div style="font-size:28px;font-weight:900;margin-bottom:16px;">Carrito</div>
         ${body || '<div>No hay artículos.</div>'}
       </body>
     </html>

@@ -1,10 +1,10 @@
-// FILE: src/app/page.tsx
 "use client";
 
 import React from "react";
 import { AppShell, cardStyle } from "@/components/mindercart/Shell";
 import { t } from "@/lib/mindercart/i18n";
 import {
+  CATEGORY_OPTIONS,
   addQuickNeed,
   buildSuggestions,
   groupByStore,
@@ -18,6 +18,7 @@ export default function NeedsPage() {
   const lang = settings.language;
 
   const [name, setName] = React.useState("");
+  const [category, setCategory] = React.useState("General");
   const [unit, setUnit] = React.useState("pza");
   const [quantity, setQuantity] = React.useState("1");
   const [store, setStore] = React.useState(settings.preferredStore || "Walmart");
@@ -36,6 +37,7 @@ export default function NeedsPage() {
 
   function applySuggestion(suggestion: Suggestion) {
     setName(suggestion.name);
+    setCategory(suggestion.category || "General");
     setUnit(suggestion.unit || "pza");
     setStore(suggestion.store || settings.preferredStore || "Walmart");
     setSuggestions([]);
@@ -45,7 +47,7 @@ export default function NeedsPage() {
     e.preventDefault();
 
     try {
-      addQuickNeed({ name, unit, quantity, store });
+      addQuickNeed({ name, category, unit, quantity, store });
       setMessage(`✅ ${name} ${t(lang, "addedToList")}`);
       setName("");
       setQuantity("1");
@@ -57,9 +59,9 @@ export default function NeedsPage() {
 
   if (!hydrated) {
     return (
-      <AppShell title="Necesidades" subtitle="Captura rápida de lo que hace falta">
+      <AppShell title="¿Qué necesito?" subtitle="Agrega lo que hace falta para tu próxima compra">
         <section style={cardStyle()}>
-          <div style={{ fontSize: 14, opacity: 0.75 }}>Cargando…</div>
+          <div style={{ fontSize: 14, opacity: 0.75 }}>{t("es", "loading")}</div>
         </section>
       </AppShell>
     );
@@ -119,7 +121,7 @@ export default function NeedsPage() {
                     >
                       <div style={{ fontWeight: 900 }}>{row.name}</div>
                       <div style={{ fontSize: 13, opacity: 0.75, marginTop: 4 }}>
-                        {row.unit} · {row.store}
+                        {row.category} · {row.unit} · {row.store}
                       </div>
                     </button>
                   ))
@@ -135,6 +137,26 @@ export default function NeedsPage() {
               gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
             }}
           >
+            <div>
+              <div style={{ fontWeight: 900, marginBottom: 6 }}>{t(lang, "category")}</div>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "14px 16px",
+                  borderRadius: 14,
+                  border: "1px solid #ddd",
+                }}
+              >
+                {CATEGORY_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <div>
               <div style={{ fontWeight: 900, marginBottom: 6 }}>{t(lang, "unit")}</div>
               <select
@@ -208,7 +230,7 @@ export default function NeedsPage() {
       </section>
 
       <section style={cardStyle()}>
-        <div style={{ fontWeight: 1000, marginBottom: 10 }}>{t(lang, "currentNeeds")}</div>
+        <div style={{ fontWeight: 1000, marginBottom: 10 }}>{t(lang, "whatIHave")}</div>
 
         {groups.length === 0 ? (
           <div style={{ fontSize: 14, opacity: 0.75 }}>{t(lang, "noItemsYet")}</div>
@@ -238,7 +260,7 @@ export default function NeedsPage() {
                       <div>
                         <div style={{ fontWeight: 900 }}>{item.name}</div>
                         <div style={{ fontSize: 13, opacity: 0.75, marginTop: 4 }}>
-                          {item.quantity} · {item.unit}
+                          {item.category} · {item.quantity} · {item.unit}
                         </div>
                       </div>
 

@@ -36,6 +36,7 @@ export function shellStyle(): React.CSSProperties {
     maxWidth: 860,
     margin: "0 auto",
     padding: 14,
+    paddingBottom: 120,
     fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
     color: "#111",
   };
@@ -52,8 +53,8 @@ export function AppShell(props: {
 
   const navItems = [
     { href: "/", label: t(lang, "navNeeds") },
-    { href: "/general-list", label: t(lang, "navShopping") },
-    { href: "/in-store", label: t(lang, "navInStore") },
+    { href: "/general-list", label: t(lang, "navCart") },
+    { href: "/in-store", label: t(lang, "navShopping") },
     { href: "/history", label: t(lang, "navHistory") },
     { href: "/settings", label: t(lang, "navSettings") },
   ];

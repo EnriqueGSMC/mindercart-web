@@ -3,6 +3,7 @@ export type Language = "es" | "en";
 export type ItemMaster = {
   id: string;
   name: string;
+  category: string;
   unit: string;
   defaultStore: string;
   active: boolean;
@@ -12,6 +13,7 @@ export type ItemMaster = {
 export type GeneralListItem = {
   id: string;
   name: string;
+  category: string;
   unit: string;
   quantity: string;
   store: string;
@@ -22,6 +24,7 @@ export type GeneralListItem = {
 export type ActiveShoppingListItem = {
   id: string;
   name: string;
+  category: string;
   unit: string;
   quantity: string;
   store: string;
@@ -54,6 +57,7 @@ export type MinderCartState = {
 export type Suggestion = {
   id: string;
   name: string;
+  category: string;
   unit: string;
   store: string;
   source: "items_master" | "general_list";

@@ -1,4 +1,3 @@
-// FILE: src/lib/mindercart/hooks.ts
 "use client";
 
 import React from "react";

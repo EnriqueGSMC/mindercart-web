@@ -1,21 +1,26 @@
-// FILE: src/app/in-store/page.tsx
 "use client";
 
 import React from "react";
 import { AppShell, cardStyle } from "@/components/mindercart/Shell";
 import { t } from "@/lib/mindercart/i18n";
-import {
-  closeShoppingForStore,
-  groupByStore,
-  toggleActiveItemChecked,
-} from "@/lib/mindercart/storage";
+import { closeShoppingForStore, groupByStore, toggleActiveItemChecked } from "@/lib/mindercart/storage";
 import { useMinderCartState } from "@/lib/mindercart/hooks";
 
-export default function InStorePage() {
-  const { activeShoppingListItems, settings } = useMinderCartState();
+export default function ShoppingPage() {
+  const { activeShoppingListItems, settings, hydrated } = useMinderCartState();
   const lang = settings.language;
   const [message, setMessage] = React.useState("");
   const [openStore, setOpenStore] = React.useState<string | null>(null);
+
+  if (!hydrated) {
+    return (
+      <AppShell title={t("es", "shoppingTitle")} subtitle={t("es", "shoppingSubtitle")}>
+        <section style={cardStyle()}>
+          <div style={{ fontSize: 14, opacity: 0.75 }}>{t("es", "loading")}</div>
+        </section>
+      </AppShell>
+    );
+  }
 
   const groups = groupByStore(activeShoppingListItems);
 
@@ -52,7 +57,7 @@ export default function InStorePage() {
   }
 
   return (
-    <AppShell title={t(lang, "inStoreTitle")} subtitle={t(lang, "inStoreSubtitle")}>
+    <AppShell title={t(lang, "shoppingTitle")} subtitle={t(lang, "shoppingSubtitle")}>
       {groups.length === 0 ? (
         <section style={cardStyle()}>
           <div style={{ fontSize: 14, opacity: 0.75 }}>{t(lang, "noItemsYet")}</div>
@@ -183,7 +188,7 @@ export default function InStorePage() {
                         fontWeight: 900,
                       }}
                     >
-                      {t(lang, "closeShopping")}
+                      {t(lang, "finishStorePurchase")}
                     </button>
                   </div>
                 ) : null}
