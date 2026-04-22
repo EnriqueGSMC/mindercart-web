@@ -1,27 +1,33 @@
-/* Global typography + grayscale palette (no blue links).
-   Why: iOS Safari/Chrome sometimes applies default link colors in nested components. */
+/* MinderCart mobile shell */
 :root {
   --app-font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
 
-  --cc-text: #111;
-  --cc-muted: rgba(17, 17, 17, 0.72);
-  --cc-border: #e6e6e6;
-  --cc-bg: #fafafa;
-  --cc-card: #fff;
+  --cc-text: #172554;
+  --cc-muted: #5c6ea6;
+  --cc-border: #d7dff5;
+  --cc-bg: #f6f8ff;
+  --cc-card: #ffffff;
 
-  --cc-primary: #111;
-  --cc-danger: #b91c1c;
-  --cc-success: #16a34a;
+  --cc-primary: #12245e;
+  --cc-primary-soft: #eef2ff;
+  --cc-danger: #991b1b;
+  --cc-success: #12245e;
+}
+
+html,
+body {
+  height: 100%;
 }
 
 html {
   font-size: 16px;
-  overflow-x: hidden;
+  overflow: hidden;
+  background: var(--cc-bg);
 }
 
 @media (max-width: 480px) {
   html {
-    font-size: 17px; /* readability */
+    font-size: 17px;
   }
 }
 
@@ -33,7 +39,7 @@ body {
   color: var(--cc-text);
   background: var(--cc-bg);
   -webkit-text-size-adjust: 100%;
-  overflow-x: hidden;
+  overflow: hidden;
 }
 
 *,
@@ -49,9 +55,9 @@ a {
 
 button {
   color: inherit;
+  font-family: inherit;
 }
 
-/* Avoid iOS zoom on focus and keep consistent sizing */
 input,
 select,
 textarea,
@@ -71,11 +77,11 @@ button {
   bottom: calc(18px + env(safe-area-inset-bottom));
   padding: 10px 12px;
   border-radius: 999px;
-  background: rgba(17, 17, 17, 0.92);
+  background: rgba(18, 36, 94, 0.96);
   color: #fff;
   font-weight: 800;
   z-index: 9999;
   max-width: calc(100vw - 28px);
   text-align: center;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 12px 40px rgba(18, 36, 94, 0.25);
 }

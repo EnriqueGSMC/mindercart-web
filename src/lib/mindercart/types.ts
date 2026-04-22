@@ -1,4 +1,5 @@
 export type Language = "es" | "en";
+export type FontScale = "normal" | "large" | "xlarge";
 
 export type ItemMaster = {
   id: string;
@@ -44,6 +45,7 @@ export type ShoppingHistoryEntry = {
 export type MinderCartSettings = {
   language: Language;
   preferredStore: string;
+  fontScale: FontScale;
 };
 
 export type MinderCartState = {
@@ -59,6 +61,7 @@ export type Suggestion = {
   name: string;
   category: string;
   unit: string;
+  quantity?: string;
   store: string;
   source: "items_master" | "general_list";
 };

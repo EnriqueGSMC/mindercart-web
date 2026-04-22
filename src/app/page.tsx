@@ -1,290 +1,464 @@
 "use client";
 
 import React from "react";
-import { AppShell, cardStyle } from "@/components/mindercart/Shell";
+import { AppShell, QtyUnitText, cardStyle, scalePx } from "@/components/mindercart/Shell";
 import { t } from "@/lib/mindercart/i18n";
 import {
   CATEGORY_OPTIONS,
   addQuickNeed,
   buildSuggestions,
-  groupByStore,
+  readState,
   removeActiveItem,
 } from "@/lib/mindercart/storage";
 import { useMinderCartState } from "@/lib/mindercart/hooks";
 import type { Suggestion } from "@/lib/mindercart/types";
 
+type DraftItem = {
+  name: string;
+  category: string;
+  unit: string;
+  quantity: string;
+  store: string;
+};
+
+type DraftSelectOptions = {
+  categories: string[];
+  units: string[];
+  stores: string[];
+};
+
+const MC_NAVY = "#12245E";
+const MC_NAVY_SOFT = "#EEF3FF";
+const MC_NAVY_LINE = "#D8E2FF";
+const MC_NAVY_MUTED = "#5D6B98";
+
+const modalOverlayStyle: React.CSSProperties = {
+  position: "fixed",
+  inset: 0,
+  background: "rgba(17,24,39,0.35)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: "calc(14px + env(safe-area-inset-top)) 12px calc(14px + env(safe-area-inset-bottom))",
+  overflowY: "auto",
+  WebkitOverflowScrolling: "touch",
+  overscrollBehavior: "contain",
+  zIndex: 120,
+};
+
+const modalCardStyle: React.CSSProperties = {
+  width: "min(520px, 100%)",
+  maxHeight: "calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 28px)",
+  overflowY: "auto",
+  WebkitOverflowScrolling: "touch",
+  overscrollBehavior: "contain",
+  background: "#fff",
+  borderRadius: 22,
+  border: `1px solid ${MC_NAVY_LINE}`,
+  padding: 14,
+  boxShadow: "0 16px 40px rgba(18,36,94,0.14)",
+};
+
+function uniqueValues(values: Array<string | null | undefined>) {
+  return Array.from(
+    new Set(
+      values
+        .map((value) => String(value ?? "").trim())
+        .filter(Boolean)
+    )
+  );
+}
+
 export default function NeedsPage() {
   const { activeShoppingListItems, settings, hydrated } = useMinderCartState();
   const lang = settings.language;
+  const s = (px: number) => scalePx(settings.fontScale, px);
+
+  const addArticleLabel = lang === "en" ? "Add item" : "Agregar artículo";
+  const addArticleModalHelp =
+    lang === "en"
+      ? "It is not in the list. You can add it."
+      : "No está en la lista. Puedes agregarlo.";
+  const itemPlaceholder = lang === "en" ? "e.g. milk" : "ej. leche";
 
   const [name, setName] = React.useState("");
-  const [category, setCategory] = React.useState("General");
-  const [unit, setUnit] = React.useState("pza");
-  const [quantity, setQuantity] = React.useState("1");
-  const [store, setStore] = React.useState(settings.preferredStore || "Walmart");
   const [message, setMessage] = React.useState("");
   const [suggestions, setSuggestions] = React.useState<Suggestion[]>([]);
-
-  React.useEffect(() => {
-    if (!hydrated) return;
-    setStore(settings.preferredStore || "Walmart");
-  }, [hydrated, settings.preferredStore]);
+  const [draft, setDraft] = React.useState<DraftItem | null>(null);
 
   React.useEffect(() => {
     if (!hydrated) return;
     setSuggestions(buildSuggestions(name));
   }, [hydrated, name]);
 
-  function applySuggestion(suggestion: Suggestion) {
-    setName(suggestion.name);
-    setCategory(suggestion.category || "General");
-    setUnit(suggestion.unit || "pza");
-    setStore(suggestion.store || settings.preferredStore || "Walmart");
+  const trimmedName = name.trim();
+  const showSuggestions = trimmedName.length >= 2 && suggestions.length > 0;
+  const canOpenCustomDraft = trimmedName.length >= 3 && suggestions.length === 0;
+
+  const draftSelectOptions = React.useMemo<DraftSelectOptions>(() => {
+    const state = readState();
+
+    return {
+      categories: uniqueValues([
+        ...CATEGORY_OPTIONS,
+        ...state.itemsMaster.map((item) => item.category),
+        ...state.generalListItems.map((item) => item.category),
+        ...state.activeShoppingListItems.map((item) => item.category),
+        "General",
+      ]),
+      units: uniqueValues([
+        ...state.itemsMaster.map((item) => item.unit),
+        ...state.generalListItems.map((item) => item.unit),
+        ...state.activeShoppingListItems.map((item) => item.unit),
+        "ea",
+      ]),
+      stores: uniqueValues([
+        settings.preferredStore,
+        ...state.itemsMaster.map((item) => item.defaultStore),
+        ...state.generalListItems.map((item) => item.store),
+        ...state.activeShoppingListItems.map((item) => item.store),
+        "HEB",
+      ]),
+    };
+  }, [settings.preferredStore]);
+
+  function resetInput() {
+    setName("");
     setSuggestions([]);
   }
 
-  function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  function closeDraft() {
+    setDraft(null);
+    resetInput();
+  }
 
+  function openDraft(input: DraftItem) {
+    setDraft({
+      name: input.name,
+      category: input.category || "General",
+      unit: input.unit || "ea",
+      quantity: input.quantity || "1",
+      store: input.store || settings.preferredStore || "HEB",
+    });
+  }
+
+  function applySuggestion(suggestion: Suggestion) {
+    setName(suggestion.name);
+    setSuggestions([]);
+    openDraft({
+      name: suggestion.name,
+      category: suggestion.category || "General",
+      unit: suggestion.unit || "ea",
+      quantity: suggestion.quantity || "1",
+      store: suggestion.store || settings.preferredStore || "HEB",
+    });
+  }
+
+  function openCustomDraft() {
+    if (!canOpenCustomDraft) return;
+    setSuggestions([]);
+    openDraft({
+      name: trimmedName,
+      category: "General",
+      unit: "ea",
+      quantity: "1",
+      store: settings.preferredStore || "HEB",
+    });
+  }
+
+  function updateDraftField(field: keyof DraftItem, value: string) {
+    setDraft((prev) => (prev ? { ...prev, [field]: value } : prev));
+  }
+
+  function confirmDraft() {
+    if (!draft) return;
     try {
-      addQuickNeed({ name, category, unit, quantity, store });
-      setMessage(`✅ ${name} ${t(lang, "addedToList")}`);
-      setName("");
-      setQuantity("1");
-      setSuggestions([]);
-    } catch (e: any) {
-      setMessage(`⚠ ${String(e?.message || e)}`);
+      addQuickNeed(draft);
+      setMessage(`✅ ${draft.name} ${t(lang, "addedToList")}`);
+      closeDraft();
+    } catch (e: unknown) {
+      setMessage(`⚠ ${String((e as { message?: string })?.message || e)}`);
     }
   }
 
   if (!hydrated) {
     return (
-      <AppShell title="¿Qué necesito?" subtitle="Agrega lo que hace falta para tu próxima compra">
-        <section style={cardStyle()}>
-          <div style={{ fontSize: 14, opacity: 0.75 }}>{t("es", "loading")}</div>
+      <AppShell title={t("es", "myListTitle")} darkHero subtitle={t("es", "myListSubtitle")}>
+        <section style={{ ...cardStyle(), padding: 18 }}>
+          <div style={{ fontSize: 14, color: MC_NAVY_MUTED }}>{t("es", "loading")}</div>
         </section>
       </AppShell>
     );
   }
 
-  const groups = groupByStore(activeShoppingListItems);
-
   return (
-    <AppShell title={t(lang, "needsTitle")} subtitle={t(lang, "needsSubtitle")}>
-      <section style={cardStyle()}>
-        <form onSubmit={onSubmit} style={{ display: "grid", gap: 12 }}>
-          <div>
-            <div style={{ fontWeight: 900, marginBottom: 6 }}>{t(lang, "item")}</div>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={lang === "en" ? "e.g. milk" : "ej. leche"}
-              style={{
-                width: "100%",
-                padding: "14px 16px",
-                borderRadius: 14,
-                border: "1px solid #ddd",
-                fontSize: 16,
-                boxSizing: "border-box",
-              }}
-            />
+    <AppShell title={t(lang, "myListTitle")} darkHero subtitle={t(lang, "myListSubtitle")}>
+      <section style={{ ...cardStyle(), padding: 14 }}>
+        <div style={{ display: "grid", gap: 12 }}>
+          <div style={{ fontSize: s(16), fontWeight: 700 }}>{t(lang, "item")}</div>
 
-            {name.trim().length >= 2 ? (
-              <div
-                style={{
-                  marginTop: 8,
-                  border: "1px solid #eee",
-                  borderRadius: 14,
-                  overflow: "hidden",
-                  background: "#fff",
-                }}
-              >
-                {suggestions.length === 0 ? (
-                  <div style={{ padding: 12, fontSize: 14, opacity: 0.75 }}>
-                    {t(lang, "noSuggestions")}
-                  </div>
-                ) : (
-                  suggestions.map((row) => (
-                    <button
-                      key={`${row.source}_${row.id}`}
-                      type="button"
-                      onClick={() => applySuggestion(row)}
-                      style={{
-                        width: "100%",
-                        textAlign: "left",
-                        padding: 12,
-                        border: 0,
-                        borderBottom: "1px solid #f2f2f2",
-                        background: "#fff",
-                        cursor: "pointer",
-                      }}
-                    >
-                      <div style={{ fontWeight: 900 }}>{row.name}</div>
-                      <div style={{ fontSize: 13, opacity: 0.75, marginTop: 4 }}>
-                        {row.category} · {row.unit} · {row.store}
-                      </div>
-                    </button>
-                  ))
-                )}
-              </div>
-            ) : null}
-          </div>
-
-          <div
-            style={{
-              display: "grid",
-              gap: 12,
-              gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+          <input
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value);
+              setMessage("");
             }}
-          >
-            <div>
-              <div style={{ fontWeight: 900, marginBottom: 6 }}>{t(lang, "category")}</div>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "14px 16px",
-                  borderRadius: 14,
-                  border: "1px solid #ddd",
-                }}
-              >
-                {CATEGORY_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <div style={{ fontWeight: 900, marginBottom: 6 }}>{t(lang, "unit")}</div>
-              <select
-                value={unit}
-                onChange={(e) => setUnit(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "14px 16px",
-                  borderRadius: 14,
-                  border: "1px solid #ddd",
-                }}
-              >
-                <option value="pza">pza</option>
-                <option value="kg">kg</option>
-                <option value="g">g</option>
-                <option value="lt">lt</option>
-                <option value="ml">ml</option>
-                <option value="caja">caja</option>
-                <option value="paquete">paquete</option>
-              </select>
-            </div>
-
-            <div>
-              <div style={{ fontWeight: 900, marginBottom: 6 }}>{t(lang, "quantity")}</div>
-              <input
-                value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "14px 16px",
-                  borderRadius: 14,
-                  border: "1px solid #ddd",
-                  boxSizing: "border-box",
-                }}
-              />
-            </div>
-
-            <div>
-              <div style={{ fontWeight: 900, marginBottom: 6 }}>{t(lang, "store")}</div>
-              <input
-                value={store}
-                onChange={(e) => setStore(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "14px 16px",
-                  borderRadius: 14,
-                  border: "1px solid #ddd",
-                  boxSizing: "border-box",
-                }}
-              />
-            </div>
-          </div>
-
-          <button
-            type="submit"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && canOpenCustomDraft) {
+                e.preventDefault();
+                openCustomDraft();
+              }
+            }}
+            placeholder={itemPlaceholder}
             style={{
               width: "100%",
-              padding: "12px 14px",
-              borderRadius: 14,
-              border: "1px solid #111",
-              background: "#111",
-              color: "#fff",
-              fontWeight: 900,
+              padding: "16px 18px",
+              borderRadius: 18,
+              border: `1px solid ${MC_NAVY_LINE}`,
+              fontSize: s(18),
+              boxSizing: "border-box",
             }}
-          >
-            {t(lang, "add")}
-          </button>
-        </form>
+          />
 
-        {message ? <div style={{ marginTop: 12, fontSize: 14 }}>{message}</div> : null}
+          {showSuggestions ? (
+            <div
+              style={{
+                border: `1px solid ${MC_NAVY_LINE}`,
+                borderRadius: 18,
+                overflow: "hidden",
+                background: "#fff",
+              }}
+            >
+              {suggestions.map((row, index) => (
+                <button
+                  key={`${row.source}_${row.id}`}
+                  type="button"
+                  onClick={() => applySuggestion(row)}
+                  style={{
+                    width: "100%",
+                    textAlign: "left",
+                    padding: "14px 16px",
+                    border: 0,
+                    borderBottom: index === suggestions.length - 1 ? "none" : `1px solid ${MC_NAVY_SOFT}`,
+                    background: "#fff",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 10,
+                  }}
+                >
+                  <div style={{ fontSize: s(17), fontWeight: 500 }}>{row.name}</div>
+                  <div style={{ fontSize: s(14), color: MC_NAVY_MUTED, whiteSpace: "nowrap" }}>{row.store}</div>
+                </button>
+              ))}
+            </div>
+          ) : null}
+
+          {canOpenCustomDraft ? (
+            <div style={{ display: "grid", gap: 10 }}>
+              <button
+                type="button"
+                onClick={openCustomDraft}
+                style={{
+                  width: "100%",
+                  padding: "14px 16px",
+                  borderRadius: 16,
+                  border: `1px solid ${MC_NAVY}`,
+                  background: MC_NAVY,
+                  color: "#fff",
+                  fontWeight: 900,
+                  fontSize: s(15),
+                  cursor: "pointer",
+                }}
+              >
+                {addArticleLabel}
+              </button>
+            </div>
+          ) : null}
+
+          {message ? <div style={{ fontSize: s(14), color: MC_NAVY }}>{message}</div> : null}
+        </div>
       </section>
 
-      <section style={cardStyle()}>
-        <div style={{ fontWeight: 1000, marginBottom: 10 }}>{t(lang, "whatIHave")}</div>
+      <section style={{ ...cardStyle(), padding: 14 }}>
+        <div style={{ fontSize: s(16), fontWeight: 800, marginBottom: 10 }}>{t(lang, "cartSection")}</div>
 
-        {groups.length === 0 ? (
-          <div style={{ fontSize: 14, opacity: 0.75 }}>{t(lang, "noItemsYet")}</div>
+        {activeShoppingListItems.length === 0 ? (
+          <div style={{ fontSize: s(14), color: MC_NAVY_MUTED }}>{t(lang, "noItemsYet")}</div>
         ) : (
-          <div style={{ display: "grid", gap: 12 }}>
-            {groups.map((group) => (
-              <div key={group.store}>
-                <div style={{ fontWeight: 900, marginBottom: 8 }}>
-                  {group.store} · {group.items.filter((item) => !item.checked).length}{" "}
-                  {t(lang, "pending").toLowerCase()}
-                </div>
+          <div>
+            {activeShoppingListItems.map((item, index) => (
+              <div
+                key={item.id}
+                style={{
+                  display: "flex",
+                  gap: 10,
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "14px 2px",
+                  borderBottom: index === activeShoppingListItems.length - 1 ? "none" : "1px solid #f3f4f6",
+                }}
+              >
+                <div style={{ minWidth: 0, flex: 1, fontSize: s(18), fontWeight: 500 }}>{item.name}</div>
 
-                <div style={{ display: "grid", gap: 10 }}>
-                  {group.items.map((item) => (
-                    <div
-                      key={item.id}
-                      style={{
-                        border: "1px solid #f0f0f0",
-                        borderRadius: 14,
-                        padding: 12,
-                        display: "flex",
-                        justifyContent: "space-between",
-                        gap: 10,
-                        alignItems: "center",
-                      }}
-                    >
-                      <div>
-                        <div style={{ fontWeight: 900 }}>{item.name}</div>
-                        <div style={{ fontSize: 13, opacity: 0.75, marginTop: 4 }}>
-                          {item.category} · {item.quantity} · {item.unit}
-                        </div>
-                      </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                  <div style={{ fontSize: s(15), color: MC_NAVY_MUTED }}>
+                    <QtyUnitText quantity={item.quantity} unit={item.unit} />
+                  </div>
 
-                      <button
-                        type="button"
-                        onClick={() => removeActiveItem(item.id)}
-                        style={{
-                          padding: "10px 12px",
-                          borderRadius: 12,
-                          border: "1px solid #ddd",
-                          background: "#fff",
-                          fontWeight: 900,
-                        }}
-                      >
-                        {t(lang, "remove")}
-                      </button>
-                    </div>
-                  ))}
+                  <button
+                    type="button"
+                    onClick={() => removeActiveItem(item.id)}
+                    style={{
+                      padding: "8px 12px",
+                      borderRadius: 12,
+                      border: `1px solid ${MC_NAVY_LINE}`,
+                      background: "#fff",
+                      fontWeight: 700,
+                      whiteSpace: "nowrap",
+                      fontSize: s(14),
+                    }}
+                  >
+                    {t(lang, "remove")}
+                  </button>
                 </div>
               </div>
             ))}
           </div>
         )}
       </section>
+
+      {draft ? (
+        <div style={modalOverlayStyle} onClick={closeDraft}>
+          <section style={modalCardStyle} onClick={(e) => e.stopPropagation()}>
+            <div style={{ fontSize: s(21), fontWeight: 900 }}>{draft.name}</div>
+            <div style={{ marginTop: 4, fontSize: s(13), color: MC_NAVY_MUTED }}>{addArticleModalHelp}</div>
+
+            <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
+              <div>
+                <div style={{ fontSize: s(12), fontWeight: 700, marginBottom: 5 }}>{t(lang, "category")}</div>
+                <select
+                  value={draft.category}
+                  onChange={(e) => updateDraftField("category", e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "12px 14px",
+                    borderRadius: 14,
+                    border: `1px solid ${MC_NAVY_LINE}`,
+                    boxSizing: "border-box",
+                    fontSize: s(15),
+                    background: "#fff",
+                  }}
+                >
+                  {draftSelectOptions.categories.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <div style={{ fontSize: s(12), fontWeight: 700, marginBottom: 5 }}>{t(lang, "unit")}</div>
+                <select
+                  value={draft.unit}
+                  onChange={(e) => updateDraftField("unit", e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "12px 14px",
+                    borderRadius: 14,
+                    border: `1px solid ${MC_NAVY_LINE}`,
+                    boxSizing: "border-box",
+                    fontSize: s(15),
+                    background: "#fff",
+                  }}
+                >
+                  {draftSelectOptions.units.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <div style={{ fontSize: s(12), fontWeight: 700, marginBottom: 5 }}>{t(lang, "quantity")}</div>
+                <input
+                  value={draft.quantity}
+                  inputMode="numeric"
+                  onChange={(e) => updateDraftField("quantity", e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "12px 14px",
+                    borderRadius: 14,
+                    border: `1px solid ${MC_NAVY_LINE}`,
+                    boxSizing: "border-box",
+                    fontSize: s(15),
+                  }}
+                />
+              </div>
+
+              <div>
+                <div style={{ fontSize: s(12), fontWeight: 700, marginBottom: 5 }}>{t(lang, "store")}</div>
+                <select
+                  value={draft.store}
+                  onChange={(e) => updateDraftField("store", e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "12px 14px",
+                    borderRadius: 14,
+                    border: `1px solid ${MC_NAVY_LINE}`,
+                    boxSizing: "border-box",
+                    fontSize: s(15),
+                    background: "#fff",
+                  }}
+                >
+                  {draftSelectOptions.stores.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+              <button
+                type="button"
+                onClick={closeDraft}
+                style={{
+                  flex: 1,
+                  padding: "13px 14px",
+                  borderRadius: 14,
+                  border: `1px solid ${MC_NAVY_LINE}`,
+                  background: "#fff",
+                  fontWeight: 800,
+                  fontSize: s(14),
+                }}
+              >
+                {t(lang, "back")}
+              </button>
+              <button
+                type="button"
+                onClick={confirmDraft}
+                style={{
+                  flex: 1,
+                  padding: "13px 14px",
+                  borderRadius: 14,
+                  border: `1px solid ${MC_NAVY}`,
+                  background: MC_NAVY,
+                  color: "#fff",
+                  fontWeight: 900,
+                  fontSize: s(14),
+                }}
+              >
+                {t(lang, "add")}
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </AppShell>
   );
 }

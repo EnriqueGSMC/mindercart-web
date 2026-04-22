@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { readState, CHANGE_EVENT } from "@/lib/mindercart/storage";
+import { CHANGE_EVENT, readState } from "@/lib/mindercart/storage";
 import type { MinderCartState } from "@/lib/mindercart/types";
 
 const EMPTY_STATE: MinderCartState = {
@@ -11,7 +11,8 @@ const EMPTY_STATE: MinderCartState = {
   shoppingHistory: [],
   settings: {
     language: "es",
-    preferredStore: "Walmart",
+    preferredStore: "HEB",
+    fontScale: "normal",
   },
 };
 

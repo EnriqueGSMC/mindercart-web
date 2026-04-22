@@ -1,28 +1,46 @@
 "use client";
 
 import React from "react";
-import { AppShell, cardStyle } from "@/components/mindercart/Shell";
+import { useRouter, useSearchParams } from "next/navigation";
+import {
+  AppShell,
+  MC_NAVY,
+  MC_NAVY_LINE,
+  MC_NAVY_MUTED,
+  cardStyle,
+  scalePx,
+} from "@/components/mindercart/Shell";
 import { t } from "@/lib/mindercart/i18n";
 import { saveSettings } from "@/lib/mindercart/storage";
 import { useMinderCartState } from "@/lib/mindercart/hooks";
-import type { Language } from "@/lib/mindercart/types";
+import type { FontScale, Language } from "@/lib/mindercart/types";
+
+function withMenuOpen(pathname: string) {
+  return pathname.includes("?") ? `${pathname}&menu=1` : `${pathname}?menu=1`;
+}
 
 export default function SettingsPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnTo = searchParams.get("returnTo") || "/";
   const { settings, hydrated } = useMinderCartState();
   const [language, setLanguage] = React.useState<Language>(settings.language);
   const [preferredStore, setPreferredStore] = React.useState(settings.preferredStore);
-  const [message, setMessage] = React.useState("");
+  const [fontScale, setFontScale] = React.useState<FontScale>(settings.fontScale);
 
   React.useEffect(() => {
     setLanguage(settings.language);
     setPreferredStore(settings.preferredStore);
-  }, [settings.language, settings.preferredStore]);
+    setFontScale(settings.fontScale);
+  }, [settings.language, settings.preferredStore, settings.fontScale]);
+
+  const s = (px: number) => scalePx(fontScale, px);
 
   if (!hydrated) {
     return (
-      <AppShell title={t("es", "settingsTitle")} subtitle={t("es", "settingsSubtitle")}>
-        <section style={cardStyle()}>
-          <div style={{ fontSize: 14, opacity: 0.75 }}>{t("es", "loading")}</div>
+      <AppShell title={t("es", "settingsTitle")} darkHero subtitle={t("es", "settingsSubtitle")} showCart={false}>
+        <section style={{ ...cardStyle(), padding: 18 }}>
+          <div style={{ fontSize: 14, color: MC_NAVY_MUTED }}>{t("es", "loading")}</div>
         </section>
       </AppShell>
     );
@@ -30,16 +48,16 @@ export default function SettingsPage() {
 
   function onSave(e: React.FormEvent) {
     e.preventDefault();
-    saveSettings({ language, preferredStore });
-    setMessage(`✅ ${t(language, "saved")}`);
+    saveSettings({ language, preferredStore, fontScale });
+    router.push(withMenuOpen(returnTo));
   }
 
   return (
-    <AppShell title={t(language, "settingsTitle")} subtitle={t(language, "settingsSubtitle")}>
-      <section style={cardStyle()}>
+    <AppShell title={t(language, "settingsTitle")} darkHero subtitle={t(language, "settingsSubtitle")} showCart={false}>
+      <section style={{ ...cardStyle(), padding: 14 }}>
         <form onSubmit={onSave} style={{ display: "grid", gap: 12 }}>
           <div>
-            <div style={{ fontWeight: 900, marginBottom: 6 }}>{t(language, "language")}</div>
+            <div style={{ fontWeight: 900, marginBottom: 6, fontSize: s(15) }}>{t(language, "language")}</div>
             <select
               value={language}
               onChange={(e) => setLanguage(e.target.value === "en" ? "en" : "es")}
@@ -47,7 +65,9 @@ export default function SettingsPage() {
                 width: "100%",
                 padding: "12px 14px",
                 borderRadius: 14,
-                border: "1px solid #ddd",
+                border: `1px solid ${MC_NAVY_LINE}`,
+                fontSize: s(15),
+                boxSizing: "border-box",
               }}
             >
               <option value="es">Español</option>
@@ -56,7 +76,7 @@ export default function SettingsPage() {
           </div>
 
           <div>
-            <div style={{ fontWeight: 900, marginBottom: 6 }}>{t(language, "preferredStore")}</div>
+            <div style={{ fontWeight: 900, marginBottom: 6, fontSize: s(15) }}>{t(language, "preferredStore")}</div>
             <input
               type="text"
               value={preferredStore}
@@ -65,10 +85,35 @@ export default function SettingsPage() {
                 width: "100%",
                 padding: "12px 14px",
                 borderRadius: 14,
-                border: "1px solid #ddd",
+                border: `1px solid ${MC_NAVY_LINE}`,
                 boxSizing: "border-box",
+                fontSize: s(15),
               }}
             />
+          </div>
+
+          <div>
+            <div style={{ fontWeight: 900, marginBottom: 6, fontSize: s(15) }}>{t(language, "fontSize")}</div>
+            <select
+              value={fontScale}
+              onChange={(e) =>
+                setFontScale(
+                  e.target.value === "large" || e.target.value === "xlarge" ? e.target.value : "normal"
+                )
+              }
+              style={{
+                width: "100%",
+                padding: "12px 14px",
+                borderRadius: 14,
+                border: `1px solid ${MC_NAVY_LINE}`,
+                fontSize: s(15),
+                boxSizing: "border-box",
+              }}
+            >
+              <option value="normal">{t(language, "fontNormal")}</option>
+              <option value="large">{t(language, "fontLarge")}</option>
+              <option value="xlarge">{t(language, "fontXLarge")}</option>
+            </select>
           </div>
 
           <button
@@ -77,17 +122,16 @@ export default function SettingsPage() {
               width: "100%",
               padding: "12px 14px",
               borderRadius: 14,
-              border: "1px solid #111",
-              background: "#111",
+              border: `1px solid ${MC_NAVY}`,
+              background: MC_NAVY,
               color: "#fff",
               fontWeight: 900,
+              fontSize: s(15),
             }}
           >
             {t(language, "save")}
           </button>
         </form>
-
-        {message ? <div style={{ marginTop: 12, fontSize: 14 }}>{message}</div> : null}
       </section>
     </AppShell>
   );
