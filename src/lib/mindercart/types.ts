@@ -3,7 +3,10 @@ export type FontScale = "normal" | "large" | "xlarge";
 
 export type ItemMaster = {
   id: string;
+  itemKey: string;
   name: string;
+  nameEs?: string;
+  nameEn?: string;
   category: string;
   unit: string;
   defaultStore: string;
@@ -13,6 +16,7 @@ export type ItemMaster = {
 
 export type GeneralListItem = {
   id: string;
+  itemKey?: string;
   name: string;
   category: string;
   unit: string;
@@ -24,6 +28,7 @@ export type GeneralListItem = {
 
 export type ActiveShoppingListItem = {
   id: string;
+  itemKey?: string;
   name: string;
   category: string;
   unit: string;
@@ -58,6 +63,7 @@ export type MinderCartState = {
 
 export type Suggestion = {
   id: string;
+  itemKey?: string;
   name: string;
   category: string;
   unit: string;

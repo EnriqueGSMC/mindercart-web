@@ -56,7 +56,7 @@ const messages = {
   },
   en: {
     appName: "MinderCart",
-    brandTagline: "Never Forget what to buy",
+    brandTagline: "Never forget what to buy",
     myListTitle: "My List",
     myListSubtitle: "Add items to your shopping list",
     cartTitle: "Cart",
@@ -109,34 +109,126 @@ const messages = {
   },
 } as const;
 
+function normalizeKey(value: unknown) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
 const unitMap: Record<string, { es: string; en: string }> = {
-  ea: { es: "pza", en: "ea" },
   pza: { es: "pza", en: "pc" },
-  dozen: { es: "docena", en: "dozen" },
-  gal: { es: "gal", en: "gal" },
-  lb: { es: "lb", en: "lb" },
-  bag: { es: "bolsa", en: "bag" },
-  bottle: { es: "botella", en: "bottle" },
-  loaf: { es: "barra", en: "loaf" },
+  pc: { es: "pza", en: "pc" },
+  pieza: { es: "pza", en: "pc" },
+  piezas: { es: "pza", en: "pc" },
+  ea: { es: "pza", en: "pc" },
+  each: { es: "pza", en: "pc" },
+
+  paquete: { es: "paquete", en: "pack" },
+  paquetes: { es: "paquete", en: "pack" },
   pack: { es: "paquete", en: "pack" },
-  pkg: { es: "paquete", en: "pkg" },
+  packs: { es: "paquete", en: "pack" },
+
+  caja: { es: "caja", en: "box" },
+  cajas: { es: "caja", en: "box" },
+  box: { es: "caja", en: "box" },
+  boxes: { es: "caja", en: "box" },
+
+  lata: { es: "lata", en: "can" },
+  latas: { es: "lata", en: "can" },
+  can: { es: "lata", en: "can" },
+  cans: { es: "lata", en: "can" },
+
+  botella: { es: "botella", en: "bottle" },
+  botellas: { es: "botella", en: "bottle" },
+  bottle: { es: "botella", en: "bottle" },
+  bottles: { es: "botella", en: "bottle" },
+
+  frasco: { es: "frasco", en: "jar" },
+  frascos: { es: "frasco", en: "jar" },
+  jar: { es: "frasco", en: "jar" },
+  jars: { es: "frasco", en: "jar" },
+
+  bolsa: { es: "bolsa", en: "bag" },
+  bolsas: { es: "bolsa", en: "bag" },
+  bag: { es: "bolsa", en: "bag" },
+  bags: { es: "bolsa", en: "bag" },
+
+  rollo: { es: "rollo", en: "roll" },
+  rollos: { es: "rollo", en: "roll" },
   roll: { es: "rollo", en: "roll" },
+  rolls: { es: "rollo", en: "roll" },
+
+  docena: { es: "docena", en: "dozen" },
+  docenas: { es: "docena", en: "dozen" },
+  dozen: { es: "docena", en: "dozen" },
+  dozens: { es: "docena", en: "dozen" },
+
+  g: { es: "g", en: "g" },
+  kg: { es: "kg", en: "kg" },
+  oz: { es: "oz", en: "oz" },
+  lb: { es: "lb", en: "lb" },
+  ml: { es: "ml", en: "ml" },
+  l: { es: "l", en: "l" },
+  gal: { es: "gal", en: "gal" },
 };
 
 const categoryMap: Record<string, { es: string; en: string }> = {
-  pantry: { es: "Despensa", en: "Pantry" },
-  produce: { es: "Frutas y verduras", en: "Produce" },
-  dairy: { es: "Lácteos", en: "Dairy" },
-  "meat & seafood": { es: "Carnes y mariscos", en: "Meat & Seafood" },
-  frozen: { es: "Congelados", en: "Frozen" },
+  "frutas y verduras": { es: "Frutas y Verduras", en: "Fruits & Vegetables" },
+  "fruits & vegetables": { es: "Frutas y Verduras", en: "Fruits & Vegetables" },
+  produce: { es: "Frutas y Verduras", en: "Fruits & Vegetables" },
+
+  "carnes, pollo y pescados": { es: "Carnes, Pollo y Pescados", en: "Meat, Poultry & Seafood" },
+  "meat, poultry & seafood": { es: "Carnes, Pollo y Pescados", en: "Meat, Poultry & Seafood" },
+  "meat & seafood": { es: "Carnes, Pollo y Pescados", en: "Meat, Poultry & Seafood" },
+  carnes: { es: "Carnes, Pollo y Pescados", en: "Meat, Poultry & Seafood" },
+
+  "lacteos y refrigerados": { es: "Lácteos y Refrigerados", en: "Dairy & Refrigerated" },
+  "dairy & refrigerated": { es: "Lácteos y Refrigerados", en: "Dairy & Refrigerated" },
+  dairy: { es: "Lácteos y Refrigerados", en: "Dairy & Refrigerated" },
+  refrigerated: { es: "Lácteos y Refrigerados", en: "Dairy & Refrigerated" },
+
+  "panaderia y tortilleria": { es: "Panadería y Tortillería", en: "Bakery & Tortillas" },
+  "bakery & tortillas": { es: "Panadería y Tortillería", en: "Bakery & Tortillas" },
+  bakery: { es: "Panadería y Tortillería", en: "Bakery & Tortillas" },
+
+  abarrotes: { es: "Abarrotes", en: "Grocery Staples" },
+  "grocery staples": { es: "Abarrotes", en: "Grocery Staples" },
+  pantry: { es: "Abarrotes", en: "Grocery Staples" },
+  despensa: { es: "Abarrotes", en: "Grocery Staples" },
+
+  bebidas: { es: "Bebidas", en: "Beverages" },
   beverages: { es: "Bebidas", en: "Beverages" },
-  snacks: { es: "Botanas", en: "Snacks" },
-  bakery: { es: "Panadería", en: "Bakery" },
-  cleaning: { es: "Limpieza", en: "Cleaning" },
-  "personal care": { es: "Cuidado personal", en: "Personal Care" },
-  "pet care": { es: "Mascotas", en: "Pet Care" },
-  hogar: { es: "Hogar", en: "Home" },
-  general: { es: "General", en: "General" },
+
+  congelados: { es: "Congelados", en: "Frozen" },
+  frozen: { es: "Congelados", en: "Frozen" },
+
+  "limpieza y hogar": { es: "Limpieza y Hogar", en: "Cleaning & Home" },
+  "cleaning & home": { es: "Limpieza y Hogar", en: "Cleaning & Home" },
+  cleaning: { es: "Limpieza y Hogar", en: "Cleaning & Home" },
+  household: { es: "Limpieza y Hogar", en: "Cleaning & Home" },
+  hogar: { es: "Limpieza y Hogar", en: "Cleaning & Home" },
+
+  "farmacia, bebe y cuidado personal": { es: "Farmacia, Bebé y Cuidado Personal", en: "Pharmacy, Baby & Personal Care" },
+  "pharmacy, baby & personal care": { es: "Farmacia, Bebé y Cuidado Personal", en: "Pharmacy, Baby & Personal Care" },
+  pharmacy: { es: "Farmacia, Bebé y Cuidado Personal", en: "Pharmacy, Baby & Personal Care" },
+  "personal care": { es: "Farmacia, Bebé y Cuidado Personal", en: "Pharmacy, Baby & Personal Care" },
+  bebe: { es: "Farmacia, Bebé y Cuidado Personal", en: "Pharmacy, Baby & Personal Care" },
+  baby: { es: "Farmacia, Bebé y Cuidado Personal", en: "Pharmacy, Baby & Personal Care" },
+
+  mascotas: { es: "Mascotas", en: "Pets" },
+  pets: { es: "Mascotas", en: "Pets" },
+  "pet care": { es: "Mascotas", en: "Pets" },
+
+  "cajas y salida": { es: "Cajas y Salida", en: "Checkout & Front End" },
+  "checkout & front end": { es: "Cajas y Salida", en: "Checkout & Front End" },
+  checkout: { es: "Cajas y Salida", en: "Checkout & Front End" },
+  "front end": { es: "Cajas y Salida", en: "Checkout & Front End" },
+
+  "otro / temporal": { es: "Otro / Temporal", en: "Other / Seasonal" },
+  "other / seasonal": { es: "Otro / Temporal", en: "Other / Seasonal" },
+  general: { es: "Otro / Temporal", en: "Other / Seasonal" },
 };
 
 export function t(lang: AppLanguage, key: keyof typeof messages.es): string {
@@ -144,15 +236,13 @@ export function t(lang: AppLanguage, key: keyof typeof messages.es): string {
 }
 
 export function unitLabel(lang: AppLanguage, unit: string): string {
-  const key = String(unit || "").trim().toLowerCase();
-  const row = unitMap[key];
+  const row = unitMap[normalizeKey(unit)];
   if (!row) return unit || "";
   return lang === "en" ? row.en : row.es;
 }
 
 export function categoryLabel(lang: AppLanguage, category: string): string {
-  const key = String(category || "").trim().toLowerCase();
-  const row = categoryMap[key];
+  const row = categoryMap[normalizeKey(category)];
   if (!row) return category || "";
   return lang === "en" ? row.en : row.es;
 }

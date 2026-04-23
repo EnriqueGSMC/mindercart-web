@@ -10,7 +10,7 @@ import type {
 } from "@/lib/mindercart/types";
 
 export const CHANGE_EVENT = "mindercart:changed";
-const STORAGE_KEY = "mindercart_state_v14";
+const STORAGE_KEY = "mindercart_state_v15";
 
 function now() {
   return Date.now();
@@ -103,11 +103,96 @@ export const UNIT_OPTIONS = [
 
 export const STORE_OPTIONS = ["HEB", "Costco", "Sam\'s"] as const;
 
+const SEED_BY_ITEM_KEY = new Map(SEED_GENERAL_ITEMS.map((item) => [item.itemKey, item]));
+const SEED_BY_NAME = new Map<string, (typeof SEED_GENERAL_ITEMS)[number]>();
+
+for (const item of SEED_GENERAL_ITEMS) {
+  SEED_BY_NAME.set(normalize(item.nameEs), item);
+  SEED_BY_NAME.set(normalize(item.nameEn), item);
+}
+
+function makeItemKey(value: unknown) {
+  const normalized = normalize(value).replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-");
+  return normalized || "custom-item";
+}
+
+function getSeedItem(value: { itemKey?: unknown; name?: unknown } | string) {
+  if (typeof value === "string") return SEED_BY_NAME.get(normalize(value)) || null;
+
+  const directKey = safe(value.itemKey);
+  if (directKey && SEED_BY_ITEM_KEY.has(directKey)) return SEED_BY_ITEM_KEY.get(directKey) || null;
+
+  const byName = safe(value.name);
+  if (byName && SEED_BY_NAME.has(normalize(byName))) return SEED_BY_NAME.get(normalize(byName)) || null;
+
+  return null;
+}
+
+function localizedMasterName(
+  item: Pick<ItemMaster, "name" | "nameEs" | "nameEn">,
+  lang: Language
+) {
+  const localized = lang === "en" ? safe(item.nameEn) || safe(item.name) : safe(item.nameEs) || safe(item.name);
+  return localized || safe(item.name);
+}
+
+function itemSearchTerms(item: Pick<ItemMaster, "itemKey" | "name" | "nameEs" | "nameEn">) {
+  return [...new Set([item.itemKey, item.name, item.nameEs, item.nameEn].map(normalize).filter(Boolean))];
+}
+
+function localizeRowName<T extends { itemKey?: string; name: string }>(
+  row: T,
+  catalogMap: Map<string, ItemMaster>,
+  lang: Language
+): T {
+  const itemKey = safe(row.itemKey);
+  if (!itemKey) return row;
+
+  const master = catalogMap.get(itemKey);
+  if (!master) return row;
+
+  return {
+    ...row,
+    name: localizedMasterName(master, lang),
+  };
+}
+
+function enrichItemMaster(item: ItemMaster): ItemMaster {
+  const seed = getSeedItem({ itemKey: item.itemKey, name: item.name });
+  const fallbackKey = safe(item.itemKey) || seed?.itemKey || makeItemKey(item.name);
+
+  return {
+    ...normalizeGeneralListItem(item),
+    itemKey: fallbackKey,
+    nameEs: seed?.nameEs || safe(item.nameEs) || safe(item.name),
+    nameEn: seed?.nameEn || safe(item.nameEn) || safe(item.name),
+    name: safe(item.name) || seed?.nameEs || "",
+  };
+}
+
+function enrichTrackedRow<
+  T extends { itemKey?: string; name: string; category?: string | null; unit?: string | null; store?: string | null }
+>(row: T): T {
+  const seed = getSeedItem({ itemKey: row.itemKey, name: row.name });
+  return {
+    ...normalizeGeneralListItem(row),
+    itemKey: safe(row.itemKey) || seed?.itemKey || "",
+    name: safe(row.name) || seed?.nameEs || "",
+  };
+}
+
+function resolveCatalogMatch(itemsMaster: ItemMaster[], name: string) {
+  const key = normalize(name);
+  return itemsMaster.find((item) => itemSearchTerms(item).includes(key)) || getSeedItem(name);
+}
+
+
 const CATEGORY_ALIASES: Record<string, string> = {
   "frutas y verduras": "Frutas y Verduras",
   frutas: "Frutas y Verduras",
   verduras: "Frutas y Verduras",
   produce: "Frutas y Verduras",
+  "fruits & vegetables": "Frutas y Verduras",
 
   "carnes, pollo y pescados": "Carnes, Pollo y Pescados",
   "carnes y mariscos": "Carnes, Pollo y Pescados",
@@ -116,12 +201,14 @@ const CATEGORY_ALIASES: Record<string, string> = {
   pescados: "Carnes, Pollo y Pescados",
   mariscos: "Carnes, Pollo y Pescados",
   "meat & seafood": "Carnes, Pollo y Pescados",
+  "meat, poultry & seafood": "Carnes, Pollo y Pescados",
 
   "lacteos y refrigerados": "Lácteos y Refrigerados",
   lacteos: "Lácteos y Refrigerados",
   refrigerados: "Lácteos y Refrigerados",
   dairy: "Lácteos y Refrigerados",
   refrigerated: "Lácteos y Refrigerados",
+  "dairy & refrigerated": "Lácteos y Refrigerados",
 
   "panaderia y tortilleria": "Panadería y Tortillería",
   panaderia: "Panadería y Tortillería",
@@ -129,6 +216,7 @@ const CATEGORY_ALIASES: Record<string, string> = {
   tortilleria: "Panadería y Tortillería",
   tortillería: "Panadería y Tortillería",
   bakery: "Panadería y Tortillería",
+  "bakery & tortillas": "Panadería y Tortillería",
 
   abarrotes: "Abarrotes",
   despensa: "Abarrotes",
@@ -136,6 +224,7 @@ const CATEGORY_ALIASES: Record<string, string> = {
   "pantry staples": "Abarrotes",
   snacks: "Abarrotes",
   botanas: "Abarrotes",
+  "grocery staples": "Abarrotes",
 
   bebidas: "Bebidas",
   beverages: "Bebidas",
@@ -149,6 +238,7 @@ const CATEGORY_ALIASES: Record<string, string> = {
   home: "Limpieza y Hogar",
   cleaning: "Limpieza y Hogar",
   household: "Limpieza y Hogar",
+  "cleaning & home": "Limpieza y Hogar",
 
   "farmacia, bebe y cuidado personal": "Farmacia, Bebé y Cuidado Personal",
   "farmacia, bebé y cuidado personal": "Farmacia, Bebé y Cuidado Personal",
@@ -159,6 +249,7 @@ const CATEGORY_ALIASES: Record<string, string> = {
   "personal care": "Farmacia, Bebé y Cuidado Personal",
   pharmacy: "Farmacia, Bebé y Cuidado Personal",
   baby: "Farmacia, Bebé y Cuidado Personal",
+  "pharmacy, baby & personal care": "Farmacia, Bebé y Cuidado Personal",
 
   mascotas: "Mascotas",
   "pet care": "Mascotas",
@@ -169,12 +260,15 @@ const CATEGORY_ALIASES: Record<string, string> = {
   salida: "Cajas y Salida",
   checkout: "Cajas y Salida",
   "front end": "Cajas y Salida",
+  "checkout & front end": "Cajas y Salida",
 
   "otro / temporal": DEFAULT_CATEGORY,
   "otro/temporal": DEFAULT_CATEGORY,
   otro: DEFAULT_CATEGORY,
   temporal: DEFAULT_CATEGORY,
   general: DEFAULT_CATEGORY,
+  "other / seasonal": DEFAULT_CATEGORY,
+  "other/seasonal": DEFAULT_CATEGORY,
 };
 
 function canonicalizeCategory(value: unknown) {
@@ -186,7 +280,7 @@ function canonicalizeCategory(value: unknown) {
 function canonicalizeUnit(value: unknown) {
   const raw = normalize(value);
   if (!raw) return "pza";
-  if (["pza", "pzas", "pieza", "piezas", "unidad", "unidades", "ea", "each", "unit", "units", "barra", "bote", "cabeza", "tubo"].includes(raw)) return "pza";
+  if (["pza", "pzas", "pieza", "piezas", "unidad", "unidades", "ea", "each", "pc", "pcs", "unit", "units", "barra", "bote", "cabeza", "tubo"].includes(raw)) return "pza";
   if (["paquete", "paquetes", "pack", "packs"].includes(raw)) return "paquete";
   if (["caja", "cajas", "box", "boxes"].includes(raw)) return "caja";
   if (["lata", "latas", "can", "cans"].includes(raw)) return "lata";
@@ -224,7 +318,10 @@ function normalizeGeneralListItem<T extends { category?: string | null; unit?: s
 function defaultState(): MinderCartState {
   const itemsMaster: ItemMaster[] = SEED_GENERAL_ITEMS.map((item) => ({
     id: uid(),
-    name: item.name,
+    itemKey: item.itemKey,
+    name: item.nameEs,
+    nameEs: item.nameEs,
+    nameEn: item.nameEn,
     category: canonicalizeCategory(item.category),
     unit: canonicalizeUnit(item.unit),
     defaultStore: "",
@@ -259,27 +356,41 @@ export function readState(): MinderCartState {
     const parsed = JSON.parse(raw) as Partial<MinderCartState>;
     const base = defaultState();
 
+    const language: Language = parsed.settings?.language === "en" ? "en" : "es";
+    const itemsMasterBase =
+      Array.isArray(parsed.itemsMaster) && parsed.itemsMaster.length > 0
+        ? parsed.itemsMaster.map((item) => enrichItemMaster(item as ItemMaster))
+        : base.itemsMaster.map((item) => enrichItemMaster(item));
+
+    const catalogMap = new Map(itemsMasterBase.map((item) => [item.itemKey, item]));
+
     return {
-      itemsMaster:
-        Array.isArray(parsed.itemsMaster) && parsed.itemsMaster.length > 0
-          ? parsed.itemsMaster.map((item) => normalizeGeneralListItem(item))
-          : base.itemsMaster,
+      itemsMaster: itemsMasterBase.map((item) => ({
+        ...item,
+        name: localizedMasterName(item, language),
+      })),
       generalListItems: Array.isArray(parsed.generalListItems)
-        ? parsed.generalListItems.map((item) => normalizeGeneralListItem(item))
+        ? parsed.generalListItems.map((item) =>
+            localizeRowName(enrichTrackedRow(item), catalogMap, language)
+          )
         : [],
       activeShoppingListItems: Array.isArray(parsed.activeShoppingListItems)
-        ? parsed.activeShoppingListItems.map((item) => normalizeGeneralListItem(item))
+        ? parsed.activeShoppingListItems.map((item) =>
+            localizeRowName(enrichTrackedRow(item), catalogMap, language)
+          )
         : [],
       shoppingHistory: Array.isArray(parsed.shoppingHistory)
         ? parsed.shoppingHistory.map((group) => ({
             ...group,
             items: Array.isArray(group?.items)
-              ? group.items.map((item) => normalizeGeneralListItem(item))
+              ? group.items.map((item) =>
+                  localizeRowName(enrichTrackedRow(item), catalogMap, language)
+                )
               : [],
           }))
         : [],
       settings: {
-        language: parsed.settings?.language === "en" ? "en" : "es",
+        language,
         preferredStore: safe(parsed.settings?.preferredStore) || "HEB",
         fontScale:
           parsed.settings?.fontScale === "large" || parsed.settings?.fontScale === "xlarge"
@@ -307,25 +418,31 @@ function numericSum(a: string, b: string) {
   return safe(b) || safe(a) || "1";
 }
 
-export function itemKey(item: { name: string; unit: string; store: string }) {
-  return `${normalize(item.name)}__${normalize(item.unit)}__${normalize(item.store)}`;
+export function itemKey(item: { itemKey?: string; name: string; unit: string; store: string }) {
+  return `${safe(item.itemKey) || normalize(item.name)}__${normalize(item.unit)}__${normalize(item.store)}`;
 }
 
 function upsertItemMaster(
   itemsMaster: ItemMaster[],
   input: { name: string; category: string; unit: string; store: string }
 ): ItemMaster[] {
-  const key = `${normalize(input.name)}__${normalize(input.unit)}`;
-  const existing = itemsMaster.find(
-    (item) => `${normalize(item.name)}__${normalize(item.unit)}` === key
-  );
+  const match = resolveCatalogMatch(itemsMaster, input.name);
+  const nextItemKey = "itemKey" in (match || {}) ? safe((match as { itemKey?: string }).itemKey) : "";
+  const seed = getSeedItem({ itemKey: nextItemKey, name: input.name });
+  const itemKeyValue = nextItemKey || seed?.itemKey || makeItemKey(input.name);
+
+  const existing = itemsMaster.find((item) => safe(item.itemKey) === itemKeyValue);
 
   if (existing) {
     return itemsMaster.map((item) =>
       item.id === existing.id
         ? {
             ...item,
+            name: safe(input.name) || item.name,
+            nameEs: seed?.nameEs || safe(item.nameEs) || safe(item.name),
+            nameEn: seed?.nameEn || safe(item.nameEn) || safe(item.name),
             category: canonicalizeCategory(input.category) || item.category,
+            unit: canonicalizeUnit(input.unit),
             defaultStore: cleanStore(input.store) || item.defaultStore,
             active: true,
           }
@@ -336,7 +453,10 @@ function upsertItemMaster(
   return [
     {
       id: uid(),
-      name: safe(input.name),
+      itemKey: itemKeyValue,
+      name: seed?.nameEs || safe(input.name),
+      nameEs: seed?.nameEs || safe(input.name),
+      nameEn: seed?.nameEn || safe(input.name),
       category: canonicalizeCategory(input.category) || DEFAULT_CATEGORY,
       unit: canonicalizeUnit(input.unit),
       defaultStore: cleanStore(input.store),
@@ -351,9 +471,12 @@ function upsertGeneralListItem(
   generalListItems: GeneralListItem[],
   input: { name: string; category: string; unit: string; quantity: string; store: string }
 ): GeneralListItem[] {
-  const key = `${normalize(input.name)}__${normalize(input.unit)}`;
+  const match = resolveCatalogMatch(readState().itemsMaster, input.name);
+  const nextItemKey = "itemKey" in (match || {}) ? safe((match as { itemKey?: string }).itemKey) : "";
+  const itemKeyValue = nextItemKey || makeItemKey(input.name);
+
   const existing = generalListItems.find(
-    (item) => `${normalize(item.name)}__${normalize(item.unit)}` === key
+    (item) => (safe(item.itemKey) || `${normalize(item.name)}__${normalize(item.unit)}`) === (itemKeyValue || `${normalize(input.name)}__${normalize(input.unit)}`)
   );
 
   if (existing) {
@@ -361,7 +484,10 @@ function upsertGeneralListItem(
       item.id === existing.id
         ? {
             ...item,
+            itemKey: itemKeyValue,
+            name: safe(input.name) || item.name,
             category: canonicalizeCategory(input.category) || item.category,
+            unit: canonicalizeUnit(input.unit),
             quantity: safe(input.quantity) || item.quantity,
             store: cleanStore(input.store) || item.store,
             active: true,
@@ -374,6 +500,7 @@ function upsertGeneralListItem(
   return [
     {
       id: uid(),
+      itemKey: itemKeyValue,
       name: safe(input.name),
       category: canonicalizeCategory(input.category) || DEFAULT_CATEGORY,
       unit: canonicalizeUnit(input.unit),
@@ -399,10 +526,14 @@ export function addQuickNeed(input: {
   const unit = canonicalizeUnit(input.unit);
   const quantity = safe(input.quantity) || "1";
   const store = safe(input.store) || state.settings.preferredStore || "HEB";
+  const catalogMatch = resolveCatalogMatch(state.itemsMaster, name);
+  const catalogItemKey =
+    "itemKey" in (catalogMatch || {}) ? safe((catalogMatch as { itemKey?: string }).itemKey) : "";
+  const trackedItemKey = catalogItemKey || makeItemKey(name);
 
   if (!name) throw new Error("Artículo requerido");
 
-  const key = itemKey({ name, unit, store });
+  const key = itemKey({ itemKey: trackedItemKey, name, unit, store });
   const existing = state.activeShoppingListItems.find((item) => itemKey(item) === key);
 
   const activeShoppingListItems = existing
@@ -410,6 +541,7 @@ export function addQuickNeed(input: {
         item.id === existing.id
           ? {
               ...item,
+              itemKey: trackedItemKey,
               category,
               quantity: numericSum(item.quantity, quantity),
               sourceTypes: Array.from(new Set([...item.sourceTypes, "quick_add"])),
@@ -419,6 +551,7 @@ export function addQuickNeed(input: {
     : [
         {
           id: uid(),
+          itemKey: trackedItemKey,
           name,
           category,
           unit,
@@ -465,6 +598,7 @@ export function addGeneralSelections(ids: string[]) {
         row.id === existing.id
           ? {
               ...row,
+              itemKey: safe(item.itemKey) || row.itemKey,
               category: item.category || row.category,
               quantity: numericSum(row.quantity, item.quantity),
               sourceTypes: Array.from(new Set([...row.sourceTypes, "general_list"])),
@@ -476,6 +610,7 @@ export function addGeneralSelections(ids: string[]) {
       activeShoppingListItems = [
         {
           id: uid(),
+          itemKey: safe(item.itemKey),
           name: item.name,
           category: canonicalizeCategory(item.category) || DEFAULT_CATEGORY,
           unit: canonicalizeUnit(item.unit),
@@ -533,6 +668,7 @@ export function deleteActiveItemEverywhere(id: string) {
   if (!target) return state;
 
   const sourceRefSet = new Set(target.sourceRefs || []);
+  const targetItemKey = safe(target.itemKey);
   const targetName = normalize(target.name);
   const targetUnit = normalize(target.unit);
 
@@ -541,12 +677,14 @@ export function deleteActiveItemEverywhere(id: string) {
     activeShoppingListItems: state.activeShoppingListItems.filter((item) => item.id !== id),
     generalListItems: state.generalListItems.map((item) => {
       const sameSource = sourceRefSet.size > 0 && sourceRefSet.has(item.id);
+      const sameItemKey = targetItemKey && safe(item.itemKey) === targetItemKey;
       const sameItem = normalize(item.name) === targetName && normalize(item.unit) === targetUnit;
-      return sameSource || sameItem ? { ...item, active: false } : item;
+      return sameSource || sameItemKey || sameItem ? { ...item, active: false } : item;
     }),
     itemsMaster: state.itemsMaster.map((item) => {
+      const sameItemKey = targetItemKey && safe(item.itemKey) === targetItemKey;
       const sameItem = normalize(item.name) === targetName && normalize(item.unit) === targetUnit;
-      return sameItem ? { ...item, active: false } : item;
+      return sameItemKey || sameItem ? { ...item, active: false } : item;
     }),
   };
 
@@ -609,37 +747,55 @@ export function saveSettings(input: {
 
 export function buildSuggestions(query: string): Suggestion[] {
   const state = readState();
+  const lang = state.settings.language;
   const q = normalize(query);
   if (q.length < 2) return [];
 
-  const raw: Suggestion[] = [
+  const catalogMap = new Map(state.itemsMaster.map((item) => [item.itemKey, item]));
+
+  const raw = [
     ...state.itemsMaster
       .filter((item) => item.active !== false)
       .map((item) => ({
         id: item.id,
-        name: item.name,
+        itemKey: item.itemKey,
+        name: localizedMasterName(item, lang),
         category: canonicalizeCategory(item.category) || DEFAULT_CATEGORY,
         unit: canonicalizeUnit(item.unit),
         quantity: "1",
         store: item.defaultStore,
         source: "items_master" as const,
+        searchTerms: itemSearchTerms(item),
       })),
     ...state.generalListItems
       .filter((item) => item.active !== false)
-      .map((item) => ({
-        id: item.id,
-        name: item.name,
-        category: canonicalizeCategory(item.category) || DEFAULT_CATEGORY,
-        unit: canonicalizeUnit(item.unit),
-        quantity: item.quantity || "1",
-        store: item.store,
-        source: "general_list" as const,
-      })),
+      .map((item) => {
+        const localized = localizeRowName(item, catalogMap, lang);
+        const catalogItem = safe(item.itemKey) ? catalogMap.get(safe(item.itemKey)) : null;
+
+        return {
+          id: item.id,
+          itemKey: safe(item.itemKey),
+          name: localized.name,
+          category: canonicalizeCategory(item.category) || DEFAULT_CATEGORY,
+          unit: canonicalizeUnit(item.unit),
+          quantity: item.quantity || "1",
+          store: item.store,
+          source: "general_list" as const,
+          searchTerms: [
+            normalize(localized.name),
+            normalize(item.name),
+            ...(catalogItem ? itemSearchTerms(catalogItem) : []),
+          ].filter(Boolean),
+        };
+      }),
   ];
 
-  const starts = raw.filter((item) => normalize(item.name).startsWith(q));
+  const starts = raw.filter((item) => item.searchTerms.some((term) => term.startsWith(q)));
   const includes = raw.filter(
-    (item) => !normalize(item.name).startsWith(q) && normalize(item.name).includes(q)
+    (item) =>
+      !item.searchTerms.some((term) => term.startsWith(q)) &&
+      item.searchTerms.some((term) => term.includes(q))
   );
 
   const merged = [...starts, ...includes];
@@ -647,12 +803,13 @@ export function buildSuggestions(query: string): Suggestion[] {
 
   return merged
     .filter((item) => {
-      const key = `${normalize(item.name)}__${normalize(item.unit)}__${normalize(item.store)}`;
+      const key = `${safe(item.itemKey) || normalize(item.name)}__${normalize(item.unit)}__${normalize(item.store)}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
     })
-    .slice(0, 8);
+    .slice(0, 8)
+    .map(({ searchTerms: _searchTerms, ...item }) => item);
 }
 
 export function groupByStore<T extends { store: string }>(rows: T[]) {
@@ -692,26 +849,44 @@ export function groupGeneralListByCategory(rows: GeneralListItem[]) {
 }
 
 export function buildShoppingListText() {
-  const groups = groupByStore(pendingOnly(readState().activeShoppingListItems));
+  const state = readState();
+  const lang = state.settings.language;
+  const catalogMap = new Map(state.itemsMaster.map((item) => [item.itemKey, item]));
+  const groups = groupByStore(pendingOnly(state.activeShoppingListItems)).map((group) => ({
+    ...group,
+    items: group.items.map((item) => localizeRowName(item, catalogMap, lang)),
+  }));
+
   return groups
     .map((group) =>
-      [group.store, ...group.items.map((item) => `${item.name} ${item.quantity} ${item.unit}`)].join("\n")
+      [group.store, ...group.items.map((item) => `${item.name} ${item.quantity} ${unitLabel(lang, item.unit)}`)].join("\n")
     )
     .join("\n\n")
     .trim();
 }
 
 export function buildShoppingListTextForStore(storeName: string) {
+  const state = readState();
+  const lang = state.settings.language;
   const store = safe(storeName);
-  const rows = pendingOnly(readState().activeShoppingListItems).filter(
-    (item) => safe(item.store) === store
-  );
+  const catalogMap = new Map(state.itemsMaster.map((item) => [item.itemKey, item]));
+  const rows = pendingOnly(state.activeShoppingListItems)
+    .filter((item) => safe(item.store) === store)
+    .map((item) => localizeRowName(item, catalogMap, lang));
+
   if (rows.length === 0) return "";
-  return [store, ...rows.map((item) => `${item.name} ${item.quantity} ${item.unit}`)].join("\n").trim();
+  return [store, ...rows.map((item) => `${item.name} ${item.quantity} ${unitLabel(lang, item.unit)}`)]
+    .join("\n")
+    .trim();
 }
 
 export function buildShoppingListHtml(lang: Language = "en") {
-  const groups = groupByStore(pendingOnly(readState().activeShoppingListItems));
+  const state = readState();
+  const catalogMap = new Map(state.itemsMaster.map((item) => [item.itemKey, item]));
+  const groups = groupByStore(pendingOnly(state.activeShoppingListItems)).map((group) => ({
+    ...group,
+    items: group.items.map((item) => localizeRowName(item, catalogMap, lang)),
+  }));
   const title = lang === "en" ? "Your Shopping Cart" : "Tu Carrito de Compras";
   const slogan = lang === "en" ? "Never Forget what to buy" : "Nunca olvides qué comprar";
 
@@ -754,9 +929,11 @@ export function buildShoppingListHtml(lang: Language = "en") {
 
 export function buildShoppingListHtmlForStore(storeName: string, lang: Language = "en") {
   const store = safe(storeName);
-  const rows = pendingOnly(readState().activeShoppingListItems).filter(
-    (item) => safe(item.store) === store
-  );
+  const state = readState();
+  const catalogMap = new Map(state.itemsMaster.map((item) => [item.itemKey, item]));
+  const rows = pendingOnly(state.activeShoppingListItems)
+    .filter((item) => safe(item.store) === store)
+    .map((item) => localizeRowName(item, catalogMap, lang));
 
   const title = lang === "en" ? "Your Shopping Cart" : "Tu Carrito de Compras";
   const slogan = lang === "en" ? "Never Forget what to buy" : "Nunca olvides qué comprar";
