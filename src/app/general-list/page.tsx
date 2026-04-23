@@ -6,17 +6,47 @@ import { AppShell, QtyUnitText, cardStyle, scalePx } from "@/components/minderca
 import { categoryLabel, t } from "@/lib/mindercart/i18n";
 import {
   addGeneralSelections,
+  addQuickNeed,
   groupByStore,
-  groupGeneralListByCategory,
   itemKey,
   removeActiveItem,
 } from "@/lib/mindercart/storage";
 import { useMinderCartState } from "@/lib/mindercart/hooks";
+import type { ActiveShoppingListItem, GeneralListItem, ItemMaster } from "@/lib/mindercart/types";
 
 const MODAL_TOP_OFFSET = "calc(env(safe-area-inset-top) + 148px)";
 const MODAL_BOTTOM_OFFSET = "calc(env(safe-area-inset-bottom) + 84px)";
 const CHECKED_ROW_BG = "#EAF1FF";
 const CHECKED_ROW_BORDER = "#C9D8FF";
+
+const CATEGORY_ORDER = [
+  "Frutas y Verduras",
+  "Carnes, Pollo y Pescados",
+  "Lácteos y Refrigerados",
+  "Panadería y Tortillería",
+  "Abarrotes",
+  "Bebidas",
+  "Congelados",
+  "Limpieza y Hogar",
+  "Farmacia, Bebé y Cuidado Personal",
+  "Mascotas",
+  "Cajas y Salida",
+  "Otro / Temporal",
+] as const;
+
+type CatalogCategoryItem = {
+  id: string;
+  name: string;
+  category: string;
+  unit: string;
+  quantity: string;
+  store: string;
+};
+
+type CatalogCategoryGroup = {
+  category: string;
+  items: CatalogCategoryItem[];
+};
 
 const modalOverlayStyle: React.CSSProperties = {
   position: "fixed",
@@ -44,10 +74,32 @@ const modalCardStyle: React.CSSProperties = {
   pointerEvents: "auto",
 };
 
+function normalizeValue(value: unknown) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function catalogKey(item: { name: string; unit: string }) {
+  return `${normalizeValue(item.name)}__${normalizeValue(item.unit)}`;
+}
+
+function preferredStoreFor(item: Pick<ItemMaster, "defaultStore">, preferredStore: string) {
+  return item.defaultStore || preferredStore || "HEB";
+}
+
 export default function CartPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { generalListItems, activeShoppingListItems, settings, hydrated } = useMinderCartState();
+  const {
+    generalListItems,
+    activeShoppingListItems,
+    itemsMaster,
+    settings,
+    hydrated,
+  } = useMinderCartState();
   const lang = settings.language;
   const s = (px: number) => scalePx(settings.fontScale, px);
   const [openCategory, setOpenCategory] = React.useState<string | null>(null);
@@ -64,25 +116,117 @@ export default function CartPage() {
     router.replace(q ? `/general-list?${q}` : "/general-list", { scroll: false });
   }
 
-  const activeKeySet = React.useMemo(
-    () => new Set(activeShoppingListItems.map((item) => itemKey(item))),
+  const activeCatalogKeySet = React.useMemo(
+    () => new Set(activeShoppingListItems.map((item: ActiveShoppingListItem) => catalogKey(item))),
     [activeShoppingListItems]
   );
 
-  const activeIdByKey = React.useMemo(
-    () => new Map(activeShoppingListItems.map((item) => [itemKey(item), item.id])),
+  const myListCatalogKeySet = React.useMemo(
+    () => new Set(generalListItems.map((item: GeneralListItem) => catalogKey(item))),
+    [generalListItems]
+  );
+
+  const checkedCatalogKeySet = React.useMemo(
+    () => new Set([...activeCatalogKeySet, ...myListCatalogKeySet]),
+    [activeCatalogKeySet, myListCatalogKeySet]
+  );
+
+  const activeIdByCatalogKey = React.useMemo(
+    () =>
+      new Map(
+        activeShoppingListItems.map((item: ActiveShoppingListItem) => [catalogKey(item), item.id] as const)
+      ),
     [activeShoppingListItems]
   );
 
-  function onToggleCategoryItem(itemId: string, isChecked: boolean) {
-    const item = generalListItems.find((row) => row.id === itemId);
-    if (!item) return;
+  const generalListIdByCatalogKey = React.useMemo(
+    () =>
+      new Map(
+        generalListItems.map((item: GeneralListItem) => [catalogKey(item), item.id] as const)
+      ),
+    [generalListItems]
+  );
 
-    const key = itemKey(item);
-    const activeId = activeIdByKey.get(key);
+  const generalListQuantityByCatalogKey = React.useMemo(
+    () =>
+      new Map(
+        generalListItems.map((item: GeneralListItem) => [catalogKey(item), item.quantity || "1"] as const)
+      ),
+    [generalListItems]
+  );
+
+  const catalogItems = React.useMemo<CatalogCategoryItem[]>(() => {
+    const deduped = new Map<string, CatalogCategoryItem>();
+
+    itemsMaster
+      .filter((item: ItemMaster) => item.active !== false)
+      .forEach((item: ItemMaster) => {
+        const key = catalogKey(item);
+        if (deduped.has(key)) return;
+
+        deduped.set(key, {
+          id: item.id,
+          name: item.name,
+          category: item.category,
+          unit: item.unit,
+          quantity: generalListQuantityByCatalogKey.get(key) || "1",
+          store: preferredStoreFor(item, settings.preferredStore),
+        });
+      });
+
+    return [...deduped.values()].sort((a, b) => a.name.localeCompare(b.name));
+  }, [generalListQuantityByCatalogKey, itemsMaster, settings.preferredStore]);
+
+  const categoryGroups = React.useMemo<CatalogCategoryGroup[]>(() => {
+    const groups: CatalogCategoryGroup[] = [{ category: "Compras frecuentes", items: [] }];
+    const grouped = new Map<string, CatalogCategoryItem[]>();
+
+    for (const item of catalogItems) {
+      const category = item.category || "Otro / Temporal";
+      const current = grouped.get(category) || [];
+      current.push(item);
+      grouped.set(category, current);
+    }
+
+    for (const category of CATEGORY_ORDER) {
+      const items = grouped.get(category) || [];
+      groups.push({
+        category,
+        items: [...items].sort((a, b) => a.name.localeCompare(b.name)),
+      });
+      grouped.delete(category);
+    }
+
+    for (const [category, items] of [...grouped.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+      groups.push({
+        category,
+        items: [...items].sort((a, b) => a.name.localeCompare(b.name)),
+      });
+    }
+
+    return groups;
+  }, [catalogItems]);
+
+  const selectedCategoryGroup =
+    categoryGroups.find((group) => group.category === openCategory) ?? null;
+
+  function onToggleCategoryItem(item: CatalogCategoryItem, isChecked: boolean) {
+    const key = catalogKey(item);
+    const activeId = activeIdByCatalogKey.get(key);
 
     if (isChecked) {
-      addGeneralSelections([itemId]);
+      const generalListId = generalListIdByCatalogKey.get(key);
+      if (generalListId) {
+        addGeneralSelections([generalListId]);
+      } else {
+        addQuickNeed({
+          name: item.name,
+          category: item.category,
+          unit: item.unit,
+          quantity: item.quantity || "1",
+          store: item.store || settings.preferredStore || "HEB",
+        });
+      }
       return;
     }
 
@@ -111,8 +255,6 @@ export default function CartPage() {
   }
 
   const groups = groupByStore(activeShoppingListItems);
-  const categoryGroups = groupGeneralListByCategory(generalListItems.filter((item) => item.active !== false));
-  const selectedCategoryGroup = categoryGroups.find((group) => group.category === openCategory) ?? null;
   const footerActions = selectedCategoryGroup
     ? [
         {
@@ -196,28 +338,34 @@ export default function CartPage() {
         </div>
 
         <div style={{ display: "grid", gap: 10 }}>
-          {categoryGroups.map((group) => {
-            const availableCount = group.items.filter((item) => !activeKeySet.has(itemKey(item))).length;
-            return (
-              <button
-                key={group.category}
-                type="button"
-                onClick={() => setCategory(group.category)}
-                style={{
-                  width: "100%",
-                  textAlign: "left",
-                  padding: "14px 16px",
-                  borderRadius: 16,
-                  border: "1px solid #e5e7eb",
-                  background: "#fff",
-                  color: "#111827",
-                }}
-              >
-                <span style={{ fontWeight: 900, fontSize: s(15) }}>{categoryLabel(lang, group.category)}</span>
-                <span style={{ fontWeight: 400, fontSize: s(15) }}> · {availableCount} {t(lang, "itemsLabel")}</span>
-              </button>
-            );
-          })}
+          {categoryGroups.map((group) => (
+            <button
+              key={group.category}
+              type="button"
+              onClick={() => setCategory(group.category)}
+              style={{
+                width: "100%",
+                textAlign: "left",
+                padding: "14px 16px",
+                borderRadius: 16,
+                border: "1px solid #e5e7eb",
+                background: "#fff",
+                color: "#111827",
+              }}
+            >
+              <span style={{ fontWeight: 900, fontSize: s(15) }}>
+                {group.category === "Compras frecuentes"
+                  ? lang === "en"
+                    ? "Frequent purchases"
+                    : "Compras frecuentes"
+                  : categoryLabel(lang, group.category)}
+              </span>
+              <span style={{ fontWeight: 400, fontSize: s(15) }}>
+                {" "}
+                · {group.items.length} {t(lang, "itemsLabel")}
+              </span>
+            </button>
+          ))}
         </div>
       </section>
 
@@ -236,7 +384,11 @@ export default function CartPage() {
               }}
             >
               <div style={{ fontSize: s(20), fontWeight: 900 }}>
-                {categoryLabel(lang, selectedCategoryGroup.category)}
+                {selectedCategoryGroup.category === "Compras frecuentes"
+                  ? lang === "en"
+                    ? "Frequent purchases"
+                    : "Compras frecuentes"
+                  : categoryLabel(lang, selectedCategoryGroup.category)}
               </div>
               <div style={{ marginTop: 6, fontSize: s(14), color: "#5b6b9a" }}>
                 {lang === "en"
@@ -258,7 +410,7 @@ export default function CartPage() {
               }}
             >
               {selectedCategoryGroup.items.map((item) => {
-                const isChecked = activeKeySet.has(itemKey(item));
+                const isChecked = checkedCatalogKeySet.has(catalogKey(item));
                 return (
                   <label
                     key={item.id}
@@ -275,7 +427,7 @@ export default function CartPage() {
                     <input
                       type="checkbox"
                       checked={isChecked}
-                      onChange={(e) => onToggleCategoryItem(item.id, e.target.checked)}
+                      onChange={(e) => onToggleCategoryItem(item, e.target.checked)}
                       style={{ width: 18, height: 18, flexShrink: 0 }}
                     />
 
