@@ -10,7 +10,7 @@ import type {
 } from "@/lib/mindercart/types";
 
 export const CHANGE_EVENT = "mindercart:changed";
-const STORAGE_KEY = "mindercart_state_v13";
+const STORAGE_KEY = "mindercart_state_v14";
 
 function now() {
   return Date.now();
@@ -65,43 +65,176 @@ function pendingOnly<T extends { checked?: boolean }>(rows: T[]) {
   return rows.filter((row) => !row.checked);
 }
 
+const DEFAULT_CATEGORY = "Otro / Temporal";
+
 export const CATEGORY_OPTIONS = [
-  "Despensa",
-  "Produce",
-  "Refrigerados",
+  "Frutas y Verduras",
+  "Carnes, Pollo y Pescados",
+  "Lácteos y Refrigerados",
+  "Panadería y Tortillería",
+  "Abarrotes",
   "Bebidas",
-  "Limpieza",
-  "Cuidado personal",
+  "Congelados",
+  "Limpieza y Hogar",
+  "Farmacia, Bebé y Cuidado Personal",
   "Mascotas",
-  "Hogar",
-  "General",
+  "Cajas y Salida",
+  DEFAULT_CATEGORY,
 ] as const;
 
-function defaultState(): MinderCartState {
-  const generalListItems: GeneralListItem[] = SEED_GENERAL_ITEMS.map((item) => ({
-    id: uid(),
-    name: item.name,
-    category: item.category,
-    unit: item.unit,
-    quantity: item.quantity,
-    store: item.store,
-    active: item.active,
-    lastUsedAt: null,
-  }));
+export const UNIT_OPTIONS = [
+  "pza",
+  "paquete",
+  "caja",
+  "lata",
+  "botella",
+  "frasco",
+  "bolsa",
+  "rollo",
+  "docena",
+  "g",
+  "kg",
+  "oz",
+  "lb",
+  "ml",
+  "l",
+  "gal",
+] as const;
 
-  const itemsMaster: ItemMaster[] = generalListItems.map((item) => ({
+export const STORE_OPTIONS = ["HEB", "Costco", "Sam\'s"] as const;
+
+const CATEGORY_ALIASES: Record<string, string> = {
+  "frutas y verduras": "Frutas y Verduras",
+  frutas: "Frutas y Verduras",
+  verduras: "Frutas y Verduras",
+  produce: "Frutas y Verduras",
+
+  "carnes, pollo y pescados": "Carnes, Pollo y Pescados",
+  "carnes y mariscos": "Carnes, Pollo y Pescados",
+  carnes: "Carnes, Pollo y Pescados",
+  pollo: "Carnes, Pollo y Pescados",
+  pescados: "Carnes, Pollo y Pescados",
+  mariscos: "Carnes, Pollo y Pescados",
+  "meat & seafood": "Carnes, Pollo y Pescados",
+
+  "lacteos y refrigerados": "Lácteos y Refrigerados",
+  lacteos: "Lácteos y Refrigerados",
+  refrigerados: "Lácteos y Refrigerados",
+  dairy: "Lácteos y Refrigerados",
+  refrigerated: "Lácteos y Refrigerados",
+
+  "panaderia y tortilleria": "Panadería y Tortillería",
+  panaderia: "Panadería y Tortillería",
+  panadería: "Panadería y Tortillería",
+  tortilleria: "Panadería y Tortillería",
+  tortillería: "Panadería y Tortillería",
+  bakery: "Panadería y Tortillería",
+
+  abarrotes: "Abarrotes",
+  despensa: "Abarrotes",
+  pantry: "Abarrotes",
+  "pantry staples": "Abarrotes",
+  snacks: "Abarrotes",
+  botanas: "Abarrotes",
+
+  bebidas: "Bebidas",
+  beverages: "Bebidas",
+
+  congelados: "Congelados",
+  frozen: "Congelados",
+
+  "limpieza y hogar": "Limpieza y Hogar",
+  limpieza: "Limpieza y Hogar",
+  hogar: "Limpieza y Hogar",
+  home: "Limpieza y Hogar",
+  cleaning: "Limpieza y Hogar",
+  household: "Limpieza y Hogar",
+
+  "farmacia, bebe y cuidado personal": "Farmacia, Bebé y Cuidado Personal",
+  "farmacia, bebé y cuidado personal": "Farmacia, Bebé y Cuidado Personal",
+  farmacia: "Farmacia, Bebé y Cuidado Personal",
+  bebe: "Farmacia, Bebé y Cuidado Personal",
+  bebé: "Farmacia, Bebé y Cuidado Personal",
+  "cuidado personal": "Farmacia, Bebé y Cuidado Personal",
+  "personal care": "Farmacia, Bebé y Cuidado Personal",
+  pharmacy: "Farmacia, Bebé y Cuidado Personal",
+  baby: "Farmacia, Bebé y Cuidado Personal",
+
+  mascotas: "Mascotas",
+  "pet care": "Mascotas",
+  pets: "Mascotas",
+
+  "cajas y salida": "Cajas y Salida",
+  cajas: "Cajas y Salida",
+  salida: "Cajas y Salida",
+  checkout: "Cajas y Salida",
+  "front end": "Cajas y Salida",
+
+  "otro / temporal": DEFAULT_CATEGORY,
+  "otro/temporal": DEFAULT_CATEGORY,
+  otro: DEFAULT_CATEGORY,
+  temporal: DEFAULT_CATEGORY,
+  general: DEFAULT_CATEGORY,
+};
+
+function canonicalizeCategory(value: unknown) {
+  const clean = safe(value);
+  if (!clean) return DEFAULT_CATEGORY;
+  return CATEGORY_ALIASES[normalize(clean)] || clean;
+}
+
+function canonicalizeUnit(value: unknown) {
+  const raw = normalize(value);
+  if (!raw) return "pza";
+  if (["pza", "pzas", "pieza", "piezas", "unidad", "unidades", "ea", "each", "unit", "units", "barra", "bote", "cabeza", "tubo"].includes(raw)) return "pza";
+  if (["paquete", "paquetes", "pack", "packs"].includes(raw)) return "paquete";
+  if (["caja", "cajas", "box", "boxes"].includes(raw)) return "caja";
+  if (["lata", "latas", "can", "cans"].includes(raw)) return "lata";
+  if (["botella", "botellas", "bottle", "bottles"].includes(raw)) return "botella";
+  if (["frasco", "frascos", "jar", "jars"].includes(raw)) return "frasco";
+  if (["bolsa", "bolsas", "bag", "bags"].includes(raw)) return "bolsa";
+  if (["rollo", "rollos", "roll", "rolls"].includes(raw)) return "rollo";
+  if (["docena", "docenas", "dozen", "dozens"].includes(raw)) return "docena";
+  if (["g", "gr", "grs", "gramo", "gramos", "gram", "grams"].includes(raw)) return "g";
+  if (["kg", "kilo", "kilos", "kilogramo", "kilogramos", "kilogram", "kilograms"].includes(raw)) return "kg";
+  if (["oz", "onza", "onzas", "ounce", "ounces"].includes(raw)) return "oz";
+  if (["lb", "libra", "libras", "pound", "pounds"].includes(raw)) return "lb";
+  if (["ml", "mililitro", "mililitros", "milliliter", "milliliters"].includes(raw)) return "ml";
+  if (["l", "lt", "lts", "litro", "litros", "liter", "liters"].includes(raw)) return "l";
+  if (["gal", "galon", "galones", "gallon", "gallons"].includes(raw)) return "gal";
+  return "pza";
+}
+
+function cleanStore(value: unknown) {
+  return safe(value);
+}
+
+function normalizeGeneralListItem<T extends { category?: string | null; unit?: string | null; store?: string | null }>(item: T): T {
+  const next = {
+    ...item,
+    category: canonicalizeCategory(item.category),
+  } as T & { unit?: string; store?: string };
+
+  if ("unit" in item) next.unit = canonicalizeUnit((item as { unit?: string | null }).unit);
+  if ("store" in item) next.store = cleanStore((item as { store?: string | null }).store);
+
+  return next as T;
+}
+
+function defaultState(): MinderCartState {
+  const itemsMaster: ItemMaster[] = SEED_GENERAL_ITEMS.map((item) => ({
     id: uid(),
     name: item.name,
-    category: item.category,
-    unit: item.unit,
-    defaultStore: item.store,
+    category: canonicalizeCategory(item.category),
+    unit: canonicalizeUnit(item.unit),
+    defaultStore: "",
     active: true,
     createdAt: now(),
   }));
 
   return {
     itemsMaster,
-    generalListItems,
+    generalListItems: [],
     activeShoppingListItems: [],
     shoppingHistory: [],
     settings: {
@@ -124,14 +257,27 @@ export function readState(): MinderCartState {
     }
 
     const parsed = JSON.parse(raw) as Partial<MinderCartState>;
+    const base = defaultState();
 
     return {
-      itemsMaster: Array.isArray(parsed.itemsMaster) ? parsed.itemsMaster : [],
-      generalListItems: Array.isArray(parsed.generalListItems) ? parsed.generalListItems : [],
-      activeShoppingListItems: Array.isArray(parsed.activeShoppingListItems)
-        ? parsed.activeShoppingListItems
+      itemsMaster:
+        Array.isArray(parsed.itemsMaster) && parsed.itemsMaster.length > 0
+          ? parsed.itemsMaster.map((item) => normalizeGeneralListItem(item))
+          : base.itemsMaster,
+      generalListItems: Array.isArray(parsed.generalListItems)
+        ? parsed.generalListItems.map((item) => normalizeGeneralListItem(item))
         : [],
-      shoppingHistory: Array.isArray(parsed.shoppingHistory) ? parsed.shoppingHistory : [],
+      activeShoppingListItems: Array.isArray(parsed.activeShoppingListItems)
+        ? parsed.activeShoppingListItems.map((item) => normalizeGeneralListItem(item))
+        : [],
+      shoppingHistory: Array.isArray(parsed.shoppingHistory)
+        ? parsed.shoppingHistory.map((group) => ({
+            ...group,
+            items: Array.isArray(group?.items)
+              ? group.items.map((item) => normalizeGeneralListItem(item))
+              : [],
+          }))
+        : [],
       settings: {
         language: parsed.settings?.language === "en" ? "en" : "es",
         preferredStore: safe(parsed.settings?.preferredStore) || "HEB",
@@ -179,8 +325,8 @@ function upsertItemMaster(
       item.id === existing.id
         ? {
             ...item,
-            category: safe(input.category) || item.category,
-            defaultStore: safe(input.store) || item.defaultStore,
+            category: canonicalizeCategory(input.category) || item.category,
+            defaultStore: cleanStore(input.store) || item.defaultStore,
             active: true,
           }
         : item
@@ -191,9 +337,9 @@ function upsertItemMaster(
     {
       id: uid(),
       name: safe(input.name),
-      category: safe(input.category) || "General",
-      unit: safe(input.unit),
-      defaultStore: safe(input.store),
+      category: canonicalizeCategory(input.category) || DEFAULT_CATEGORY,
+      unit: canonicalizeUnit(input.unit),
+      defaultStore: cleanStore(input.store),
       active: true,
       createdAt: now(),
     },
@@ -215,9 +361,9 @@ function upsertGeneralListItem(
       item.id === existing.id
         ? {
             ...item,
-            category: safe(input.category) || item.category,
+            category: canonicalizeCategory(input.category) || item.category,
             quantity: safe(input.quantity) || item.quantity,
-            store: safe(input.store) || item.store,
+            store: cleanStore(input.store) || item.store,
             active: true,
             lastUsedAt: now(),
           }
@@ -229,10 +375,10 @@ function upsertGeneralListItem(
     {
       id: uid(),
       name: safe(input.name),
-      category: safe(input.category) || "General",
-      unit: safe(input.unit),
+      category: canonicalizeCategory(input.category) || DEFAULT_CATEGORY,
+      unit: canonicalizeUnit(input.unit),
       quantity: safe(input.quantity) || "1",
-      store: safe(input.store),
+      store: cleanStore(input.store),
       active: true,
       lastUsedAt: now(),
     },
@@ -249,8 +395,8 @@ export function addQuickNeed(input: {
 }) {
   const state = readState();
   const name = safe(input.name);
-  const category = safe(input.category) || "General";
-  const unit = safe(input.unit) || "ea";
+  const category = canonicalizeCategory(input.category) || DEFAULT_CATEGORY;
+  const unit = canonicalizeUnit(input.unit);
   const quantity = safe(input.quantity) || "1";
   const store = safe(input.store) || state.settings.preferredStore || "HEB";
 
@@ -331,8 +477,8 @@ export function addGeneralSelections(ids: string[]) {
         {
           id: uid(),
           name: item.name,
-          category: item.category || "General",
-          unit: item.unit,
+          category: canonicalizeCategory(item.category) || DEFAULT_CATEGORY,
+          unit: canonicalizeUnit(item.unit),
           quantity: item.quantity || "1",
           store: item.store || state.settings.preferredStore,
           checked: false,
@@ -472,8 +618,8 @@ export function buildSuggestions(query: string): Suggestion[] {
       .map((item) => ({
         id: item.id,
         name: item.name,
-        category: item.category || "General",
-        unit: item.unit,
+        category: canonicalizeCategory(item.category) || DEFAULT_CATEGORY,
+        unit: canonicalizeUnit(item.unit),
         quantity: "1",
         store: item.defaultStore,
         source: "items_master" as const,
@@ -483,8 +629,8 @@ export function buildSuggestions(query: string): Suggestion[] {
       .map((item) => ({
         id: item.id,
         name: item.name,
-        category: item.category || "General",
-        unit: item.unit,
+        category: canonicalizeCategory(item.category) || DEFAULT_CATEGORY,
+        unit: canonicalizeUnit(item.unit),
         quantity: item.quantity || "1",
         store: item.store,
         source: "general_list" as const,
@@ -531,7 +677,7 @@ export function groupByStore<T extends { store: string }>(rows: T[]) {
 export function groupGeneralListByCategory(rows: GeneralListItem[]) {
   const map = new Map<string, GeneralListItem[]>();
   for (const row of rows) {
-    const category = safe(row.category) || "General";
+    const category = canonicalizeCategory(row.category) || DEFAULT_CATEGORY;
     const current = map.get(category) || [];
     current.push(row);
     map.set(category, current);

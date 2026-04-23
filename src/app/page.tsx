@@ -5,6 +5,7 @@ import { AppShell, QtyUnitText, cardStyle, scalePx } from "@/components/minderca
 import { t } from "@/lib/mindercart/i18n";
 import {
   CATEGORY_OPTIONS,
+  STORE_OPTIONS,
   addQuickNeed,
   buildSuggestions,
   readState,
@@ -26,6 +27,8 @@ type DraftSelectOptions = {
   units: string[];
   stores: string[];
 };
+
+const ADD_STORE_VALUE = "__ADD_STORE__";
 
 const MC_NAVY = "#12245E";
 const MC_NAVY_SOFT = "#EEF3FF";
@@ -69,6 +72,50 @@ function uniqueValues(values: Array<string | null | undefined>) {
   );
 }
 
+
+const FIXED_UNIT_OPTIONS = [
+  "pza",
+  "paquete",
+  "caja",
+  "lata",
+  "botella",
+  "frasco",
+  "bolsa",
+  "rollo",
+  "docena",
+  "g",
+  "kg",
+  "oz",
+  "lb",
+  "ml",
+  "l",
+  "gal",
+] as const;
+
+function normalizeUnit(value: string) {
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (!raw) return "pza";
+
+  if (["pza", "pzas", "pieza", "piezas", "unidad", "unidades", "ea", "each", "unit", "units"].includes(raw)) return "pza";
+  if (["paquete", "paquetes", "pack", "packs"].includes(raw)) return "paquete";
+  if (["caja", "cajas", "box", "boxes"].includes(raw)) return "caja";
+  if (["lata", "latas", "can", "cans"].includes(raw)) return "lata";
+  if (["botella", "botellas", "bottle", "bottles"].includes(raw)) return "botella";
+  if (["frasco", "frascos", "jar", "jars"].includes(raw)) return "frasco";
+  if (["bolsa", "bolsas", "bag", "bags"].includes(raw)) return "bolsa";
+  if (["rollo", "rollos", "roll", "rolls"].includes(raw)) return "rollo";
+  if (["docena", "docenas", "dozen", "dozens"].includes(raw)) return "docena";
+  if (["g", "gr", "grs", "gramo", "gramos", "gram", "grams"].includes(raw)) return "g";
+  if (["kg", "kilo", "kilos", "kilogramo", "kilogramos", "kilogram", "kilograms"].includes(raw)) return "kg";
+  if (["oz", "onza", "onzas", "ounce", "ounces"].includes(raw)) return "oz";
+  if (["lb", "libra", "libras", "pound", "pounds"].includes(raw)) return "lb";
+  if (["ml", "mililitro", "mililitros", "milliliter", "milliliters"].includes(raw)) return "ml";
+  if (["l", "lt", "lts", "litro", "litros", "liter", "liters"].includes(raw)) return "l";
+  if (["gal", "galon", "galones", "gallon", "gallons"].includes(raw)) return "gal";
+
+  return "pza";
+}
+
 export default function NeedsPage() {
   const { activeShoppingListItems, settings, hydrated } = useMinderCartState();
   const lang = settings.language;
@@ -85,6 +132,9 @@ export default function NeedsPage() {
   const [message, setMessage] = React.useState("");
   const [suggestions, setSuggestions] = React.useState<Suggestion[]>([]);
   const [draft, setDraft] = React.useState<DraftItem | null>(null);
+  const [customStores, setCustomStores] = React.useState<string[]>([]);
+  const [addingStore, setAddingStore] = React.useState(false);
+  const [newStoreName, setNewStoreName] = React.useState("");
 
   React.useEffect(() => {
     if (!hydrated) return;
@@ -104,23 +154,18 @@ export default function NeedsPage() {
         ...state.itemsMaster.map((item) => item.category),
         ...state.generalListItems.map((item) => item.category),
         ...state.activeShoppingListItems.map((item) => item.category),
-        "General",
       ]),
-      units: uniqueValues([
-        ...state.itemsMaster.map((item) => item.unit),
-        ...state.generalListItems.map((item) => item.unit),
-        ...state.activeShoppingListItems.map((item) => item.unit),
-        "ea",
-      ]),
+      units: [...FIXED_UNIT_OPTIONS],
       stores: uniqueValues([
         settings.preferredStore,
+        ...STORE_OPTIONS,
         ...state.itemsMaster.map((item) => item.defaultStore),
         ...state.generalListItems.map((item) => item.store),
         ...state.activeShoppingListItems.map((item) => item.store),
-        "HEB",
+        ...customStores,
       ]),
     };
-  }, [settings.preferredStore]);
+  }, [customStores, settings.preferredStore]);
 
   function resetInput() {
     setName("");
@@ -129,14 +174,16 @@ export default function NeedsPage() {
 
   function closeDraft() {
     setDraft(null);
+    setAddingStore(false);
+    setNewStoreName("");
     resetInput();
   }
 
   function openDraft(input: DraftItem) {
     setDraft({
       name: input.name,
-      category: input.category || "General",
-      unit: input.unit || "ea",
+      category: input.category || "Otro / Temporal",
+      unit: normalizeUnit(input.unit),
       quantity: input.quantity || "1",
       store: input.store || settings.preferredStore || "HEB",
     });
@@ -147,8 +194,8 @@ export default function NeedsPage() {
     setSuggestions([]);
     openDraft({
       name: suggestion.name,
-      category: suggestion.category || "General",
-      unit: suggestion.unit || "ea",
+      category: suggestion.category || "Otro / Temporal",
+      unit: normalizeUnit(suggestion.unit),
       quantity: suggestion.quantity || "1",
       store: suggestion.store || settings.preferredStore || "HEB",
     });
@@ -159,8 +206,8 @@ export default function NeedsPage() {
     setSuggestions([]);
     openDraft({
       name: trimmedName,
-      category: "General",
-      unit: "ea",
+      category: "Otro / Temporal",
+      unit: "pza",
       quantity: "1",
       store: settings.preferredStore || "HEB",
     });
@@ -168,6 +215,24 @@ export default function NeedsPage() {
 
   function updateDraftField(field: keyof DraftItem, value: string) {
     setDraft((prev) => (prev ? { ...prev, [field]: value } : prev));
+  }
+
+  function openAddStore() {
+    setAddingStore(true);
+    setNewStoreName("");
+  }
+
+  function closeAddStore() {
+    setAddingStore(false);
+    setNewStoreName("");
+  }
+
+  function saveNewStore() {
+    const trimmed = newStoreName.trim();
+    if (!trimmed) return;
+    setCustomStores((prev) => (prev.includes(trimmed) ? prev : [...prev, trimmed]));
+    updateDraftField("store", trimmed);
+    closeAddStore();
   }
 
   function confirmDraft() {
@@ -400,10 +465,30 @@ export default function NeedsPage() {
               </div>
 
               <div>
-                <div style={{ fontSize: s(12), fontWeight: 700, marginBottom: 5 }}>{t(lang, "store")}</div>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 10,
+                    marginBottom: 5,
+                  }}
+                >
+                  <div style={{ fontSize: s(12), fontWeight: 700 }}>{t(lang, "store")}</div>
+
+                </div>
+
                 <select
                   value={draft.store}
-                  onChange={(e) => updateDraftField("store", e.target.value)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value === ADD_STORE_VALUE) {
+                      openAddStore();
+                      return;
+                    }
+                    closeAddStore();
+                    updateDraftField("store", value);
+                  }}
                   style={{
                     width: "100%",
                     padding: "12px 14px",
@@ -419,7 +504,10 @@ export default function NeedsPage() {
                       {option}
                     </option>
                   ))}
+                  <option value={ADD_STORE_VALUE}>{lang === "en" ? "Add" : "Agregar"}</option>
                 </select>
+
+
               </div>
             </div>
 
@@ -456,6 +544,87 @@ export default function NeedsPage() {
                 {t(lang, "add")}
               </button>
             </div>
+
+            {addingStore ? (
+              <div
+                style={{
+                  ...modalOverlayStyle,
+                  zIndex: 140,
+                  background: "rgba(17,24,39,0.22)",
+                }}
+                onClick={closeAddStore}
+              >
+                <section
+                  style={{
+                    ...modalCardStyle,
+                    width: "min(420px, 100%)",
+                    padding: 14,
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div style={{ fontSize: s(20), fontWeight: 900 }}>
+                    {lang === "en" ? "New store" : "Nueva tienda"}
+                  </div>
+                  <div style={{ marginTop: 4, fontSize: s(13), color: MC_NAVY_MUTED }}>
+                    {lang === "en"
+                      ? "Add the store for this item."
+                      : "Agrega la tienda para este artículo."}
+                  </div>
+
+                  <input
+                    autoFocus
+                    value={newStoreName}
+                    onChange={(e) => setNewStoreName(e.target.value)}
+                    placeholder={lang === "en" ? "New store" : "Nueva tienda"}
+                    style={{
+                      width: "100%",
+                      marginTop: 14,
+                      padding: "12px 14px",
+                      borderRadius: 12,
+                      border: `1px solid ${MC_NAVY_LINE}`,
+                      boxSizing: "border-box",
+                      fontSize: s(15),
+                      background: "#fff",
+                    }}
+                  />
+
+                  <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+                    <button
+                      type="button"
+                      onClick={closeAddStore}
+                      style={{
+                        flex: 1,
+                        padding: "12px 12px",
+                        borderRadius: 12,
+                        border: `1px solid ${MC_NAVY_LINE}`,
+                        background: "#fff",
+                        fontWeight: 800,
+                        fontSize: s(13),
+                      }}
+                    >
+                      {t(lang, "back")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={saveNewStore}
+                      disabled={!newStoreName.trim()}
+                      style={{
+                        flex: 1,
+                        padding: "12px 12px",
+                        borderRadius: 12,
+                        border: `1px solid ${newStoreName.trim() ? MC_NAVY : MC_NAVY_LINE}`,
+                        background: newStoreName.trim() ? MC_NAVY : "#fff",
+                        color: newStoreName.trim() ? "#fff" : MC_NAVY_MUTED,
+                        fontWeight: 900,
+                        fontSize: s(13),
+                      }}
+                    >
+                      {lang === "en" ? "Save" : "Guardar"}
+                    </button>
+                  </div>
+                </section>
+              </div>
+            ) : null}
           </section>
         </div>
       ) : null}
