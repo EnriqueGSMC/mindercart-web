@@ -92,6 +92,44 @@ const FIXED_UNIT_OPTIONS = [
   "gal",
 ] as const;
 
+const FALLBACK_CATEGORY = "Otro / Temporal";
+const ORDERED_CATEGORIES = CATEGORY_OPTIONS.includes(FALLBACK_CATEGORY)
+  ? [...CATEGORY_OPTIONS]
+  : [...CATEGORY_OPTIONS, FALLBACK_CATEGORY];
+
+function normalizeCategory(value: string | null | undefined) {
+  const trimmed = String(value ?? "").trim();
+  return ORDERED_CATEGORIES.includes(trimmed) ? trimmed : FALLBACK_CATEGORY;
+}
+
+function groupItemsByCategory<T extends { name: string; category?: string | null }>(items: T[]) {
+  const grouped = new Map<string, T[]>();
+
+  for (const item of items) {
+    const category = normalizeCategory(item.category);
+    const bucket = grouped.get(category);
+    if (bucket) {
+      bucket.push(item);
+    } else {
+      grouped.set(category, [item]);
+    }
+  }
+
+  return ORDERED_CATEGORIES.flatMap((category) => {
+    const categoryItems = grouped.get(category);
+    if (!categoryItems || categoryItems.length === 0) return [];
+
+    return [
+      {
+        category,
+        items: [...categoryItems].sort((a, b) => String(a.name ?? "").localeCompare(String(b.name ?? ""), "es", {
+          sensitivity: "base",
+        })),
+      },
+    ];
+  });
+}
+
 function normalizeUnit(value: string) {
   const raw = String(value ?? "").trim().toLowerCase();
   if (!raw) return "pza";
@@ -114,34 +152,6 @@ function normalizeUnit(value: string) {
   if (["gal", "galon", "galones", "gallon", "gallons"].includes(raw)) return "gal";
 
   return "pza";
-}
-
-const FALLBACK_CATEGORY = "Otro / Temporal";
-const CATEGORY_DISPLAY_ORDER = uniqueValues([...CATEGORY_OPTIONS, FALLBACK_CATEGORY]);
-
-function normalizeCategory(value: string | null | undefined) {
-  const trimmed = String(value ?? "").trim();
-  return CATEGORY_DISPLAY_ORDER.includes(trimmed) ? trimmed : FALLBACK_CATEGORY;
-}
-
-function compareItemNames(a: string | null | undefined, b: string | null | undefined) {
-  return String(a ?? "").localeCompare(String(b ?? ""), "es", { sensitivity: "base" });
-}
-
-function groupItemsByCategory<T extends { category?: string | null | undefined; name?: string | null | undefined }>(items: T[]) {
-  const grouped = new Map<string, T[]>();
-
-  for (const item of items) {
-    const category = normalizeCategory(item.category);
-    const currentItems = grouped.get(category) ?? [];
-    currentItems.push(item);
-    grouped.set(category, currentItems);
-  }
-
-  return CATEGORY_DISPLAY_ORDER.map((category) => ({
-    category,
-    items: (grouped.get(category) ?? []).slice().sort((left, right) => compareItemNames(left.name, right.name)),
-  })).filter((group) => group.items.length > 0);
 }
 
 export default function NeedsPage() {
@@ -179,9 +189,9 @@ export default function NeedsPage() {
     return {
       categories: uniqueValues([
         ...CATEGORY_OPTIONS,
-        ...state.itemsMaster.map((item) => item.category),
-        ...state.generalListItems.map((item) => item.category),
-        ...state.activeShoppingListItems.map((item) => item.category),
+        ...state.itemsMaster.map((item) => normalizeCategory(item.category)),
+        ...state.generalListItems.map((item) => normalizeCategory(item.category)),
+        ...state.activeShoppingListItems.map((item) => normalizeCategory(item.category)),
       ]),
       units: [...FIXED_UNIT_OPTIONS],
       stores: uniqueValues([
@@ -215,7 +225,7 @@ export default function NeedsPage() {
   function openDraft(input: DraftItem) {
     setDraft({
       name: input.name,
-      category: input.category || "Otro / Temporal",
+      category: normalizeCategory(input.category),
       unit: normalizeUnit(input.unit),
       quantity: input.quantity || "1",
       store: input.store || settings.preferredStore || "HEB",
@@ -227,7 +237,7 @@ export default function NeedsPage() {
     setSuggestions([]);
     openDraft({
       name: suggestion.name,
-      category: suggestion.category || "Otro / Temporal",
+      category: normalizeCategory(suggestion.category),
       unit: normalizeUnit(suggestion.unit),
       quantity: suggestion.quantity || "1",
       store: suggestion.store || settings.preferredStore || "HEB",
@@ -239,7 +249,7 @@ export default function NeedsPage() {
     setSuggestions([]);
     openDraft({
       name: trimmedName,
-      category: "Otro / Temporal",
+      category: FALLBACK_CATEGORY,
       unit: "pza",
       quantity: "1",
       store: settings.preferredStore || "HEB",
@@ -386,21 +396,29 @@ export default function NeedsPage() {
           <div style={{ fontSize: s(14), color: MC_NAVY_MUTED }}>{t(lang, "noItemsYet")}</div>
         ) : (
           <div style={{ display: "grid", gap: 14 }}>
-            {groupedActiveShoppingListItems.map((group) => (
-              <div key={group.category} style={{ display: "grid", gap: 2 }}>
+            {groupedActiveShoppingListItems.map((section) => (
+              <div key={section.category} style={{ display: "grid", gap: 4 }}>
                 <div
                   style={{
                     fontSize: s(13),
-                    fontWeight: 800,
-                    color: MC_NAVY_MUTED,
-                    padding: "0 2px 2px",
+                    fontWeight: 900,
+                    letterSpacing: "0.02em",
+                    textTransform: "uppercase",
+                    color: MC_NAVY,
                   }}
                 >
-                  {group.category}
+                  {section.category}
                 </div>
 
-                <div>
-                  {group.items.map((item, index) => (
+                <div
+                  style={{
+                    border: `1px solid ${MC_NAVY_SOFT}`,
+                    borderRadius: 16,
+                    overflow: "hidden",
+                    background: "#fff",
+                  }}
+                >
+                  {section.items.map((item, index) => (
                     <div
                       key={item.id}
                       style={{
@@ -408,15 +426,15 @@ export default function NeedsPage() {
                         gap: 10,
                         alignItems: "center",
                         justifyContent: "space-between",
-                        padding: "14px 2px",
-                        borderBottom: index === group.items.length - 1 ? "none" : "1px solid #f3f4f6",
+                        padding: "14px 12px",
+                        borderBottom: index === section.items.length - 1 ? "none" : "1px solid #f3f4f6",
                       }}
                     >
                       <div style={{ minWidth: 0, flex: 1, fontSize: s(18), fontWeight: 500 }}>{item.name}</div>
 
                       <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
                         <div style={{ fontSize: s(15), color: MC_NAVY_MUTED }}>
-                          <QtyUnitText quantity={item.quantity} unit={item.unit} />
+                          <QtyUnitText quantity={String(item.quantity)} unit={item.unit} />
                         </div>
 
                         <button
