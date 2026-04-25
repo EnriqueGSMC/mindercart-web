@@ -116,6 +116,34 @@ function normalizeUnit(value: string) {
   return "pza";
 }
 
+const FALLBACK_CATEGORY = "Otro / Temporal";
+const CATEGORY_DISPLAY_ORDER = uniqueValues([...CATEGORY_OPTIONS, FALLBACK_CATEGORY]);
+
+function normalizeCategory(value: string | null | undefined) {
+  const trimmed = String(value ?? "").trim();
+  return CATEGORY_DISPLAY_ORDER.includes(trimmed) ? trimmed : FALLBACK_CATEGORY;
+}
+
+function compareItemNames(a: string | null | undefined, b: string | null | undefined) {
+  return String(a ?? "").localeCompare(String(b ?? ""), "es", { sensitivity: "base" });
+}
+
+function groupItemsByCategory<T extends { category?: string | null | undefined; name?: string | null | undefined }>(items: T[]) {
+  const grouped = new Map<string, T[]>();
+
+  for (const item of items) {
+    const category = normalizeCategory(item.category);
+    const currentItems = grouped.get(category) ?? [];
+    currentItems.push(item);
+    grouped.set(category, currentItems);
+  }
+
+  return CATEGORY_DISPLAY_ORDER.map((category) => ({
+    category,
+    items: (grouped.get(category) ?? []).slice().sort((left, right) => compareItemNames(left.name, right.name)),
+  })).filter((group) => group.items.length > 0);
+}
+
 export default function NeedsPage() {
   const { activeShoppingListItems, settings, hydrated } = useMinderCartState();
   const lang = settings.language;
@@ -166,6 +194,11 @@ export default function NeedsPage() {
       ]),
     };
   }, [customStores, settings.preferredStore]);
+
+  const groupedActiveShoppingListItems = React.useMemo(
+    () => groupItemsByCategory(activeShoppingListItems),
+    [activeShoppingListItems]
+  );
 
   function resetInput() {
     setName("");
@@ -349,44 +382,61 @@ export default function NeedsPage() {
       <section style={{ ...cardStyle(), padding: 14 }}>
         <div style={{ fontSize: s(16), fontWeight: 800, marginBottom: 10 }}>{t(lang, "cartSection")}</div>
 
-        {activeShoppingListItems.length === 0 ? (
+        {groupedActiveShoppingListItems.length === 0 ? (
           <div style={{ fontSize: s(14), color: MC_NAVY_MUTED }}>{t(lang, "noItemsYet")}</div>
         ) : (
-          <div>
-            {activeShoppingListItems.map((item, index) => (
-              <div
-                key={item.id}
-                style={{
-                  display: "flex",
-                  gap: 10,
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "14px 2px",
-                  borderBottom: index === activeShoppingListItems.length - 1 ? "none" : "1px solid #f3f4f6",
-                }}
-              >
-                <div style={{ minWidth: 0, flex: 1, fontSize: s(18), fontWeight: 500 }}>{item.name}</div>
+          <div style={{ display: "grid", gap: 14 }}>
+            {groupedActiveShoppingListItems.map((group) => (
+              <div key={group.category} style={{ display: "grid", gap: 2 }}>
+                <div
+                  style={{
+                    fontSize: s(13),
+                    fontWeight: 800,
+                    color: MC_NAVY_MUTED,
+                    padding: "0 2px 2px",
+                  }}
+                >
+                  {group.category}
+                </div>
 
-                <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-                  <div style={{ fontSize: s(15), color: MC_NAVY_MUTED }}>
-                    <QtyUnitText quantity={item.quantity} unit={item.unit} />
-                  </div>
+                <div>
+                  {group.items.map((item, index) => (
+                    <div
+                      key={item.id}
+                      style={{
+                        display: "flex",
+                        gap: 10,
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        padding: "14px 2px",
+                        borderBottom: index === group.items.length - 1 ? "none" : "1px solid #f3f4f6",
+                      }}
+                    >
+                      <div style={{ minWidth: 0, flex: 1, fontSize: s(18), fontWeight: 500 }}>{item.name}</div>
 
-                  <button
-                    type="button"
-                    onClick={() => removeActiveItem(item.id)}
-                    style={{
-                      padding: "8px 12px",
-                      borderRadius: 12,
-                      border: `1px solid ${MC_NAVY_LINE}`,
-                      background: "#fff",
-                      fontWeight: 700,
-                      whiteSpace: "nowrap",
-                      fontSize: s(14),
-                    }}
-                  >
-                    {t(lang, "remove")}
-                  </button>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                        <div style={{ fontSize: s(15), color: MC_NAVY_MUTED }}>
+                          <QtyUnitText quantity={item.quantity} unit={item.unit} />
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => removeActiveItem(item.id)}
+                          style={{
+                            padding: "8px 12px",
+                            borderRadius: 12,
+                            border: `1px solid ${MC_NAVY_LINE}`,
+                            background: "#fff",
+                            fontWeight: 700,
+                            whiteSpace: "nowrap",
+                            fontSize: s(14),
+                          }}
+                        >
+                          {t(lang, "remove")}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             ))}
