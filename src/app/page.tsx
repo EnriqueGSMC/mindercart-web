@@ -102,18 +102,11 @@ function normalizeCategory(value: string | null | undefined) {
   return ORDERED_CATEGORIES.includes(trimmed) ? trimmed : FALLBACK_CATEGORY;
 }
 
-function normalizeItemName(value: string | null | undefined) {
-  return String(value ?? "").trim().toLocaleLowerCase("es");
-}
-
-function groupItemsByCategory<T extends { name: string; category?: string | null }>(
-  items: T[],
-  resolveCategory?: (item: T) => string
-) {
+function groupItemsByCategory<T extends { name: string; category?: string | null }>(items: T[]) {
   const grouped = new Map<string, T[]>();
 
   for (const item of items) {
-    const category = resolveCategory ? resolveCategory(item) : normalizeCategory(item.category);
+    const category = normalizeCategory(item.category);
     const bucket = grouped.get(category);
     if (bucket) {
       bucket.push(item);
@@ -212,39 +205,24 @@ export default function NeedsPage() {
     };
   }, [customStores, settings.preferredStore]);
 
-  const categoryByName = React.useMemo(() => {
-    const state = readState();
-    const lookup = new Map<string, string>();
-
-    const register = (name: string | null | undefined, category: string | null | undefined) => {
-      const normalizedName = normalizeItemName(name);
-      if (!normalizedName) return;
-
-      const normalizedCategory = normalizeCategory(category);
-      if (normalizedCategory === FALLBACK_CATEGORY && lookup.has(normalizedName)) return;
-
-      lookup.set(normalizedName, normalizedCategory);
-    };
-
-    state.itemsMaster.forEach((item) => register(item.name, item.category));
-    state.generalListItems.forEach((item) => register(item.name, item.category));
-    state.activeShoppingListItems.forEach((item) => register(item.name, item.category));
-
-    return lookup;
-  }, [activeShoppingListItems]);
-
   const groupedActiveShoppingListItems = React.useMemo(
-    () =>
-      groupItemsByCategory(activeShoppingListItems, (item) => {
-        const directCategory = normalizeCategory(item.category);
-        if (directCategory !== FALLBACK_CATEGORY || String(item.category ?? "").trim()) {
-          return directCategory;
-        }
-
-        return categoryByName.get(normalizeItemName(item.name)) ?? FALLBACK_CATEGORY;
-      }),
-    [activeShoppingListItems, categoryByName]
+    () => groupItemsByCategory(activeShoppingListItems),
+    [activeShoppingListItems]
   );
+
+  const myListDebugCategories = React.useMemo(
+    () => groupedActiveShoppingListItems.map((section) => section.category),
+    [groupedActiveShoppingListItems]
+  );
+
+  const myListDebugItemsWithoutCategory = React.useMemo(
+    () =>
+      activeShoppingListItems.filter(
+        (item) => !String(item.category ?? "").trim() || !ORDERED_CATEGORIES.includes(String(item.category ?? "").trim())
+      ).length,
+    [activeShoppingListItems]
+  );
+
 
   function resetInput() {
     setName("");
@@ -428,6 +406,32 @@ export default function NeedsPage() {
       <section style={{ ...cardStyle(), padding: 14 }}>
         <div style={{ fontSize: s(16), fontWeight: 800, marginBottom: 10 }}>{t(lang, "cartSection")}</div>
 
+        <div
+          style={{
+            marginBottom: 12,
+            padding: "12px 14px",
+            borderRadius: 14,
+            border: `1px dashed ${MC_NAVY_LINE}`,
+            background: MC_NAVY_SOFT,
+            display: "grid",
+            gap: 6,
+          }}
+        >
+          <div style={{ fontSize: s(13), fontWeight: 900, color: MC_NAVY }}>Debug Mi Lista</div>
+          <div style={{ fontSize: s(13), color: MC_NAVY_MUTED }}>
+            Artículos detectados: {activeShoppingListItems.length}
+          </div>
+          <div style={{ fontSize: s(13), color: MC_NAVY_MUTED }}>
+            Grupos por categoría: {groupedActiveShoppingListItems.length}
+          </div>
+          <div style={{ fontSize: s(13), color: MC_NAVY_MUTED }}>
+            Sin categoría válida: {myListDebugItemsWithoutCategory}
+          </div>
+          <div style={{ fontSize: s(13), color: MC_NAVY_MUTED }}>
+            Categorías visibles: {myListDebugCategories.length > 0 ? myListDebugCategories.join(" • ") : "ninguna"}
+          </div>
+        </div>
+
         {groupedActiveShoppingListItems.length === 0 ? (
           <div style={{ fontSize: s(14), color: MC_NAVY_MUTED }}>{t(lang, "noItemsYet")}</div>
         ) : (
@@ -441,10 +445,6 @@ export default function NeedsPage() {
                     letterSpacing: "0.02em",
                     textTransform: "uppercase",
                     color: MC_NAVY,
-                    background: MC_NAVY_SOFT,
-                    border: `1px solid ${MC_NAVY_LINE}`,
-                    borderRadius: 12,
-                    padding: "8px 10px",
                   }}
                 >
                   {section.category}
