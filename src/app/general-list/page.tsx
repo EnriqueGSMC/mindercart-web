@@ -304,6 +304,25 @@ export default function CartPage() {
     }
   }
 
+  const currentCartCategoryGroups = React.useMemo(() => {
+    const grouped = new Map<string, ActiveShoppingListItem[]>();
+
+    activeShoppingListItems.forEach((item: ActiveShoppingListItem) => {
+      const resolvedCategory = normalizeCategoryName(categoryByCatalogKey.get(catalogKey(item)) || item.category);
+      const current = grouped.get(resolvedCategory) || [];
+      current.push(item);
+      grouped.set(resolvedCategory, current);
+    });
+
+    return CATEGORY_ORDER.map((category) => ({
+      category,
+      items: [...(grouped.get(category) || [])].sort((a, b) =>
+        a.name.localeCompare(b.name, "es", { sensitivity: "base" })
+      ),
+    })).filter((group) => group.items.length > 0);
+  }, [activeShoppingListItems, categoryByCatalogKey]);
+
+
   if (!hydrated) {
     return (
       <AppShell
@@ -322,24 +341,6 @@ export default function CartPage() {
       </AppShell>
     );
   }
-
-  const currentCartCategoryGroups = React.useMemo(() => {
-    const grouped = new Map<string, ActiveShoppingListItem[]>();
-
-    activeShoppingListItems.forEach((item: ActiveShoppingListItem) => {
-      const resolvedCategory = normalizeCategoryName(categoryByCatalogKey.get(catalogKey(item)) || item.category);
-      const current = grouped.get(resolvedCategory) || [];
-      current.push(item);
-      grouped.set(resolvedCategory, current);
-    });
-
-    return CATEGORY_ORDER.map((category) => ({
-      category,
-      items: [...(grouped.get(category) || [])].sort((a, b) =>
-        a.name.localeCompare(b.name, "es", { sensitivity: "base" })
-      ),
-    })).filter((group) => group.items.length > 0);
-  }, [activeShoppingListItems, categoryByCatalogKey]);
 
   const footerActions = selectedCategoryGroup
     ? [
