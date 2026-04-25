@@ -210,21 +210,7 @@ export default function NeedsPage() {
     [activeShoppingListItems]
   );
 
-  const myListDebugCategories = React.useMemo(
-    () => groupedActiveShoppingListItems.map((section) => section.category),
-    [groupedActiveShoppingListItems]
-  );
-
-  const myListDebugItemsWithoutCategory = React.useMemo(
-    () =>
-      activeShoppingListItems.filter(
-        (item) => !String(item.category ?? "").trim() || !ORDERED_CATEGORIES.includes(String(item.category ?? "").trim())
-      ).length,
-    [activeShoppingListItems]
-  );
-
-
-  function resetInput() {
+    function resetInput() {
     setName("");
     setSuggestions([]);
   }
@@ -405,32 +391,6 @@ export default function NeedsPage() {
 
       <section style={{ ...cardStyle(), padding: 14 }}>
         <div style={{ fontSize: s(16), fontWeight: 800, marginBottom: 10 }}>{t(lang, "cartSection")}</div>
-
-        <div
-          style={{
-            marginBottom: 12,
-            padding: "12px 14px",
-            borderRadius: 14,
-            border: `1px dashed ${MC_NAVY_LINE}`,
-            background: MC_NAVY_SOFT,
-            display: "grid",
-            gap: 6,
-          }}
-        >
-          <div style={{ fontSize: s(13), fontWeight: 900, color: MC_NAVY }}>Debug Mi Lista</div>
-          <div style={{ fontSize: s(13), color: MC_NAVY_MUTED }}>
-            Artículos detectados: {activeShoppingListItems.length}
-          </div>
-          <div style={{ fontSize: s(13), color: MC_NAVY_MUTED }}>
-            Grupos por categoría: {groupedActiveShoppingListItems.length}
-          </div>
-          <div style={{ fontSize: s(13), color: MC_NAVY_MUTED }}>
-            Sin categoría válida: {myListDebugItemsWithoutCategory}
-          </div>
-          <div style={{ fontSize: s(13), color: MC_NAVY_MUTED }}>
-            Categorías visibles: {myListDebugCategories.length > 0 ? myListDebugCategories.join(" • ") : "ninguna"}
-          </div>
-        </div>
 
         {groupedActiveShoppingListItems.length === 0 ? (
           <div style={{ fontSize: s(14), color: MC_NAVY_MUTED }}>{t(lang, "noItemsYet")}</div>
