@@ -235,6 +235,50 @@ export default function CartPage() {
   const selectedCategoryGroup =
     categoryGroups.find((group) => group.category === openCategory) ?? null;
 
+  const activeCategoryGroups = React.useMemo<
+    Array<{ category: string; items: ActiveShoppingListItem[] }>
+  >(() => {
+    const grouped = new Map<string, ActiveShoppingListItem[]>();
+
+    for (const item of activeShoppingListItems) {
+      const key = catalogKey(item);
+      const category = normalizeCategoryName(item.category || categoryByCatalogKey.get(key) || "");
+      const current = grouped.get(category) || [];
+      current.push(item);
+      grouped.set(category, current);
+    }
+
+    const ordered: Array<{ category: string; items: ActiveShoppingListItem[] }> = [];
+
+    for (const category of CATEGORY_ORDER) {
+      const items = grouped.get(category) || [];
+      if (items.length === 0) continue;
+
+      ordered.push({
+        category,
+        items: [...items].sort((a, b) =>
+          String(a.name ?? "").localeCompare(String(b.name ?? ""), undefined, { sensitivity: "base" })
+        ),
+      });
+      grouped.delete(category);
+    }
+
+    for (const [category, items] of [...grouped.entries()].sort((a, b) =>
+      a[0].localeCompare(b[0], undefined, { sensitivity: "base" })
+    )) {
+      if (items.length === 0) continue;
+      ordered.push({
+        category,
+        items: [...items].sort((a, b) =>
+          String(a.name ?? "").localeCompare(String(b.name ?? ""), undefined, { sensitivity: "base" })
+        ),
+      });
+    }
+
+    return ordered;
+  }, [activeShoppingListItems, categoryByCatalogKey]);
+
+
   function onToggleCategoryItem(item: CatalogCategoryItem, isChecked: boolean) {
     const key = catalogKey(item);
     const activeId = activeIdByCatalogKey.get(key);
