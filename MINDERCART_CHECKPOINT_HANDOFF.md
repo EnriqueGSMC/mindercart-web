@@ -14,5 +14,3 @@ git checkout main
 git reset --hard mindercart-baseline-agregar-a-esta-compra-ok
 rmdir /s /q .next
 npm run build
-
-prueba testing vercel
