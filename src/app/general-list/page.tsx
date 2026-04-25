@@ -7,7 +7,6 @@ import { categoryLabel, t } from "@/lib/mindercart/i18n";
 import {
   addGeneralSelections,
   addQuickNeed,
-  groupByStore,
   itemKey,
   removeActiveItem,
 } from "@/lib/mindercart/storage";
@@ -47,6 +46,12 @@ type CatalogCategoryGroup = {
   category: string;
   items: CatalogCategoryItem[];
 };
+
+type ActiveCategoryGroup = {
+  category: string;
+  items: ActiveShoppingListItem[];
+};
+
 
 const modalOverlayStyle: React.CSSProperties = {
   position: "fixed",
@@ -88,6 +93,13 @@ function catalogKey(item: { name: string; unit: string }) {
 
 function preferredStoreFor(item: Pick<ItemMaster, "defaultStore">, preferredStore: string) {
   return item.defaultStore || preferredStore || "HEB";
+}
+
+function normalizeCategoryName(category: unknown) {
+  const categoryText = String(category ?? "").trim();
+  if (!categoryText) return "Otro / Temporal";
+  const match = CATEGORY_ORDER.find((value) => normalizeValue(value) === normalizeValue(categoryText));
+  return match || categoryText || "Otro / Temporal";
 }
 
 export default function CartPage() {
@@ -254,7 +266,59 @@ export default function CartPage() {
     );
   }
 
-  const groups = groupByStore(activeShoppingListItems);
+  const activeCategoryByCatalogKey = React.useMemo(() => {
+    const mapping = new Map<string, string>();
+
+    const registerCategory = (name: string, unit: string, category: unknown) => {
+      mapping.set(catalogKey({ name, unit }), normalizeCategoryName(category));
+    };
+
+    itemsMaster.forEach((item: ItemMaster) => registerCategory(item.name, item.unit, item.category));
+    generalListItems.forEach((item: GeneralListItem) => registerCategory(item.name, item.unit, item.category));
+    activeShoppingListItems.forEach((item: ActiveShoppingListItem) =>
+      registerCategory(item.name, item.unit, item.category)
+    );
+
+    return mapping;
+  }, [activeShoppingListItems, generalListItems, itemsMaster]);
+
+  const activeCategoryGroups = React.useMemo<ActiveCategoryGroup[]>(() => {
+    const grouped = new Map<string, ActiveShoppingListItem[]>();
+
+    for (const item of activeShoppingListItems) {
+      const category =
+        activeCategoryByCatalogKey.get(catalogKey(item)) || normalizeCategoryName(item.category);
+      const current = grouped.get(category) || [];
+      current.push({
+        ...item,
+        category,
+      });
+      grouped.set(category, current);
+    }
+
+    const orderedGroups: ActiveCategoryGroup[] = [];
+
+    for (const category of CATEGORY_ORDER) {
+      const items = grouped.get(category) || [];
+      if (items.length > 0) {
+        orderedGroups.push({
+          category,
+          items: [...items].sort((a, b) => a.name.localeCompare(b.name)),
+        });
+      }
+      grouped.delete(category);
+    }
+
+    for (const [category, items] of [...grouped.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+      orderedGroups.push({
+        category,
+        items: [...items].sort((a, b) => a.name.localeCompare(b.name)),
+      });
+    }
+
+    return orderedGroups;
+  }, [activeCategoryByCatalogKey, activeShoppingListItems]);
+
   const footerActions = selectedCategoryGroup
     ? [
         {
@@ -290,14 +354,24 @@ export default function CartPage() {
           <div style={{ fontSize: s(16), fontWeight: 800 }}>{t(lang, "cartNow")}</div>
         </div>
 
-        {groups.length === 0 ? (
+        {activeCategoryGroups.length === 0 ? (
           <div style={{ fontSize: s(15), color: "#6b7280" }}>{t(lang, "noItemsYet")}</div>
         ) : (
           <div style={{ display: "grid", gap: 14 }}>
-            {groups.map((group) => (
-              <div key={group.store}>
-                <div style={{ fontSize: s(15), fontWeight: 800, marginBottom: 8 }}>
-                  {group.store} · {group.items.length} {t(lang, "itemsLabel")}
+            {activeCategoryGroups.map((group) => (
+              <div key={group.category}>
+                <div
+                  style={{
+                    fontSize: s(14),
+                    fontWeight: 900,
+                    marginBottom: 8,
+                    padding: "8px 12px",
+                    borderRadius: 14,
+                    border: "1px solid #dbe3ff",
+                    background: "#f4f7ff",
+                  }}
+                >
+                  {categoryLabel(lang, group.category)}
                 </div>
 
                 <div style={{ display: "grid", gap: 10 }}>
@@ -316,7 +390,7 @@ export default function CartPage() {
                     >
                       <div style={{ fontSize: s(17), fontWeight: 500, minWidth: 0 }}>{item.name}</div>
                       <div style={{ fontSize: s(15), color: "#6b7280", flexShrink: 0 }}>
-                        <QtyUnitText quantity={item.quantity} unit={item.unit} />
+                        <QtyUnitText quantity={String(item.quantity)} unit={item.unit} />
                       </div>
                     </div>
                   ))}
