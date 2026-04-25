@@ -46,6 +46,14 @@ type DraftPurchaseItem = {
   store: string;
 };
 
+type DisplayListItem = {
+  id: string;
+  name: string;
+  quantity: string | number;
+  unit: string;
+  category?: string;
+};
+
 const OFFICIAL_CATEGORIES = [
   "Frutas y Verduras",
   "Carnes, Pollo y Pescados",
@@ -240,6 +248,38 @@ function sameCatalogIdentity(
   );
 }
 
+function normalizeCategory(value: unknown): (typeof OFFICIAL_CATEGORIES)[number] {
+  const normalizedCategory = normalizeValue(value);
+  const foundCategory = OFFICIAL_CATEGORIES.find(
+    (category) => normalizeValue(category) === normalizedCategory
+  );
+
+  return foundCategory ?? "Otro / Temporal";
+}
+
+function sortItemsByName<T extends { name?: unknown }>(items: T[]) {
+  return [...items].sort((left, right) =>
+    toSafeText(left.name).localeCompare(toSafeText(right.name), "es", {
+      sensitivity: "base",
+    })
+  );
+}
+
+function groupItemsByCategory<T extends { name?: unknown; category?: unknown }>(items: T[]) {
+  const itemsByCategory = new Map<(typeof OFFICIAL_CATEGORIES)[number], T[]>();
+
+  items.forEach((item) => {
+    const category = normalizeCategory(item.category);
+    const currentItems = itemsByCategory.get(category) ?? [];
+    currentItems.push(item);
+    itemsByCategory.set(category, currentItems);
+  });
+
+  return OFFICIAL_CATEGORIES.map((category) => ({
+    category,
+    items: sortItemsByName(itemsByCategory.get(category) ?? []),
+  })).filter((group) => group.items.length > 0);
+}
 
 function sideActionButtonStyle(fontSize: number): React.CSSProperties {
   return {
@@ -304,6 +344,14 @@ export default function ShoppingPage() {
       .filter((item) => normalizeValue(item.name).includes(normalizedAddSearch))
       .slice(0, 8);
   }, [catalogSuggestions, normalizedAddSearch]);
+  const groupedPendingItems = React.useMemo(
+    () => groupItemsByCategory(pendingItems as DisplayListItem[]),
+    [pendingItems]
+  );
+  const groupedAddedItems = React.useMemo(
+    () => groupItemsByCategory(addedItems as DisplayListItem[]),
+    [addedItems]
+  );
 
   if (!hydrated) {
     return (
@@ -536,6 +584,85 @@ export default function ShoppingPage() {
     setOpenStore(null);
   }
 
+  function renderCategoryHeading(category: string) {
+    return (
+      <div
+        style={{
+          padding: "9px 12px",
+          borderRadius: 12,
+          border: `1px solid ${MC_NAVY_LINE}`,
+          background: MC_NAVY_SOFT,
+          color: MC_NAVY,
+          fontSize: s(13),
+          fontWeight: 900,
+        }}
+      >
+        {category}
+      </div>
+    );
+  }
+
+  function renderStoreItemRow(
+    item: DisplayListItem,
+    options: {
+      rowBackground: string;
+      badgeLabel: string;
+      badgeActive: boolean;
+      badgeFontSize: number;
+      onToggle: () => void;
+    }
+  ) {
+    return (
+      <div
+        key={item.id}
+        style={{
+          width: "100%",
+          border: `1px solid ${MC_NAVY_LINE}`,
+          borderRadius: 16,
+          padding: 12,
+          display: "flex",
+          gap: 10,
+          alignItems: "center",
+          background: options.rowBackground,
+          color: MC_NAVY,
+        }}
+      >
+        <button
+          type="button"
+          onClick={options.onToggle}
+          style={{
+            flex: 1,
+            minWidth: 0,
+            display: "flex",
+            gap: 12,
+            alignItems: "center",
+            border: "none",
+            background: "transparent",
+            padding: 0,
+            textAlign: "left",
+            color: "inherit",
+          }}
+        >
+          <div style={circleBadgeStyle(options.badgeActive, s(options.badgeFontSize))}>
+            {options.badgeLabel}
+          </div>
+          <div style={{ flex: 1, minWidth: 0, fontSize: s(17), fontWeight: 500 }}>{item.name}</div>
+          <div style={{ fontSize: s(15), color: MC_NAVY_MUTED, flexShrink: 0, whiteSpace: "nowrap" }}>
+            <QtyUnitText quantity={String(item.quantity)} unit={item.unit} />
+          </div>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setRemoveAction({ id: item.id, name: item.name })}
+          style={sideActionButtonStyle(s(14))}
+        >
+          {lang === "en" ? "Remove" : "Quitar"}
+        </button>
+      </div>
+    );
+  }
+
   return (
     <AppShell
       title={t(lang, "shoppingTitle")}
@@ -634,52 +761,21 @@ export default function ShoppingPage() {
                   : "Ya agregaste todo lo de esta tienda."}
               </div>
             ) : (
-              <div style={{ display: "grid", gap: 10 }}>
-                {pendingItems.map((item) => (
-                  <div
-                    key={item.id}
-                    style={{
-                      width: "100%",
-                      border: `1px solid ${MC_NAVY_LINE}`,
-                      borderRadius: 16,
-                      padding: 12,
-                      display: "flex",
-                      gap: 10,
-                      alignItems: "center",
-                      background: "#fff",
-                      color: MC_NAVY,
-                    }}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => toggleActiveItemChecked(item.id, true)}
-                      style={{
-                        flex: 1,
-                        minWidth: 0,
-                        display: "flex",
-                        gap: 12,
-                        alignItems: "center",
-                        border: "none",
-                        background: "transparent",
-                        padding: 0,
-                        textAlign: "left",
-                        color: "inherit",
-                      }}
-                    >
-                      <div style={circleBadgeStyle(false, s(18))}>+</div>
-                      <div style={{ flex: 1, minWidth: 0, fontSize: s(17), fontWeight: 500 }}>{item.name}</div>
-                      <div style={{ fontSize: s(15), color: MC_NAVY_MUTED, flexShrink: 0, whiteSpace: "nowrap" }}>
-                        <QtyUnitText quantity={item.quantity} unit={item.unit} />
-                      </div>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setRemoveAction({ id: item.id, name: item.name })}
-                      style={sideActionButtonStyle(s(14))}
-                    >
-                      {lang === "en" ? "Remove" : "Quitar"}
-                    </button>
+              <div style={{ display: "grid", gap: 12 }}>
+                {groupedPendingItems.map((group) => (
+                  <div key={`pending-${group.category}`} style={{ display: "grid", gap: 8 }}>
+                    {renderCategoryHeading(group.category)}
+                    <div style={{ display: "grid", gap: 10 }}>
+                      {group.items.map((item) =>
+                        renderStoreItemRow(item, {
+                          rowBackground: "#fff",
+                          badgeLabel: "+",
+                          badgeActive: false,
+                          badgeFontSize: 18,
+                          onToggle: () => toggleActiveItemChecked(item.id, true),
+                        })
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -698,52 +794,21 @@ export default function ShoppingPage() {
                   : "Todavía no agregas nada de esta tienda."}
               </div>
             ) : (
-              <div style={{ display: "grid", gap: 10 }}>
-                {addedItems.map((item) => (
-                  <div
-                    key={item.id}
-                    style={{
-                      width: "100%",
-                      border: `1px solid ${MC_NAVY_LINE}`,
-                      borderRadius: 16,
-                      padding: 12,
-                      display: "flex",
-                      gap: 10,
-                      alignItems: "center",
-                      background: MC_NAVY_SOFT,
-                      color: MC_NAVY,
-                    }}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => toggleActiveItemChecked(item.id, false)}
-                      style={{
-                        flex: 1,
-                        minWidth: 0,
-                        display: "flex",
-                        gap: 12,
-                        alignItems: "center",
-                        border: "none",
-                        background: "transparent",
-                        padding: 0,
-                        textAlign: "left",
-                        color: "inherit",
-                      }}
-                    >
-                      <div style={circleBadgeStyle(true, s(14))}>✓</div>
-                      <div style={{ flex: 1, minWidth: 0, fontSize: s(17), fontWeight: 500 }}>{item.name}</div>
-                      <div style={{ fontSize: s(15), color: MC_NAVY_MUTED, flexShrink: 0, whiteSpace: "nowrap" }}>
-                        <QtyUnitText quantity={item.quantity} unit={item.unit} />
-                      </div>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setRemoveAction({ id: item.id, name: item.name })}
-                      style={sideActionButtonStyle(s(14))}
-                    >
-                      {lang === "en" ? "Remove" : "Quitar"}
-                    </button>
+              <div style={{ display: "grid", gap: 12 }}>
+                {groupedAddedItems.map((group) => (
+                  <div key={`added-${group.category}`} style={{ display: "grid", gap: 8 }}>
+                    {renderCategoryHeading(group.category)}
+                    <div style={{ display: "grid", gap: 10 }}>
+                      {group.items.map((item) =>
+                        renderStoreItemRow(item, {
+                          rowBackground: MC_NAVY_SOFT,
+                          badgeLabel: "✓",
+                          badgeActive: true,
+                          badgeFontSize: 14,
+                          onToggle: () => toggleActiveItemChecked(item.id, false),
+                        })
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
