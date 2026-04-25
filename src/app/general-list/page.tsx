@@ -7,6 +7,7 @@ import { categoryLabel, t } from "@/lib/mindercart/i18n";
 import {
   addGeneralSelections,
   addQuickNeed,
+  groupByStore,
   itemKey,
   removeActiveItem,
 } from "@/lib/mindercart/storage";
@@ -89,11 +90,6 @@ function preferredStoreFor(item: Pick<ItemMaster, "defaultStore">, preferredStor
   return item.defaultStore || preferredStore || "HEB";
 }
 
-function normalizeCategoryName(value: unknown) {
-  const category = String(value ?? "").trim();
-  return CATEGORY_ORDER.includes(category as (typeof CATEGORY_ORDER)[number]) ? category : "Otro / Temporal";
-}
-
 export default function CartPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -159,27 +155,6 @@ export default function CartPage() {
     [generalListItems]
   );
 
-  const categoryByCatalogKey = React.useMemo(() => {
-    const map = new Map<string, string>();
-
-    itemsMaster.forEach((item: ItemMaster) => {
-      const category = String(item.category ?? "").trim();
-      if (category) map.set(catalogKey(item), category);
-    });
-
-    generalListItems.forEach((item: GeneralListItem) => {
-      const category = String(item.category ?? "").trim();
-      if (category && !map.has(catalogKey(item))) map.set(catalogKey(item), category);
-    });
-
-    activeShoppingListItems.forEach((item: ActiveShoppingListItem) => {
-      const category = String(item.category ?? "").trim();
-      if (category && !map.has(catalogKey(item))) map.set(catalogKey(item), category);
-    });
-
-    return map;
-  }, [activeShoppingListItems, generalListItems, itemsMaster]);
-
   const catalogItems = React.useMemo<CatalogCategoryItem[]>(() => {
     const deduped = new Map<string, CatalogCategoryItem>();
 
@@ -235,50 +210,6 @@ export default function CartPage() {
   const selectedCategoryGroup =
     categoryGroups.find((group) => group.category === openCategory) ?? null;
 
-  const activeCategoryGroups = React.useMemo<
-    Array<{ category: string; items: ActiveShoppingListItem[] }>
-  >(() => {
-    const grouped = new Map<string, ActiveShoppingListItem[]>();
-
-    for (const item of activeShoppingListItems) {
-      const key = catalogKey(item);
-      const category = normalizeCategoryName(item.category || categoryByCatalogKey.get(key) || "");
-      const current = grouped.get(category) || [];
-      current.push(item);
-      grouped.set(category, current);
-    }
-
-    const ordered: Array<{ category: string; items: ActiveShoppingListItem[] }> = [];
-
-    for (const category of CATEGORY_ORDER) {
-      const items = grouped.get(category) || [];
-      if (items.length === 0) continue;
-
-      ordered.push({
-        category,
-        items: [...items].sort((a, b) =>
-          String(a.name ?? "").localeCompare(String(b.name ?? ""), undefined, { sensitivity: "base" })
-        ),
-      });
-      grouped.delete(category);
-    }
-
-    for (const [category, items] of [...grouped.entries()].sort((a, b) =>
-      a[0].localeCompare(b[0], undefined, { sensitivity: "base" })
-    )) {
-      if (items.length === 0) continue;
-      ordered.push({
-        category,
-        items: [...items].sort((a, b) =>
-          String(a.name ?? "").localeCompare(String(b.name ?? ""), undefined, { sensitivity: "base" })
-        ),
-      });
-    }
-
-    return ordered;
-  }, [activeShoppingListItems, categoryByCatalogKey]);
-
-
   function onToggleCategoryItem(item: CatalogCategoryItem, isChecked: boolean) {
     const key = catalogKey(item);
     const activeId = activeIdByCatalogKey.get(key);
@@ -304,25 +235,6 @@ export default function CartPage() {
     }
   }
 
-  const currentCartCategoryGroups = React.useMemo(() => {
-    const grouped = new Map<string, ActiveShoppingListItem[]>();
-
-    activeShoppingListItems.forEach((item: ActiveShoppingListItem) => {
-      const resolvedCategory = normalizeCategoryName(categoryByCatalogKey.get(catalogKey(item)) || item.category);
-      const current = grouped.get(resolvedCategory) || [];
-      current.push(item);
-      grouped.set(resolvedCategory, current);
-    });
-
-    return CATEGORY_ORDER.map((category) => ({
-      category,
-      items: [...(grouped.get(category) || [])].sort((a, b) =>
-        a.name.localeCompare(b.name, "es", { sensitivity: "base" })
-      ),
-    })).filter((group) => group.items.length > 0);
-  }, [activeShoppingListItems, categoryByCatalogKey]);
-
-
   if (!hydrated) {
     return (
       <AppShell
@@ -342,6 +254,7 @@ export default function CartPage() {
     );
   }
 
+  const groups = groupByStore(activeShoppingListItems);
   const footerActions = selectedCategoryGroup
     ? [
         {
@@ -377,26 +290,14 @@ export default function CartPage() {
           <div style={{ fontSize: s(16), fontWeight: 800 }}>{t(lang, "cartNow")}</div>
         </div>
 
-        {currentCartCategoryGroups.length === 0 ? (
+        {groups.length === 0 ? (
           <div style={{ fontSize: s(15), color: "#6b7280" }}>{t(lang, "noItemsYet")}</div>
         ) : (
           <div style={{ display: "grid", gap: 14 }}>
-            {currentCartCategoryGroups.map((group) => (
-              <div key={group.category}>
-                <div
-                  style={{
-                    fontSize: s(14),
-                    fontWeight: 900,
-                    marginBottom: 8,
-                    padding: "8px 12px",
-                    borderRadius: 14,
-                    background: "#EEF3FF",
-                    color: "#12245E",
-                    textTransform: "uppercase",
-                    letterSpacing: 0.4,
-                  }}
-                >
-                  {categoryLabel(lang, group.category)}
+            {groups.map((group) => (
+              <div key={group.store}>
+                <div style={{ fontSize: s(15), fontWeight: 800, marginBottom: 8 }}>
+                  {group.store} · {group.items.length} {t(lang, "itemsLabel")}
                 </div>
 
                 <div style={{ display: "grid", gap: 10 }}>
