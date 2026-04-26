@@ -848,19 +848,130 @@ export function groupGeneralListByCategory(rows: GeneralListItem[]) {
     .sort((a, b) => a.category.localeCompare(b.category));
 }
 
+
+function categoryOrderIndex(category: string) {
+  const normalizedCategory = canonicalizeCategory(category) || DEFAULT_CATEGORY;
+  const index = CATEGORY_OPTIONS.findIndex((option) => option === normalizedCategory);
+  return index === -1 ? CATEGORY_OPTIONS.length : index;
+}
+
+function groupRowsByCategory<T extends { category?: unknown; name?: unknown }>(rows: T[]) {
+  const map = new Map<string, T[]>();
+
+  for (const row of rows) {
+    const category = canonicalizeCategory((row as { category?: unknown }).category) || DEFAULT_CATEGORY;
+    const current = map.get(category) || [];
+    current.push(row);
+    map.set(category, current);
+  }
+
+  return [...map.entries()]
+    .map(([category, items]) => ({
+      category,
+      items: [...items].sort((a, b) =>
+        safe((a as { name?: unknown }).name).localeCompare(safe((b as { name?: unknown }).name))
+      ),
+    }))
+    .sort((a, b) => categoryOrderIndex(a.category) - categoryOrderIndex(b.category));
+}
+
+function formatQuantityUnit(
+  row: Pick<GeneralListItem, "quantity" | "unit"> | { quantity?: unknown; unit?: unknown },
+  lang: Language
+) {
+  const quantity = safe(row.quantity) || "1";
+  const unit = unitLabel(lang, canonicalizeUnit(row.unit));
+  return `${quantity} ${unit}`.trim();
+}
+
+function buildCategoryTextBlocks<T extends { category?: unknown; name?: unknown; quantity?: unknown; unit?: unknown }>(
+  rows: T[],
+  lang: Language
+) {
+  return groupRowsByCategory(rows)
+    .map((group) =>
+      [
+        `*${group.category}*`,
+        ...group.items.map((item) => `- ${safe((item as { name?: unknown }).name)} — ${formatQuantityUnit(item, lang)}`),
+      ].join("\n")
+    )
+    .join("\n\n");
+}
+
+function buildStoreCategoryTextBlock<
+  T extends { store?: unknown; category?: unknown; name?: unknown; quantity?: unknown; unit?: unknown }
+>(store: string, rows: T[], lang: Language) {
+  const body = buildCategoryTextBlocks(rows, lang);
+  if (!body) return "";
+  return [`*${store}*`, body].join("\n\n").trim();
+}
+
+function buildCategoryScreenSections<T extends { category?: unknown; name?: unknown; quantity?: unknown; unit?: unknown }>(
+  rows: T[],
+  lang: Language
+) {
+  return groupRowsByCategory(rows)
+    .map(
+      (group) => `
+        <section class="mc-screen-category">
+          <div class="mc-screen-category-title">${escapeHtml(group.category)}</div>
+          <div class="mc-screen-category-list">
+            ${group.items
+              .map(
+                (item) => `
+                  <div class="mc-screen-row">
+                    <div class="mc-screen-name">${escapeHtml(safe((item as { name?: unknown }).name))}</div>
+                    <div class="mc-screen-qty">${escapeHtml(formatQuantityUnit(item, lang))}</div>
+                  </div>
+                `
+              )
+              .join("")}
+          </div>
+        </section>
+      `
+    )
+    .join("");
+}
+
+function buildCategoryPrintSections<T extends { category?: unknown; name?: unknown; quantity?: unknown; unit?: unknown }>(
+  rows: T[],
+  lang: Language
+) {
+  return groupRowsByCategory(rows)
+    .map(
+      (group) => `
+        <section class="mc-print-category">
+          <div class="mc-print-category-title">${escapeHtml(group.category)}</div>
+          <div class="mc-print-category-list">
+            ${group.items
+              .map(
+                (item) => `
+                  <div class="mc-print-row">
+                    <div class="mc-print-name">${escapeHtml(safe((item as { name?: unknown }).name))}</div>
+                    <div class="mc-print-qty">${escapeHtml(formatQuantityUnit(item, lang))}</div>
+                  </div>
+                `
+              )
+              .join("")}
+          </div>
+        </section>
+      `
+    )
+    .join("");
+}
+
 export function buildShoppingListText() {
   const state = readState();
   const lang = state.settings.language;
   const catalogMap = new Map(state.itemsMaster.map((item) => [item.itemKey, item]));
-  const groups = groupByStore(pendingOnly(state.activeShoppingListItems)).map((group) => ({
+  const storeGroups = groupByStore(pendingOnly(state.activeShoppingListItems)).map((group) => ({
     ...group,
     items: group.items.map((item) => localizeRowName(item, catalogMap, lang)),
   }));
 
-  return groups
-    .map((group) =>
-      [group.store, ...group.items.map((item) => `${item.name} ${item.quantity} ${unitLabel(lang, item.unit)}`)].join("\n")
-    )
+  return storeGroups
+    .map((group) => buildStoreCategoryTextBlock(group.store, group.items, lang))
+    .filter(Boolean)
     .join("\n\n")
     .trim();
 }
@@ -874,10 +985,7 @@ export function buildShoppingListTextForStore(storeName: string) {
     .filter((item) => safe(item.store) === store)
     .map((item) => localizeRowName(item, catalogMap, lang));
 
-  if (rows.length === 0) return "";
-  return [store, ...rows.map((item) => `${item.name} ${item.quantity} ${unitLabel(lang, item.unit)}`)]
-    .join("\n")
-    .trim();
+  return buildStoreCategoryTextBlock(store, rows, lang);
 }
 
 export function buildShoppingListHtml(lang: Language = "en") {
@@ -889,39 +997,168 @@ export function buildShoppingListHtml(lang: Language = "en") {
   }));
   const title = lang === "en" ? "Your Shopping Cart" : "Tu Carrito de Compras";
   const slogan = lang === "en" ? "Never Forget what to buy" : "Nunca olvides qué comprar";
+  const emptyLabel = lang === "en" ? "No items." : "No hay artículos.";
+  const printedOn = lang === "en" ? "Date" : "Fecha";
+  const displayDate = escapeHtml(formatDisplayDate(lang));
 
   const body = groups
-    .map((group) => {
-      const rows = group.items
-        .map(
-          (item) => `
-            <div style="display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #eee;">
-              <div style="font-weight:700;">${escapeHtml(item.name)}</div>
-              <div style="font-size:12px;color:#555;white-space:nowrap;">${escapeHtml(item.quantity)} ${escapeHtml(unitLabel(lang, item.unit))}</div>
-            </div>
-          `
-        )
-        .join("");
-
-      return `
-        <section style="margin-bottom:22px;">
-          <div style="font-size:20px;font-weight:800;margin-bottom:8px;">${escapeHtml(group.store)}</div>
-          ${rows}
+    .map(
+      (group) => `
+        <section style="margin-bottom:24px;">
+          <div style="font-size:20px;font-weight:900;color:#12245E;margin-bottom:12px;">${escapeHtml(group.store)}</div>
+          ${buildCategoryPrintSections(group.items, lang)}
         </section>
-      `;
-    })
+      `
+    )
     .join("");
 
   return `
     <html>
-      <head><meta charset="utf-8" /><title>MinderCart PDF</title></head>
-      <body style="font-family:Arial,sans-serif;padding:24px;color:#111;">
-        <div style="background:#12245E;color:#fff;padding:18px 20px;border-radius:16px;margin-bottom:20px;">
-          <div style="font-size:24px;font-weight:900;">MinderCart</div>
-          <div style="font-size:12px;opacity:.9;margin-top:4px;">${slogan}</div>
-          <div style="font-size:18px;font-weight:800;margin-top:12px;">${title}</div>
+      <head>
+        <meta charset="utf-8" />
+        <title>MinderCart PDF</title>
+        <style>
+          :root {
+            color-scheme: light;
+            --mc-navy: #12245E;
+            --mc-navy-soft: #EAF0FF;
+            --mc-line: #D8E2FF;
+            --mc-muted: #5D6B98;
+            --mc-bg: #F6F8FF;
+          }
+
+          * { box-sizing: border-box; }
+
+          html, body {
+            margin: 0;
+            padding: 0;
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+            background: var(--mc-bg);
+            color: #111827;
+          }
+
+          body { padding: 24px; }
+
+          .mc-sheet {
+            max-width: 840px;
+            margin: 0 auto;
+            background: #fff;
+            border: 1px solid var(--mc-line);
+            border-radius: 22px;
+            overflow: hidden;
+          }
+
+          .mc-header {
+            background: linear-gradient(180deg, #12245E 0%, #183070 100%);
+            color: #fff;
+            padding: 24px 24px 20px;
+          }
+
+          .mc-brand {
+            font-size: 26px;
+            font-weight: 900;
+            line-height: 1;
+          }
+
+          .mc-slogan, .mc-date {
+            margin-top: 8px;
+            font-size: 13px;
+            line-height: 1.35;
+            opacity: 0.92;
+          }
+
+          .mc-title {
+            margin-top: 14px;
+            font-size: 20px;
+            font-weight: 800;
+            line-height: 1.15;
+          }
+
+          .mc-content {
+            padding: 20px 24px 26px;
+          }
+
+          .mc-empty {
+            font-size: 16px;
+            color: var(--mc-muted);
+          }
+
+          .mc-print-category {
+            margin: 0 0 14px;
+            page-break-inside: avoid;
+            break-inside: avoid;
+          }
+
+          .mc-print-category-title {
+            display: inline-block;
+            margin: 0 0 8px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            background: var(--mc-navy-soft);
+            color: var(--mc-navy);
+            font-size: 12px;
+            font-weight: 900;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+          }
+
+          .mc-print-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 10mm;
+            align-items: start;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--mc-line);
+          }
+
+          .mc-print-name {
+            font-size: 12pt;
+            line-height: 1.3;
+            font-weight: 700;
+            color: #111827;
+          }
+
+          .mc-print-qty {
+            font-size: 10.5pt;
+            line-height: 1.3;
+            white-space: nowrap;
+            color: var(--mc-muted);
+            text-align: right;
+          }
+
+          @page {
+            size: auto;
+            margin: 12mm;
+          }
+
+          @media print {
+            html, body {
+              background: #fff !important;
+              padding: 0;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+
+            .mc-sheet {
+              max-width: none;
+              border: 0;
+              border-radius: 0;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="mc-sheet">
+          <div class="mc-header">
+            <div class="mc-brand">MinderCart</div>
+            <div class="mc-slogan">${slogan}</div>
+            <div class="mc-date">${printedOn}: ${displayDate}</div>
+            <div class="mc-title">${title}</div>
+          </div>
+          <div class="mc-content">
+            ${body || `<div class="mc-empty">${emptyLabel}</div>`}
+          </div>
         </div>
-        ${body || `<div>${lang === "es" ? "No hay artículos." : "No items."}</div>`}
       </body>
     </html>
   `;
@@ -941,29 +1178,11 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
   const backLabel = lang === "en" ? "Back" : "Regresar";
   const emptyLabel = lang === "en" ? "No items." : "No hay artículos.";
   const printedOn = lang === "en" ? "Date" : "Fecha";
+  const byCategoryLabel = lang === "en" ? "Grouped by category" : "Agrupado por categoría";
   const displayDate = escapeHtml(formatDisplayDate(lang));
 
-  const screenBody = rows
-    .map(
-      (item) => `
-        <div class="mc-screen-row">
-          <div class="mc-screen-name">${escapeHtml(item.name)}</div>
-          <div class="mc-screen-qty">${escapeHtml(item.quantity)} ${escapeHtml(unitLabel(lang, item.unit))}</div>
-        </div>
-      `
-    )
-    .join("");
-
-  const printBody = rows
-    .map(
-      (item) => `
-        <div class="mc-print-row">
-          <div class="mc-print-name">${escapeHtml(item.name)}</div>
-          <div class="mc-print-qty">${escapeHtml(item.quantity)} ${escapeHtml(unitLabel(lang, item.unit))}</div>
-        </div>
-      `
-    )
-    .join("");
+  const screenBody = buildCategoryScreenSections(rows, lang);
+  const printBody = buildCategoryPrintSections(rows, lang);
 
   return `
     <html>
@@ -979,11 +1198,10 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
             --mc-line: #D8E2FF;
             --mc-muted: #5D6B98;
             --mc-bg: #F5F7FF;
+            --mc-card-shadow: 0 12px 30px rgba(18, 36, 94, 0.08);
           }
 
-          * {
-            box-sizing: border-box;
-          }
+          * { box-sizing: border-box; }
 
           html,
           body {
@@ -994,9 +1212,7 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
             color: var(--mc-navy);
           }
 
-          body {
-            -webkit-text-size-adjust: 100%;
-          }
+          body { -webkit-text-size-adjust: 100%; }
 
           .mc-screen {
             min-height: 100dvh;
@@ -1004,17 +1220,18 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
           }
 
           .mc-screen-shell {
-            max-width: 560px;
+            max-width: 640px;
             min-height: 100dvh;
             margin: 0 auto;
             padding: 16px 16px calc(104px + env(safe-area-inset-bottom));
           }
 
           .mc-screen-header {
-            background: var(--mc-navy);
+            background: linear-gradient(180deg, #12245E 0%, #183070 100%);
             color: #fff;
-            border-radius: 18px;
-            padding: 18px 18px 16px;
+            border-radius: 22px;
+            padding: 20px 20px 18px;
+            box-shadow: var(--mc-card-shadow);
           }
 
           .mc-screen-header-grid {
@@ -1025,17 +1242,13 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
           }
 
           .mc-screen-left,
-          .mc-screen-right {
-            min-width: 0;
-          }
+          .mc-screen-right { min-width: 0; }
 
-          .mc-screen-right {
-            text-align: right;
-          }
+          .mc-screen-right { text-align: right; }
 
           .mc-screen-title {
-            font-size: 21px;
-            line-height: 1.1;
+            font-size: 22px;
+            line-height: 1.05;
             font-weight: 900;
           }
 
@@ -1054,25 +1267,66 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
             opacity: 0.94;
           }
 
+          .mc-screen-chip {
+            display: inline-flex;
+            margin-top: 12px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.16);
+            font-size: 12px;
+            font-weight: 900;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+          }
+
           .mc-screen-list {
             display: grid;
-            gap: 12px;
+            gap: 16px;
             margin-top: 16px;
+          }
+
+          .mc-screen-category {
+            background: #fff;
+            border: 1px solid var(--mc-line);
+            border-radius: 20px;
+            padding: 14px;
+            box-shadow: var(--mc-card-shadow);
+          }
+
+          .mc-screen-category-title {
+            display: inline-flex;
+            margin-bottom: 10px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: var(--mc-navy-soft);
+            color: var(--mc-navy);
+            font-size: 12px;
+            font-weight: 900;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+          }
+
+          .mc-screen-category-list {
+            display: grid;
+            gap: 8px;
           }
 
           .mc-screen-row {
             display: flex;
             justify-content: space-between;
             gap: 12px;
-            padding: 14px 16px;
-            border: 1px solid var(--mc-line);
-            border-radius: 18px;
-            background: #fff;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--mc-line);
+          }
+
+          .mc-screen-row:last-child {
+            border-bottom: 0;
+            padding-bottom: 0;
           }
 
           .mc-screen-name {
-            font-size: 18px;
-            line-height: 1.2;
+            font-size: 17px;
+            line-height: 1.25;
             font-weight: 800;
             color: var(--mc-navy);
           }
@@ -1105,7 +1359,7 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
           }
 
           .mc-screen-controls-inner {
-            max-width: 560px;
+            max-width: 640px;
             margin: 0 auto;
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -1139,7 +1393,7 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
           }
 
           .mc-print-header {
-            background: var(--mc-navy);
+            background: linear-gradient(180deg, #12245E 0%, #183070 100%);
             color: #fff;
             padding: 12mm 12mm 9mm;
             border-radius: 4mm;
@@ -1158,15 +1412,13 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
             flex: 1 1 0;
           }
 
-          .mc-print-right {
-            text-align: right;
-          }
+          .mc-print-right { text-align: right; }
 
           .mc-print-title-left,
           .mc-print-title-right {
             font-size: 16pt;
             line-height: 1.1;
-            font-weight: 800;
+            font-weight: 900;
           }
 
           .mc-print-store {
@@ -1183,8 +1435,39 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
             line-height: 1.35;
           }
 
+          .mc-print-chip {
+            display: inline-block;
+            margin-top: 3mm;
+            padding: 1.3mm 2.8mm;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.16);
+            font-size: 8pt;
+            font-weight: 900;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+          }
+
           .mc-print-list {
             margin-top: 7mm;
+          }
+
+          .mc-print-category {
+            margin: 0 0 5.5mm;
+            page-break-inside: avoid;
+            break-inside: avoid;
+          }
+
+          .mc-print-category-title {
+            display: inline-block;
+            margin: 0 0 2.5mm;
+            padding: 1.3mm 2.6mm;
+            border-radius: 999px;
+            background: var(--mc-navy-soft);
+            color: var(--mc-navy);
+            font-size: 8.5pt;
+            font-weight: 900;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
           }
 
           .mc-print-row {
@@ -1192,7 +1475,7 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
             grid-template-columns: minmax(0, 1fr) auto;
             gap: 8mm;
             align-items: start;
-            padding: 3.5mm 0;
+            padding: 3mm 0;
             border-bottom: 0.35mm solid #D8E2FF;
             page-break-inside: avoid;
             break-inside: avoid;
@@ -1257,6 +1540,7 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
                   <div class="mc-screen-title">${title}</div>
                   <div class="mc-screen-store">${escapeHtml(store)}</div>
                   <div class="mc-screen-date">${printedOn}: ${displayDate}</div>
+                  <div class="mc-screen-chip">${byCategoryLabel}</div>
                 </div>
                 <div class="mc-screen-right">
                   <div class="mc-screen-title">MinderCart</div>
@@ -1285,6 +1569,7 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
                 <div class="mc-print-title-left">${title}</div>
                 <div class="mc-print-store">${escapeHtml(store)}</div>
                 <div class="mc-print-date">${printedOn}: ${displayDate}</div>
+                <div class="mc-print-chip">${byCategoryLabel}</div>
               </div>
               <div class="mc-print-right">
                 <div class="mc-print-title-right">MinderCart</div>
@@ -1301,4 +1586,3 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
     </html>
   `;
 }
-
