@@ -19,10 +19,10 @@ type NavItem = {
 };
 
 const iconStyle = {
-  width: 30,
-  height: 30,
+  width: 24,
+  height: 24,
   stroke: "currentColor",
-  strokeWidth: 2.2,
+  strokeWidth: 2,
   fill: "none",
   strokeLinecap: "round" as const,
   strokeLinejoin: "round" as const,
@@ -36,11 +36,11 @@ const navItems: NavItem[] = [
     icon: (
       <svg viewBox="0 0 24 24" aria-hidden="true" style={iconStyle}>
         <path d="M9 4.75h6" />
-        <path d="M9.5 3.5h5a1.5 1.5 0 0 1 1.5 1.5v.5h1a2 2 0 0 1 2 2v10.5a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V7.5a2 2 0 0 1 2-2h1V5A1.5 1.5 0 0 1 9.5 3.5Z" />
-        <path d="m9 10 1.2 1.2L12.6 8.8" />
-        <path d="m9 14 1.2 1.2 2.4-2.4" />
-        <path d="M14.5 10.5H17" />
-        <path d="M14.5 14.5H17" />
+        <path d="M9.25 3.5h5.5A1.25 1.25 0 0 1 16 4.75v.75h.75A2.25 2.25 0 0 1 19 7.75v10A2.25 2.25 0 0 1 16.75 20h-9.5A2.25 2.25 0 0 1 5 17.75v-10A2.25 2.25 0 0 1 7.25 5.5H8v-.75A1.25 1.25 0 0 1 9.25 3.5Z" />
+        <path d="m8.75 10 1.2 1.2 2.15-2.15" />
+        <path d="m8.75 14 1.2 1.2 2.15-2.15" />
+        <path d="M13.5 10.5h2.25" />
+        <path d="M13.5 14.5h2.25" />
       </svg>
     ),
   },
@@ -50,10 +50,10 @@ const navItems: NavItem[] = [
     match: ["/general-list", "/shopping-list"],
     icon: (
       <svg viewBox="0 0 24 24" aria-hidden="true" style={iconStyle}>
-        <circle cx="9" cy="19" r="1.25" />
-        <circle cx="17" cy="19" r="1.25" />
-        <path d="M3.5 5.5h2.2l1.9 8h9.1l1.9-6.3H7.2" />
-        <path d="M8.5 17.5h8.2" />
+        <circle cx="10" cy="18.5" r="1.25" />
+        <circle cx="17" cy="18.5" r="1.25" />
+        <path d="M3.75 5h2l1.9 8h9l2-6.5H7.25" />
+        <path d="M8.5 16h8" />
       </svg>
     ),
   },
@@ -64,7 +64,7 @@ const navItems: NavItem[] = [
     icon: (
       <svg viewBox="0 0 24 24" aria-hidden="true" style={iconStyle}>
         <path d="M8 8V7a4 4 0 1 1 8 0v1" />
-        <path d="M6 8.5h12l-1.1 10H7.1L6 8.5Z" />
+        <path d="M6 8.5h12l-1 10H7L6 8.5Z" />
       </svg>
     ),
   },
@@ -74,9 +74,9 @@ const navItems: NavItem[] = [
     match: ["/history"],
     icon: (
       <svg viewBox="0 0 24 24" aria-hidden="true" style={iconStyle}>
-        <path d="M4 12a8 8 0 1 0 2.3-5.7" />
+        <path d="M4 12a8 8 0 1 0 2.35-5.65" />
         <path d="M4 5v4h4" />
-        <path d="M12 8v4l2.7 2.7" />
+        <path d="M12 8v4l2.75 2.75" />
       </svg>
     ),
   },
@@ -86,7 +86,7 @@ const navItems: NavItem[] = [
     match: ["/settings"],
     icon: (
       <svg viewBox="0 0 24 24" aria-hidden="true" style={iconStyle}>
-        <path d="M10.05 3.6a1 1 0 0 1 1-.85h1.9a1 1 0 0 1 1 .85l.24 1.63a7.9 7.9 0 0 1 1.78.74l1.34-.96a1 1 0 0 1 1.3.1l1.34 1.34a1 1 0 0 1 .1 1.3l-.96 1.34c.3.57.55 1.16.73 1.79l1.64.23a1 1 0 0 1 .85 1v1.9a1 1 0 0 1-.85 1l-1.64.24a7.8 7.8 0 0 1-.73 1.78l.96 1.34a1 1 0 0 1-.1 1.3l-1.34 1.34a1 1 0 0 1-1.3.1l-1.34-.96c-.57.3-1.16.55-1.78.73l-.24 1.64a1 1 0 0 1-1 .85h-1.9a1 1 0 0 1-1-.85l-.24-1.64a7.8 7.8 0 0 1-1.78-.73l-1.34.96a1 1 0 0 1-1.3-.1L3.8 18.9a1 1 0 0 1-.1-1.3l.96-1.34a7.8 7.8 0 0 1-.73-1.78l-1.64-.24a1 1 0 0 1-.85-1v-1.9a1 1 0 0 1 .85-1l1.64-.23c.18-.63.43-1.22.73-1.79L3.7 7a1 1 0 0 1 .1-1.3l1.34-1.34a1 1 0 0 1 1.3-.1l1.34.96c.56-.3 1.15-.55 1.78-.74l.24-1.63Z" />
+        <path d="M10.05 3.6a1 1 0 0 1 1-.85h1.9a1 1 0 0 1 1 .85l.25 1.65c.6.16 1.17.4 1.7.7l1.36-.98a1 1 0 0 1 1.29.1l1.35 1.35a1 1 0 0 1 .1 1.29l-.98 1.36c.3.53.54 1.1.7 1.7l1.65.25a1 1 0 0 1 .85 1v1.9a1 1 0 0 1-.85 1l-1.65.25c-.16.6-.4 1.17-.7 1.7l.98 1.36a1 1 0 0 1-.1 1.29l-1.35 1.35a1 1 0 0 1-1.29.1l-1.36-.98c-.53.3-1.1.54-1.7.7l-.25 1.65a1 1 0 0 1-1 .85h-1.9a1 1 0 0 1-1-.85l-.25-1.65a7.9 7.9 0 0 1-1.7-.7l-1.36.98a1 1 0 0 1-1.29-.1L3.8 18.2a1 1 0 0 1-.1-1.29l.98-1.36a7.9 7.9 0 0 1-.7-1.7l-1.65-.25a1 1 0 0 1-.85-1v-1.9a1 1 0 0 1 .85-1l1.65-.25c.16-.6.4-1.17.7-1.7L3.7 7.19a1 1 0 0 1 .1-1.29L5.15 4.55a1 1 0 0 1 1.29-.1l1.36.98c.53-.3 1.1-.54 1.7-.7l.25-1.65Z" />
         <circle cx="12" cy="12" r="3.1" />
       </svg>
     ),
@@ -104,73 +104,97 @@ function BottomNavigation() {
           bottom: 0;
           z-index: 9999;
           background: #12245e;
-          padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
-          box-shadow: 0 -12px 28px rgba(8, 18, 49, 0.22);
+          border-top: 1px solid rgba(255,255,255,0.08);
+          box-shadow: 0 -10px 24px rgba(6, 13, 36, 0.20);
+          padding: 4px 8px calc(6px + env(safe-area-inset-bottom));
         }
+
         .mc-bottom-nav__grid {
           display: grid;
           grid-template-columns: repeat(5, minmax(0, 1fr));
-          gap: 8px;
+          gap: 2px;
           max-width: 980px;
           margin: 0 auto;
         }
+
         .mc-bottom-nav__item {
-          min-height: 82px;
-          border-radius: 16px;
-          background: #1d367b;
-          color: #ffffff;
+          position: relative;
+          min-height: 58px;
+          border-radius: 12px;
           display: flex;
           align-items: center;
           justify-content: center;
           text-align: center;
-          padding: 9px 5px 10px;
-          box-shadow:
-            0 10px 20px rgba(5, 13, 39, 0.30),
-            inset 0 1px 0 rgba(255,255,255,0.08);
-          transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+          padding: 6px 4px 7px;
+          color: rgba(255, 255, 255, 0.72);
+          transition: color .15s ease, transform .15s ease;
         }
+
+        .mc-bottom-nav__item::before {
+          content: "";
+          position: absolute;
+          top: 0;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 0;
+          height: 3px;
+          border-radius: 999px;
+          background: #ffffff;
+          opacity: 0;
+          transition: width .15s ease, opacity .15s ease;
+        }
+
         .mc-bottom-nav__item:hover {
           transform: translateY(-1px);
         }
+
         .mc-bottom-nav__item.is-active {
-          background: #29499b;
-          box-shadow:
-            0 12px 24px rgba(5, 13, 39, 0.34),
-            inset 0 1px 0 rgba(255,255,255,0.12);
+          color: #ffffff;
         }
+
+        .mc-bottom-nav__item.is-active::before {
+          width: 26px;
+          opacity: 1;
+        }
+
         .mc-bottom-nav__inner {
           display: grid;
           justify-items: center;
-          gap: 7px;
+          gap: 3px;
         }
+
         .mc-bottom-nav__icon {
           display: flex;
           align-items: center;
           justify-content: center;
-          color: #ffffff;
+          color: currentColor;
         }
+
         .mc-bottom-nav__label {
-          font-size: 11px;
-          line-height: 1.1;
+          font-size: 10px;
+          line-height: 1.05;
           font-weight: 800;
           letter-spacing: -0.01em;
-          color: #ffffff;
+          color: currentColor;
           white-space: nowrap;
         }
+
         .mc-app-frame {
           min-height: 100dvh;
-          padding-bottom: calc(108px + env(safe-area-inset-bottom));
+          padding-bottom: calc(70px + env(safe-area-inset-bottom));
         }
+
         @media (max-width: 430px) {
-          .mc-bottom-nav { padding-left: 8px; padding-right: 8px; }
-          .mc-bottom-nav__grid { gap: 6px; }
+          .mc-bottom-nav {
+            padding-left: 6px;
+            padding-right: 6px;
+          }
           .mc-bottom-nav__item {
-            min-height: 76px;
-            border-radius: 14px;
-            padding: 8px 4px 9px;
+            min-height: 56px;
+            padding: 6px 2px 7px;
           }
           .mc-bottom-nav__label {
-            font-size: 10px;
+            font-size: 9.5px;
           }
         }
       `}</style>
