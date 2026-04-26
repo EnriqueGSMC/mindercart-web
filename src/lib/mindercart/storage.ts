@@ -890,9 +890,9 @@ function buildCategoryTextBlocks<
   return groupRowsByCategory(rows)
     .map((group) =>
       [
-        `━━━━━━━━━━`,
+        "━━━━━━━━━━",
         `[ ${safe(group.category).toUpperCase()} ]`,
-        `━━━━━━━━━━`,
+        "━━━━━━━━━━",
         ...group.items.map((item) => {
           const checkedPrefix = (item as { checked?: unknown }).checked ? "✓ " : "";
           return `- ${checkedPrefix}${safe((item as { name?: unknown }).name)} ${formatQuantityUnit(item, lang)}`.trim();
