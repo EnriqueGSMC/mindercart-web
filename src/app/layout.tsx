@@ -19,10 +19,10 @@ type NavItem = {
 };
 
 const iconStyle = {
-  width: 28,
-  height: 28,
+  width: 30,
+  height: 30,
   stroke: "currentColor",
-  strokeWidth: 2.4,
+  strokeWidth: 2.2,
   fill: "none",
   strokeLinecap: "round" as const,
   strokeLinejoin: "round" as const,
@@ -35,14 +35,12 @@ const navItems: NavItem[] = [
     match: ["/"],
     icon: (
       <svg viewBox="0 0 24 24" aria-hidden="true" style={iconStyle}>
-        <rect x="6" y="4" width="12" height="16" rx="2" />
-        <path d="M9 4.5h6" />
-        <path d="M9 9h1.5" />
-        <path d="M9 13h1.5" />
-        <path d="M9 17h1.5" />
-        <path d="M12 9h3" />
-        <path d="M12 13h3" />
-        <path d="M12 17h3" />
+        <path d="M9 4.75h6" />
+        <path d="M9.5 3.5h5a1.5 1.5 0 0 1 1.5 1.5v.5h1a2 2 0 0 1 2 2v10.5a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V7.5a2 2 0 0 1 2-2h1V5A1.5 1.5 0 0 1 9.5 3.5Z" />
+        <path d="m9 10 1.2 1.2L12.6 8.8" />
+        <path d="m9 14 1.2 1.2 2.4-2.4" />
+        <path d="M14.5 10.5H17" />
+        <path d="M14.5 14.5H17" />
       </svg>
     ),
   },
@@ -54,7 +52,8 @@ const navItems: NavItem[] = [
       <svg viewBox="0 0 24 24" aria-hidden="true" style={iconStyle}>
         <circle cx="9" cy="19" r="1.25" />
         <circle cx="17" cy="19" r="1.25" />
-        <path d="M4 5h2l2.2 9h8.8l2-7H7.2" />
+        <path d="M3.5 5.5h2.2l1.9 8h9.1l1.9-6.3H7.2" />
+        <path d="M8.5 17.5h8.2" />
       </svg>
     ),
   },
@@ -64,8 +63,8 @@ const navItems: NavItem[] = [
     match: ["/in-store"],
     icon: (
       <svg viewBox="0 0 24 24" aria-hidden="true" style={iconStyle}>
-        <path d="M7 8V6a5 5 0 0 1 10 0v2" />
-        <path d="M5.5 8h13l-1 11h-11z" />
+        <path d="M8 8V7a4 4 0 1 1 8 0v1" />
+        <path d="M6 8.5h12l-1.1 10H7.1L6 8.5Z" />
       </svg>
     ),
   },
@@ -77,7 +76,7 @@ const navItems: NavItem[] = [
       <svg viewBox="0 0 24 24" aria-hidden="true" style={iconStyle}>
         <path d="M4 12a8 8 0 1 0 2.3-5.7" />
         <path d="M4 5v4h4" />
-        <path d="M12 8v4l2.5 2.5" />
+        <path d="M12 8v4l2.7 2.7" />
       </svg>
     ),
   },
@@ -87,8 +86,8 @@ const navItems: NavItem[] = [
     match: ["/settings"],
     icon: (
       <svg viewBox="0 0 24 24" aria-hidden="true" style={iconStyle}>
-        <circle cx="12" cy="12" r="3.25" />
-        <path d="M19.4 15a1 1 0 0 0 .2 1.1l.1.1a1 1 0 0 1 0 1.4l-1.2 1.2a1 1 0 0 1-1.4 0l-.1-.1a1 1 0 0 0-1.1-.2 1 1 0 0 0-.6.9V20a1 1 0 0 1-1 1h-1.6a1 1 0 0 1-1-1v-.2a1 1 0 0 0-.7-.9 1 1 0 0 0-1.1.2l-.1.1a1 1 0 0 1-1.4 0L4.4 18a1 1 0 0 1 0-1.4l.1-.1a1 1 0 0 0 .2-1.1 1 1 0 0 0-.9-.6H3.6a1 1 0 0 1-1-1v-1.6a1 1 0 0 1 1-1h.2a1 1 0 0 0 .9-.7 1 1 0 0 0-.2-1.1l-.1-.1a1 1 0 0 1 0-1.4L5.6 4a1 1 0 0 1 1.4 0l.1.1a1 1 0 0 0 1.1.2 1 1 0 0 0 .6-.9V3.2a1 1 0 0 1 1-1h1.6a1 1 0 0 1 1 1v.2a1 1 0 0 0 .7.9 1 1 0 0 0 1.1-.2l.1-.1a1 1 0 0 1 1.4 0L19.6 5a1 1 0 0 1 0 1.4l-.1.1a1 1 0 0 0-.2 1.1 1 1 0 0 0 .9.6h.2a1 1 0 0 1 1 1v1.6a1 1 0 0 1-1 1h-.2a1 1 0 0 0-.8.7 1 1 0 0 0 0 1.1z" />
+        <path d="M10.05 3.6a1 1 0 0 1 1-.85h1.9a1 1 0 0 1 1 .85l.24 1.63a7.9 7.9 0 0 1 1.78.74l1.34-.96a1 1 0 0 1 1.3.1l1.34 1.34a1 1 0 0 1 .1 1.3l-.96 1.34c.3.57.55 1.16.73 1.79l1.64.23a1 1 0 0 1 .85 1v1.9a1 1 0 0 1-.85 1l-1.64.24a7.8 7.8 0 0 1-.73 1.78l.96 1.34a1 1 0 0 1-.1 1.3l-1.34 1.34a1 1 0 0 1-1.3.1l-1.34-.96c-.57.3-1.16.55-1.78.73l-.24 1.64a1 1 0 0 1-1 .85h-1.9a1 1 0 0 1-1-.85l-.24-1.64a7.8 7.8 0 0 1-1.78-.73l-1.34.96a1 1 0 0 1-1.3-.1L3.8 18.9a1 1 0 0 1-.1-1.3l.96-1.34a7.8 7.8 0 0 1-.73-1.78l-1.64-.24a1 1 0 0 1-.85-1v-1.9a1 1 0 0 1 .85-1l1.64-.23c.18-.63.43-1.22.73-1.79L3.7 7a1 1 0 0 1 .1-1.3l1.34-1.34a1 1 0 0 1 1.3-.1l1.34.96c.56-.3 1.15-.55 1.78-.74l.24-1.63Z" />
+        <circle cx="12" cy="12" r="3.1" />
       </svg>
     ),
   },
@@ -105,9 +104,8 @@ function BottomNavigation() {
           bottom: 0;
           z-index: 9999;
           background: #12245e;
-          border-top: 1px solid rgba(255,255,255,0.08);
-          box-shadow: 0 -10px 28px rgba(9, 22, 61, 0.18);
           padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
+          box-shadow: 0 -12px 28px rgba(8, 18, 49, 0.22);
         }
         .mc-bottom-nav__grid {
           display: grid;
@@ -117,53 +115,63 @@ function BottomNavigation() {
           margin: 0 auto;
         }
         .mc-bottom-nav__item {
-          min-height: 78px;
-          border-radius: 14px;
-          background: #ffffff;
-          color: #2b4fb8;
-          box-shadow: 0 8px 20px rgba(8, 18, 49, 0.18);
-          border: 1px solid rgba(215, 223, 245, 0.8);
+          min-height: 82px;
+          border-radius: 16px;
+          background: #1d367b;
+          color: #ffffff;
           display: flex;
           align-items: center;
           justify-content: center;
           text-align: center;
-          padding: 8px 6px 9px;
+          padding: 9px 5px 10px;
+          box-shadow:
+            0 10px 20px rgba(5, 13, 39, 0.30),
+            inset 0 1px 0 rgba(255,255,255,0.08);
           transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+        }
+        .mc-bottom-nav__item:hover {
+          transform: translateY(-1px);
+        }
+        .mc-bottom-nav__item.is-active {
+          background: #29499b;
+          box-shadow:
+            0 12px 24px rgba(5, 13, 39, 0.34),
+            inset 0 1px 0 rgba(255,255,255,0.12);
         }
         .mc-bottom-nav__inner {
           display: grid;
           justify-items: center;
-          gap: 6px;
+          gap: 7px;
         }
         .mc-bottom-nav__icon {
           display: flex;
           align-items: center;
           justify-content: center;
-          color: #2b4fb8;
+          color: #ffffff;
         }
         .mc-bottom-nav__label {
           font-size: 11px;
           line-height: 1.1;
           font-weight: 800;
           letter-spacing: -0.01em;
-          color: #12245e;
+          color: #ffffff;
           white-space: nowrap;
-        }
-        .mc-bottom-nav__item:hover {
-          transform: translateY(-1px);
-        }
-        .mc-bottom-nav__item.is-active {
-          background: #eaf0ff;
-          box-shadow: 0 10px 24px rgba(8, 18, 49, 0.22);
         }
         .mc-app-frame {
           min-height: 100dvh;
-          padding-bottom: calc(102px + env(safe-area-inset-bottom));
+          padding-bottom: calc(108px + env(safe-area-inset-bottom));
         }
         @media (max-width: 430px) {
+          .mc-bottom-nav { padding-left: 8px; padding-right: 8px; }
           .mc-bottom-nav__grid { gap: 6px; }
-          .mc-bottom-nav__item { min-height: 74px; border-radius: 12px; padding: 7px 4px 8px; }
-          .mc-bottom-nav__label { font-size: 10px; }
+          .mc-bottom-nav__item {
+            min-height: 76px;
+            border-radius: 14px;
+            padding: 8px 4px 9px;
+          }
+          .mc-bottom-nav__label {
+            font-size: 10px;
+          }
         }
       `}</style>
 
