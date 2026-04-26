@@ -19,8 +19,8 @@ type NavItem = {
 };
 
 const iconStyle = {
-  width: 24,
-  height: 24,
+  width: 23,
+  height: 23,
   stroke: "currentColor",
   strokeWidth: 2,
   fill: "none",
@@ -106,7 +106,7 @@ function BottomNavigation() {
           background: #12245e;
           border-top: 1px solid rgba(255,255,255,0.08);
           box-shadow: 0 -8px 18px rgba(6, 13, 36, 0.16);
-          padding: 3px 8px calc(2px + env(safe-area-inset-bottom));
+          padding: 2px 8px calc(env(safe-area-inset-bottom));
         }
 
         .mc-bottom-nav__grid {
@@ -119,13 +119,13 @@ function BottomNavigation() {
 
         .mc-bottom-nav__item {
           position: relative;
-          min-height: 54px;
+          min-height: 48px;
           border-radius: 12px;
           display: flex;
           align-items: center;
           justify-content: center;
           text-align: center;
-          padding: 5px 4px 6px;
+          padding: 3px 4px 4px;
           color: rgba(255, 255, 255, 0.72);
           transition: color .15s ease, transform .15s ease;
         }
@@ -160,7 +160,7 @@ function BottomNavigation() {
         .mc-bottom-nav__inner {
           display: grid;
           justify-items: center;
-          gap: 3px;
+          gap: 1px;
         }
 
         .mc-bottom-nav__icon {
@@ -171,7 +171,7 @@ function BottomNavigation() {
         }
 
         .mc-bottom-nav__label {
-          font-size: 10.5px;
+          font-size: 9.5px;
           line-height: 1.05;
           font-weight: 800;
           letter-spacing: -0.01em;
@@ -181,7 +181,7 @@ function BottomNavigation() {
 
         .mc-app-frame {
           min-height: 100dvh;
-          padding-bottom: calc(64px + env(safe-area-inset-bottom));
+          padding-bottom: calc(56px + env(safe-area-inset-bottom));
         }
 
         @media (max-width: 430px) {
@@ -190,11 +190,11 @@ function BottomNavigation() {
             padding-right: 6px;
           }
           .mc-bottom-nav__item {
-            min-height: 56px;
-            padding: 5px 2px 5px;
+            min-height: 50px;
+            padding: 3px 2px 3px;
           }
           .mc-bottom-nav__label {
-            font-size: 10px;
+            font-size: 9.5px;
           }
         }
       `}</style>
