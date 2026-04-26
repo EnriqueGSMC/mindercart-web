@@ -22,6 +22,13 @@ type FooterAction = {
   primary?: boolean;
 };
 
+type BottomNavItem = {
+  label: string;
+  href: string;
+  active: boolean;
+  renderIcon: (active: boolean) => React.ReactNode;
+};
+
 function actionButtonStyle(): React.CSSProperties {
   return {
     padding: "10px 13px",
@@ -99,13 +106,13 @@ function footerButtonStyle(
   };
 }
 
-function CartIcon(props: { active?: boolean }) {
+function CartIcon() {
   return (
     <svg width="27" height="27" viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path
         d="M3 5h1.4l1.7 8.2a1 1 0 0 0 1 .8h8.7a1 1 0 0 0 1-.8L18.2 8H7.2"
         stroke="currentColor"
-        strokeWidth={props.active ? "2.2" : "1.9"}
+        strokeWidth="1.9"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
@@ -115,78 +122,94 @@ function CartIcon(props: { active?: boolean }) {
   );
 }
 
-
-function MyListIcon(props: { active?: boolean }) {
+function MyListNavIcon(props: { active: boolean }) {
+  const color = props.active ? "#fff" : "rgba(255,255,255,0.78)";
   return (
-    <svg width="23" height="23" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="6" y="3.5" width="12" height="17" rx="2.5" stroke={color} strokeWidth="1.9" />
+      <path d="M9 7.5h6M9 11.5h6M9 15.5h4" stroke={color} strokeWidth="1.9" strokeLinecap="round" />
+      <path d="M9 3.5h6" stroke={color} strokeWidth="1.9" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function CartNavIcon(props: { active: boolean }) {
+  const color = props.active ? "#fff" : "rgba(255,255,255,0.78)";
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path
-        d="M8 7h10M8 12h10M8 17h10M4.8 7h.01M4.8 12h.01M4.8 17h.01"
-        stroke="currentColor"
-        strokeWidth={props.active ? "2.2" : "2"}
+        d="M3 5h1.4l1.7 8.2a1 1 0 0 0 1 .8h8.7a1 1 0 0 0 1-.8L18.2 8H7.2"
+        stroke={color}
+        strokeWidth="1.9"
         strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="9.5" cy="18.5" r="1.4" fill={color} />
+      <circle cx="16.5" cy="18.5" r="1.4" fill={color} />
+    </svg>
+  );
+}
+
+function ShoppingNavIcon(props: { active: boolean }) {
+  const color = props.active ? "#fff" : "rgba(255,255,255,0.78)";
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M7 8.5h10l-1 10a1.5 1.5 0 0 1-1.49 1.35h-5.02A1.5 1.5 0 0 1 8 18.5l-1-10Z"
+        stroke={color}
+        strokeWidth="1.9"
+        strokeLinejoin="round"
+      />
+      <path d="M9.5 9V7a2.5 2.5 0 0 1 5 0v2" stroke={color} strokeWidth="1.9" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function HistoryNavIcon(props: { active: boolean }) {
+  const color = props.active ? "#fff" : "rgba(255,255,255,0.78)";
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M4.5 7.5V3.5M4.5 3.5h4M4.5 3.5l2.4 2.4" stroke={color} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M6.2 6.6a8 8 0 1 1-1.3 4.4" stroke={color} strokeWidth="1.9" strokeLinecap="round" />
+      <path d="M12 8.4v4.1l2.6 1.5" stroke={color} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function SettingsNavIcon(props: { active: boolean }) {
+  const color = props.active ? "#fff" : "rgba(255,255,255,0.78)";
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M12 8.3a3.7 3.7 0 1 1 0 7.4 3.7 3.7 0 0 1 0-7.4Z"
+        stroke={color}
+        strokeWidth="1.9"
+      />
+      <path
+        d="M19.1 13.5a7.9 7.9 0 0 0 .05-3l1.76-1.36-1.7-2.94-2.18.6a8.1 8.1 0 0 0-2.6-1.5L14.1 3h-3.4l-.34 2.35a8.1 8.1 0 0 0-2.6 1.5l-2.18-.6-1.7 2.94 1.76 1.36a7.9 7.9 0 0 0 .05 3L4.95 14.9l1.7 2.94 2.18-.6a8.1 8.1 0 0 0 2.6 1.5L10.7 21h3.4l.34-2.26a8.1 8.1 0 0 0 2.6-1.5l2.18.6 1.7-2.94-1.82-1.4Z"
+        stroke={color}
+        strokeWidth="1.4"
+        strokeLinejoin="round"
       />
     </svg>
   );
 }
 
-function StoreIcon(props: { active?: boolean }) {
-  return (
-    <svg width="23" height="23" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M4 10.5 5.6 5h12.8L20 10.5M5 10.5h14v8.5a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8.5Z"
-        stroke="currentColor"
-        strokeWidth={props.active ? "2.2" : "2"}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M9 14h6"
-        stroke="currentColor"
-        strokeWidth={props.active ? "2.2" : "2"}
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function HistoryIcon(props: { active?: boolean }) {
-  return (
-    <svg width="23" height="23" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M3.8 12a8.2 8.2 0 1 0 2.4-5.8M3.8 4.8v4h4"
-        stroke="currentColor"
-        strokeWidth={props.active ? "2.2" : "2"}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M12 8.2v4.2l2.8 1.8"
-        stroke="currentColor"
-        strokeWidth={props.active ? "2.2" : "2"}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function SettingsIcon(props: { active?: boolean }) {
-  return (
-    <svg width="23" height="23" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M12 9.2a2.8 2.8 0 1 0 0 5.6 2.8 2.8 0 0 0 0-5.6Z"
-        stroke="currentColor"
-        strokeWidth={props.active ? "2.2" : "2"}
-      />
-      <path
-        d="M19.4 13.1a1.2 1.2 0 0 0 .24 1.32l.04.04a1.45 1.45 0 0 1-2.05 2.05l-.04-.04a1.2 1.2 0 0 0-1.32-.24 1.2 1.2 0 0 0-.72 1.1V17.5a1.45 1.45 0 0 1-2.9 0v-.06a1.2 1.2 0 0 0-.78-1.13 1.2 1.2 0 0 0-1.3.27l-.04.04a1.45 1.45 0 1 1-2.05-2.05l.04-.04a1.2 1.2 0 0 0 .24-1.32 1.2 1.2 0 0 0-1.1-.72H6.5a1.45 1.45 0 0 1 0-2.9h.06a1.2 1.2 0 0 0 1.13-.78 1.2 1.2 0 0 0-.27-1.3l-.04-.04a1.45 1.45 0 1 1 2.05-2.05l.04.04a1.2 1.2 0 0 0 1.32.24 1.2 1.2 0 0 0 .72-1.1V6.5a1.45 1.45 0 0 1 2.9 0v.06a1.2 1.2 0 0 0 .78 1.13 1.2 1.2 0 0 0 1.3-.27l.04-.04a1.45 1.45 0 1 1 2.05 2.05l-.04.04a1.2 1.2 0 0 0-.24 1.32 1.2 1.2 0 0 0 1.1.72h.06a1.45 1.45 0 0 1 0 2.9h-.06a1.2 1.2 0 0 0-1.13.78Z"
-        stroke="currentColor"
-        strokeWidth={props.active ? "2.2" : "2"}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
+function bottomNavItemStyle(active: boolean): React.CSSProperties {
+  return {
+    minWidth: 0,
+    display: "grid",
+    justifyItems: "center",
+    gap: 4,
+    padding: "8px 4px calc(8px + env(safe-area-inset-bottom))",
+    textDecoration: "none",
+    color: active ? "#fff" : "rgba(255,255,255,0.78)",
+    fontWeight: active ? 900 : 700,
+    fontSize: 11,
+    lineHeight: 1.05,
+    borderRadius: 14,
+    background: active ? "rgba(255,255,255,0.08)" : "transparent",
+  };
 }
 
 function scaleFactor(fontScale: unknown) {
@@ -313,13 +336,38 @@ export function AppShell(props: {
     { href: settingsHref, label: t(lang, "settingsMenu") },
   ];
 
-  const bottomNavItems = [
-    { href: "/", label: t(lang, "myListMenu"), icon: MyListIcon },
-    { href: "/general-list", label: t(lang, "cartMenu"), icon: CartIcon },
-    { href: "/in-store", label: t(lang, "shoppingMenu"), icon: StoreIcon },
-    { href: "/history", label: t(lang, "historyMenu"), icon: HistoryIcon },
-    { href: "/settings", label: t(lang, "settingsMenu"), icon: SettingsIcon },
-  ] as const;
+  const bottomNavItems: BottomNavItem[] = [
+    {
+      href: "/",
+      label: t(lang, "myListMenu"),
+      active: pathname === "/",
+      renderIcon: (active) => <MyListNavIcon active={active} />,
+    },
+    {
+      href: "/general-list",
+      label: t(lang, "cartMenu"),
+      active: pathname === "/general-list" || pathname === "/shopping-list",
+      renderIcon: (active) => <CartNavIcon active={active} />,
+    },
+    {
+      href: "/in-store",
+      label: t(lang, "shoppingMenu"),
+      active: pathname === "/in-store",
+      renderIcon: (active) => <ShoppingNavIcon active={active} />,
+    },
+    {
+      href: "/history",
+      label: t(lang, "historyMenu"),
+      active: pathname === "/history",
+      renderIcon: (active) => <HistoryNavIcon active={active} />,
+    },
+    {
+      href: "/settings",
+      label: t(lang, "settingsMenu"),
+      active: pathname === "/settings",
+      renderIcon: (active) => <SettingsNavIcon active={active} />,
+    },
+  ];
 
   return (
     <main style={shellStyle()}>
@@ -474,7 +522,7 @@ export function AppShell(props: {
           overscrollBehavior: "contain",
         }}
       >
-        <div style={{ display: "grid", gap: 18, padding: 16, paddingBottom: "calc(104px + env(safe-area-inset-bottom))" }}>
+        <div style={{ display: "grid", gap: 18, padding: 16, paddingBottom: 104 }}>
           {menuOpen ? (
             <section
               style={{
@@ -528,74 +576,52 @@ export function AppShell(props: {
         </div>
       </div>
 
-      <nav
-        aria-label="Primary"
+      <footer
         style={{
           position: "fixed",
           left: "50%",
           bottom: 0,
           transform: "translateX(-50%)",
-          width: "100%",
-          maxWidth: 860,
-          zIndex: 60,
-          padding: "8px 10px calc(10px + env(safe-area-inset-bottom))",
+          width: "min(100vw, 860px)",
+          padding: "8px 10px 0",
           background: MC_NAVY,
-          borderTop: "1px solid rgba(255,255,255,0.14)",
+          borderTop: "1px solid rgba(255,255,255,0.18)",
           boxShadow: "0 -12px 28px rgba(18,36,94,0.24)",
+          zIndex: 60,
         }}
       >
-        <div
+        <nav
+          aria-label="Primary navigation"
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
-            gap: 4,
-            alignItems: "stretch",
+            gap: 6,
+            alignItems: "end",
           }}
         >
-          {bottomNavItems.map((item) => {
-            const active = item.href === "/settings" ? pathname === "/settings" : pathname === item.href;
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
+          {bottomNavItems.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              style={bottomNavItemStyle(item.active)}
+              aria-current={item.active ? "page" : undefined}
+            >
+              {item.renderIcon(item.active)}
+              <span
                 style={{
-                  minWidth: 0,
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 4,
-                  padding: "8px 4px 6px",
-                  borderRadius: 14,
-                  color: active ? "#fff" : "rgba(255,255,255,0.72)",
-                  background: active ? "rgba(255,255,255,0.12)" : "transparent",
-                  textDecoration: "none",
-                  fontWeight: active ? 900 : 800,
-                  boxShadow: active ? "inset 0 0 0 1px rgba(255,255,255,0.12)" : "none",
+                  display: "block",
+                  maxWidth: "100%",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
                 }}
-                aria-current={active ? "page" : undefined}
               >
-                <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>
-                  <Icon active={active} />
-                </div>
-                <span
-                  style={{
-                    fontSize: s(11),
-                    lineHeight: 1.05,
-                    textAlign: "center",
-                    letterSpacing: "-0.01em",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {item.label}
-                </span>
-              </Link>
-            );
-          })}
-        </div>
-      </nav>
-
+                {item.label}
+              </span>
+            </Link>
+          ))}
+        </nav>
+      </footer>
     </main>
   );
 }
