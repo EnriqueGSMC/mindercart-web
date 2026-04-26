@@ -19,8 +19,8 @@ type NavItem = {
 };
 
 const iconStyle = {
-  width: 22,
-  height: 22,
+  width: 24,
+  height: 24,
   stroke: "currentColor",
   strokeWidth: 2,
   fill: "none",
@@ -101,31 +101,31 @@ function BottomNavigation() {
           position: fixed;
           left: 0;
           right: 0;
-          bottom: 0;
+          bottom: -6px;
           z-index: 9999;
           background: #12245e;
           border-top: 1px solid rgba(255,255,255,0.08);
-          box-shadow: 0 -6px 16px rgba(6, 13, 36, 0.16);
-          padding: 2px 6px calc(2px + env(safe-area-inset-bottom));
+          box-shadow: 0 -8px 18px rgba(6, 13, 36, 0.16);
+          padding: 3px 8px calc(2px + env(safe-area-inset-bottom));
         }
 
         .mc-bottom-nav__grid {
           display: grid;
           grid-template-columns: repeat(5, minmax(0, 1fr));
-          gap: 1px;
+          gap: 2px;
           max-width: 980px;
           margin: 0 auto;
         }
 
         .mc-bottom-nav__item {
           position: relative;
-          min-height: 46px;
+          min-height: 54px;
           border-radius: 12px;
           display: flex;
           align-items: center;
           justify-content: center;
           text-align: center;
-          padding: 4px 3px 4px;
+          padding: 5px 4px 6px;
           color: rgba(255, 255, 255, 0.72);
           transition: color .15s ease, transform .15s ease;
         }
@@ -137,7 +137,7 @@ function BottomNavigation() {
           left: 50%;
           transform: translateX(-50%);
           width: 0;
-          height: 2px;
+          height: 3px;
           border-radius: 999px;
           background: #ffffff;
           opacity: 0;
@@ -153,14 +153,14 @@ function BottomNavigation() {
         }
 
         .mc-bottom-nav__item.is-active::before {
-          width: 18px;
+          width: 26px;
           opacity: 1;
         }
 
         .mc-bottom-nav__inner {
           display: grid;
           justify-items: center;
-          gap: 1px;
+          gap: 3px;
         }
 
         .mc-bottom-nav__icon {
@@ -171,7 +171,7 @@ function BottomNavigation() {
         }
 
         .mc-bottom-nav__label {
-          font-size: 9.5px;
+          font-size: 10.5px;
           line-height: 1.05;
           font-weight: 800;
           letter-spacing: -0.01em;
@@ -181,20 +181,20 @@ function BottomNavigation() {
 
         .mc-app-frame {
           min-height: 100dvh;
-          padding-bottom: calc(52px + env(safe-area-inset-bottom));
+          padding-bottom: calc(64px + env(safe-area-inset-bottom));
         }
 
         @media (max-width: 430px) {
           .mc-bottom-nav {
-            padding-left: 4px;
-            padding-right: 4px;
+            padding-left: 6px;
+            padding-right: 6px;
           }
           .mc-bottom-nav__item {
-            min-height: 44px;
-            padding: 4px 2px 4px;
+            min-height: 56px;
+            padding: 5px 2px 5px;
           }
           .mc-bottom-nav__label {
-            font-size: 8.8px;
+            font-size: 10px;
           }
         }
       `}</style>
