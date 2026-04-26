@@ -171,7 +171,7 @@ function BottomNavigation() {
         }
 
         .mc-bottom-nav__label {
-          font-size: 8.5px;
+          font-size: 9.5px;
           line-height: 1.05;
           font-weight: 800;
           letter-spacing: -0.01em;
@@ -194,7 +194,7 @@ function BottomNavigation() {
             padding: 4px 2px 4px;
           }
           .mc-bottom-nav__label {
-            font-size: 8px;
+            font-size: 8.8px;
           }
         }
       `}</style>
