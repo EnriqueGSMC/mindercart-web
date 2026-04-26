@@ -115,69 +115,6 @@ function CartIcon() {
   );
 }
 
-const menuNavIconStyle = {
-  width: 20,
-  height: 20,
-  stroke: "currentColor",
-  strokeWidth: 2,
-  fill: "none",
-  strokeLinecap: "round" as const,
-  strokeLinejoin: "round" as const,
-};
-
-function MyListMenuIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" style={menuNavIconStyle}>
-      <path d="M9 4.75h6" />
-      <path d="M9.25 3.5h5.5A1.25 1.25 0 0 1 16 4.75v.75h.75A2.25 2.25 0 0 1 19 7.75v10A2.25 2.25 0 0 1 16.75 20h-9.5A2.25 2.25 0 0 1 5 17.75v-10A2.25 2.25 0 0 1 7.25 5.5H8v-.75A1.25 1.25 0 0 1 9.25 3.5Z" />
-      <path d="m8.75 10 1.2 1.2 2.15-2.15" />
-      <path d="m8.75 14 1.2 1.2 2.15-2.15" />
-      <path d="M13.5 10.5h2.25" />
-      <path d="M13.5 14.5h2.25" />
-    </svg>
-  );
-}
-
-function CartMenuIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" style={menuNavIconStyle}>
-      <circle cx="10" cy="18.5" r="1.25" />
-      <circle cx="17" cy="18.5" r="1.25" />
-      <path d="M3.75 5h2l1.9 8h9l2-6.5H7.25" />
-      <path d="M8.5 16h8" />
-    </svg>
-  );
-}
-
-function ShoppingMenuIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" style={menuNavIconStyle}>
-      <path d="M8 8V7a4 4 0 1 1 8 0v1" />
-      <path d="M6 8.5h12l-1 10H7L6 8.5Z" />
-    </svg>
-  );
-}
-
-function HistoryMenuIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" style={menuNavIconStyle}>
-      <path d="M4 12a8 8 0 1 0 2.35-5.65" />
-      <path d="M4 5v4h4" />
-      <path d="M12 8v4l2.75 2.75" />
-    </svg>
-  );
-}
-
-function SettingsMenuIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" style={menuNavIconStyle}>
-      <path d="M10.05 3.6a1 1 0 0 1 1-.85h1.9a1 1 0 0 1 1 .85l.25 1.65c.6.16 1.17.4 1.7.7l1.36-.98a1 1 0 0 1 1.29.1l1.35 1.35a1 1 0 0 1 .1 1.29l-.98 1.36c.3.53.54 1.1.7 1.7l1.65.25a1 1 0 0 1 .85 1v1.9a1 1 0 0 1-.85 1l-1.65.25c-.16.6-.4 1.17-.7 1.7l.98 1.36a1 1 0 0 1-.1 1.29l-1.35 1.35a1 1 0 0 1-1.29.1l-1.36-.98c-.53.3-1.1.54-1.7.7l-.25 1.65a1 1 0 0 1-1 .85h-1.9a1 1 0 0 1-1-.85l-.25-1.65a7.9 7.9 0 0 1-1.7-.7l-1.36.98a1 1 0 0 1-1.29-.1L3.8 18.2a1 1 0 0 1-.1-1.29l.98-1.36a7.9 7.9 0 0 1-.7-1.7l-1.65-.25a1 1 0 0 1-.85-1v-1.9a1 1 0 0 1 .85-1l1.65-.25c.16-.6.4-1.17.7-1.7L3.7 7.19a1 1 0 0 1 .1-1.29L5.15 4.55a1 1 0 0 1 1.29-.1l1.36.98c.53-.3 1.1-.54 1.7-.7l.25-1.65Z" />
-      <circle cx="12" cy="12" r="3.1" />
-    </svg>
-  );
-}
-
-
 function scaleFactor(fontScale: unknown) {
   if (fontScale === "large") return 1.08;
   if (fontScale === "xlarge") return 1.14;
@@ -261,8 +198,8 @@ export function AppShell(props: {
   secondaryAction?: { label: string; href: string };
   darkHero?: boolean;
   showCart?: boolean;
-  footerActions?: FooterAction[];
   footerInset?: number;
+  footerActions?: FooterAction[];
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -296,11 +233,11 @@ export function AppShell(props: {
   const settingsHref = `/settings?returnTo=${encodeURIComponent(pathname || "/")}`;
 
   const menuItems = [
-    { href: "/", label: t(lang, "myListMenu"), icon: <MyListMenuIcon /> },
-    { href: "/general-list", label: t(lang, "cartMenu"), icon: <CartMenuIcon /> },
-    { href: "/in-store", label: t(lang, "shoppingMenu"), icon: <ShoppingMenuIcon /> },
-    { href: "/history", label: t(lang, "historyMenu"), icon: <HistoryMenuIcon /> },
-    { href: settingsHref, label: t(lang, "settingsMenu"), icon: <SettingsMenuIcon /> },
+    { href: "/", label: t(lang, "myListMenu") },
+    { href: "/general-list", label: t(lang, "cartMenu") },
+    { href: "/in-store", label: t(lang, "shoppingMenu") },
+    { href: "/history", label: t(lang, "historyMenu") },
+    { href: settingsHref, label: t(lang, "settingsMenu") },
   ];
 
   const footerActions =
@@ -488,24 +425,9 @@ export function AppShell(props: {
                       border: `1px solid ${pathname === item.href ? MC_NAVY : MC_NAVY_LINE}`,
                       fontWeight: 800,
                       fontSize: s(15),
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 12,
                     }}
                   >
-                    <span
-                      aria-hidden="true"
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        color: "currentColor",
-                        flexShrink: 0,
-                      }}
-                    >
-                      {item.icon}
-                    </span>
-                    <span>{item.label}</span>
+                    {item.label}
                   </Link>
                 ))}
 
@@ -538,7 +460,7 @@ export function AppShell(props: {
         <footer
           style={{
             flexShrink: 0,
-            padding: `10px 16px calc(${10 + (props.footerInset ?? 0)}px + env(safe-area-inset-bottom))`,
+            padding: `10px 16px calc(${10 + 0}px + env(safe-area-inset-bottom) + ${props.footerInset ?? 0}px)`,
             borderTop: `1px solid ${MC_NAVY_LINE}`,
             background: "rgba(255,255,255,0.98)",
             backdropFilter: "blur(12px)",
