@@ -92,6 +92,44 @@ const FIXED_UNIT_OPTIONS = [
   "gal",
 ] as const;
 
+const FALLBACK_CATEGORY = "Otro / Temporal";
+const ORDERED_CATEGORIES = CATEGORY_OPTIONS.includes(FALLBACK_CATEGORY)
+  ? [...CATEGORY_OPTIONS]
+  : [...CATEGORY_OPTIONS, FALLBACK_CATEGORY];
+
+function normalizeCategory(value: string | null | undefined) {
+  const trimmed = String(value ?? "").trim();
+  return ORDERED_CATEGORIES.includes(trimmed) ? trimmed : FALLBACK_CATEGORY;
+}
+
+function groupItemsByCategory<T extends { name: string; category?: string | null }>(items: T[]) {
+  const grouped = new Map<string, T[]>();
+
+  for (const item of items) {
+    const category = normalizeCategory(item.category);
+    const bucket = grouped.get(category);
+    if (bucket) {
+      bucket.push(item);
+    } else {
+      grouped.set(category, [item]);
+    }
+  }
+
+  return ORDERED_CATEGORIES.flatMap((category) => {
+    const categoryItems = grouped.get(category);
+    if (!categoryItems || categoryItems.length === 0) return [];
+
+    return [
+      {
+        category,
+        items: [...categoryItems].sort((a, b) => String(a.name ?? "").localeCompare(String(b.name ?? ""), "es", {
+          sensitivity: "base",
+        })),
+      },
+    ];
+  });
+}
+
 function normalizeUnit(value: string) {
   const raw = String(value ?? "").trim().toLowerCase();
   if (!raw) return "pza";
@@ -151,9 +189,9 @@ export default function NeedsPage() {
     return {
       categories: uniqueValues([
         ...CATEGORY_OPTIONS,
-        ...state.itemsMaster.map((item) => item.category),
-        ...state.generalListItems.map((item) => item.category),
-        ...state.activeShoppingListItems.map((item) => item.category),
+        ...state.itemsMaster.map((item) => normalizeCategory(item.category)),
+        ...state.generalListItems.map((item) => normalizeCategory(item.category)),
+        ...state.activeShoppingListItems.map((item) => normalizeCategory(item.category)),
       ]),
       units: [...FIXED_UNIT_OPTIONS],
       stores: uniqueValues([
@@ -167,7 +205,12 @@ export default function NeedsPage() {
     };
   }, [customStores, settings.preferredStore]);
 
-  function resetInput() {
+  const groupedActiveShoppingListItems = React.useMemo(
+    () => groupItemsByCategory(activeShoppingListItems),
+    [activeShoppingListItems]
+  );
+
+    function resetInput() {
     setName("");
     setSuggestions([]);
   }
@@ -182,7 +225,7 @@ export default function NeedsPage() {
   function openDraft(input: DraftItem) {
     setDraft({
       name: input.name,
-      category: input.category || "Otro / Temporal",
+      category: normalizeCategory(input.category),
       unit: normalizeUnit(input.unit),
       quantity: input.quantity || "1",
       store: input.store || settings.preferredStore || "HEB",
@@ -194,7 +237,7 @@ export default function NeedsPage() {
     setSuggestions([]);
     openDraft({
       name: suggestion.name,
-      category: suggestion.category || "Otro / Temporal",
+      category: normalizeCategory(suggestion.category),
       unit: normalizeUnit(suggestion.unit),
       quantity: suggestion.quantity || "1",
       store: suggestion.store || settings.preferredStore || "HEB",
@@ -206,7 +249,7 @@ export default function NeedsPage() {
     setSuggestions([]);
     openDraft({
       name: trimmedName,
-      category: "Otro / Temporal",
+      category: FALLBACK_CATEGORY,
       unit: "pza",
       quantity: "1",
       store: settings.preferredStore || "HEB",
@@ -248,7 +291,7 @@ export default function NeedsPage() {
 
   if (!hydrated) {
     return (
-      <AppShell title={t("es", "myListTitle")} darkHero subtitle={t("es", "myListSubtitle")} footerActions={[]}>
+      <AppShell title={t("es", "myListTitle")} darkHero subtitle={t("es", "myListSubtitle")}>
         <section style={{ ...cardStyle(), padding: 18 }}>
           <div style={{ fontSize: 14, color: MC_NAVY_MUTED }}>{t("es", "loading")}</div>
         </section>
@@ -257,7 +300,7 @@ export default function NeedsPage() {
   }
 
   return (
-    <AppShell title={t(lang, "myListTitle")} darkHero subtitle={t(lang, "myListSubtitle")} footerActions={[]}>
+    <AppShell title={t(lang, "myListTitle")} darkHero subtitle={t(lang, "myListSubtitle")}>
       <section style={{ ...cardStyle(), padding: 14 }}>
         <div style={{ display: "grid", gap: 12 }}>
           <div style={{ fontSize: s(16), fontWeight: 700 }}>{t(lang, "item")}</div>
@@ -349,44 +392,69 @@ export default function NeedsPage() {
       <section style={{ ...cardStyle(), padding: 14 }}>
         <div style={{ fontSize: s(16), fontWeight: 800, marginBottom: 10 }}>{t(lang, "cartSection")}</div>
 
-        {activeShoppingListItems.length === 0 ? (
+        {groupedActiveShoppingListItems.length === 0 ? (
           <div style={{ fontSize: s(14), color: MC_NAVY_MUTED }}>{t(lang, "noItemsYet")}</div>
         ) : (
-          <div>
-            {activeShoppingListItems.map((item, index) => (
-              <div
-                key={item.id}
-                style={{
-                  display: "flex",
-                  gap: 10,
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "14px 2px",
-                  borderBottom: index === activeShoppingListItems.length - 1 ? "none" : "1px solid #f3f4f6",
-                }}
-              >
-                <div style={{ minWidth: 0, flex: 1, fontSize: s(18), fontWeight: 500 }}>{item.name}</div>
+          <div style={{ display: "grid", gap: 14 }}>
+            {groupedActiveShoppingListItems.map((section) => (
+              <div key={section.category} style={{ display: "grid", gap: 4 }}>
+                <div
+                  style={{
+                    fontSize: s(13),
+                    fontWeight: 900,
+                    letterSpacing: "0.02em",
+                    textTransform: "uppercase",
+                    color: MC_NAVY,
+                  }}
+                >
+                  {section.category}
+                </div>
 
-                <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-                  <div style={{ fontSize: s(15), color: MC_NAVY_MUTED }}>
-                    <QtyUnitText quantity={item.quantity} unit={item.unit} />
-                  </div>
+                <div
+                  style={{
+                    border: `1px solid ${MC_NAVY_SOFT}`,
+                    borderRadius: 16,
+                    overflow: "hidden",
+                    background: "#fff",
+                  }}
+                >
+                  {section.items.map((item, index) => (
+                    <div
+                      key={item.id}
+                      style={{
+                        display: "flex",
+                        gap: 10,
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        padding: "14px 12px",
+                        borderBottom: index === section.items.length - 1 ? "none" : "1px solid #f3f4f6",
+                      }}
+                    >
+                      <div style={{ minWidth: 0, flex: 1, fontSize: s(18), fontWeight: 500 }}>{item.name}</div>
 
-                  <button
-                    type="button"
-                    onClick={() => removeActiveItem(item.id)}
-                    style={{
-                      padding: "8px 12px",
-                      borderRadius: 12,
-                      border: `1px solid ${MC_NAVY_LINE}`,
-                      background: "#fff",
-                      fontWeight: 700,
-                      whiteSpace: "nowrap",
-                      fontSize: s(14),
-                    }}
-                  >
-                    {t(lang, "remove")}
-                  </button>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                        <div style={{ fontSize: s(15), color: MC_NAVY_MUTED }}>
+                          <QtyUnitText quantity={String(item.quantity)} unit={item.unit} />
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => removeActiveItem(item.id)}
+                          style={{
+                            padding: "8px 12px",
+                            borderRadius: 12,
+                            border: `1px solid ${MC_NAVY_LINE}`,
+                            background: "#fff",
+                            fontWeight: 700,
+                            whiteSpace: "nowrap",
+                            fontSize: s(14),
+                          }}
+                        >
+                          {t(lang, "remove")}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             ))}
