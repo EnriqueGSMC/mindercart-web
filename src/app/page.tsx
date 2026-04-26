@@ -210,7 +210,7 @@ export default function NeedsPage() {
     [activeShoppingListItems]
   );
 
-  function resetInput() {
+    function resetInput() {
     setName("");
     setSuggestions([]);
   }
