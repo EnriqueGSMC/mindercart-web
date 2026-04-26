@@ -99,18 +99,92 @@ function footerButtonStyle(
   };
 }
 
-function CartIcon() {
+function CartIcon(props: { active?: boolean }) {
   return (
     <svg width="27" height="27" viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path
         d="M3 5h1.4l1.7 8.2a1 1 0 0 0 1 .8h8.7a1 1 0 0 0 1-.8L18.2 8H7.2"
         stroke="currentColor"
-        strokeWidth="1.9"
+        strokeWidth={props.active ? "2.2" : "1.9"}
         strokeLinecap="round"
         strokeLinejoin="round"
       />
       <circle cx="9.5" cy="18.5" r="1.4" fill="currentColor" />
       <circle cx="16.5" cy="18.5" r="1.4" fill="currentColor" />
+    </svg>
+  );
+}
+
+
+function MyListIcon(props: { active?: boolean }) {
+  return (
+    <svg width="23" height="23" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M8 7h10M8 12h10M8 17h10M4.8 7h.01M4.8 12h.01M4.8 17h.01"
+        stroke="currentColor"
+        strokeWidth={props.active ? "2.2" : "2"}
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function StoreIcon(props: { active?: boolean }) {
+  return (
+    <svg width="23" height="23" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M4 10.5 5.6 5h12.8L20 10.5M5 10.5h14v8.5a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8.5Z"
+        stroke="currentColor"
+        strokeWidth={props.active ? "2.2" : "2"}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M9 14h6"
+        stroke="currentColor"
+        strokeWidth={props.active ? "2.2" : "2"}
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function HistoryIcon(props: { active?: boolean }) {
+  return (
+    <svg width="23" height="23" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M3.8 12a8.2 8.2 0 1 0 2.4-5.8M3.8 4.8v4h4"
+        stroke="currentColor"
+        strokeWidth={props.active ? "2.2" : "2"}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M12 8.2v4.2l2.8 1.8"
+        stroke="currentColor"
+        strokeWidth={props.active ? "2.2" : "2"}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function SettingsIcon(props: { active?: boolean }) {
+  return (
+    <svg width="23" height="23" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M12 9.2a2.8 2.8 0 1 0 0 5.6 2.8 2.8 0 0 0 0-5.6Z"
+        stroke="currentColor"
+        strokeWidth={props.active ? "2.2" : "2"}
+      />
+      <path
+        d="M19.4 13.1a1.2 1.2 0 0 0 .24 1.32l.04.04a1.45 1.45 0 0 1-2.05 2.05l-.04-.04a1.2 1.2 0 0 0-1.32-.24 1.2 1.2 0 0 0-.72 1.1V17.5a1.45 1.45 0 0 1-2.9 0v-.06a1.2 1.2 0 0 0-.78-1.13 1.2 1.2 0 0 0-1.3.27l-.04.04a1.45 1.45 0 1 1-2.05-2.05l.04-.04a1.2 1.2 0 0 0 .24-1.32 1.2 1.2 0 0 0-1.1-.72H6.5a1.45 1.45 0 0 1 0-2.9h.06a1.2 1.2 0 0 0 1.13-.78 1.2 1.2 0 0 0-.27-1.3l-.04-.04a1.45 1.45 0 1 1 2.05-2.05l.04.04a1.2 1.2 0 0 0 1.32.24 1.2 1.2 0 0 0 .72-1.1V6.5a1.45 1.45 0 0 1 2.9 0v.06a1.2 1.2 0 0 0 .78 1.13 1.2 1.2 0 0 0 1.3-.27l.04-.04a1.45 1.45 0 1 1 2.05 2.05l-.04.04a1.2 1.2 0 0 0-.24 1.32 1.2 1.2 0 0 0 1.1.72h.06a1.45 1.45 0 0 1 0 2.9h-.06a1.2 1.2 0 0 0-1.13.78Z"
+        stroke="currentColor"
+        strokeWidth={props.active ? "2.2" : "2"}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -239,14 +313,13 @@ export function AppShell(props: {
     { href: settingsHref, label: t(lang, "settingsMenu") },
   ];
 
-  const footerActions =
-    props.footerActions ??
-    (pathname === "/"
-      ? [
-          { label: t(lang, "cartMenu"), href: "/general-list", primary: true },
-          { label: "Logout", disabled: true },
-        ]
-      : []);
+  const bottomNavItems = [
+    { href: "/", label: t(lang, "myListMenu"), icon: MyListIcon },
+    { href: "/general-list", label: t(lang, "cartMenu"), icon: CartIcon },
+    { href: "/in-store", label: t(lang, "shoppingMenu"), icon: StoreIcon },
+    { href: "/history", label: t(lang, "historyMenu"), icon: HistoryIcon },
+    { href: "/settings", label: t(lang, "settingsMenu"), icon: SettingsIcon },
+  ] as const;
 
   return (
     <main style={shellStyle()}>
@@ -401,7 +474,7 @@ export function AppShell(props: {
           overscrollBehavior: "contain",
         }}
       >
-        <div style={{ display: "grid", gap: 18, padding: 16, paddingBottom: 18 }}>
+        <div style={{ display: "grid", gap: 18, padding: 16, paddingBottom: "calc(104px + env(safe-area-inset-bottom))" }}>
           {menuOpen ? (
             <section
               style={{
@@ -455,34 +528,74 @@ export function AppShell(props: {
         </div>
       </div>
 
-      {footerActions.length > 0 ? (
-        <footer
+      <nav
+        aria-label="Primary"
+        style={{
+          position: "fixed",
+          left: "50%",
+          bottom: 0,
+          transform: "translateX(-50%)",
+          width: "100%",
+          maxWidth: 860,
+          zIndex: 60,
+          padding: "8px 10px calc(10px + env(safe-area-inset-bottom))",
+          background: MC_NAVY,
+          borderTop: "1px solid rgba(255,255,255,0.14)",
+          boxShadow: "0 -12px 28px rgba(18,36,94,0.24)",
+        }}
+      >
+        <div
           style={{
-            flexShrink: 0,
-            padding: "10px 16px calc(10px + env(safe-area-inset-bottom))",
-            borderTop: `1px solid ${MC_NAVY_LINE}`,
-            background: "rgba(255,255,255,0.98)",
-            backdropFilter: "blur(12px)",
-            boxShadow: "0 -10px 28px rgba(18,36,94,0.08)",
+            display: "grid",
+            gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
+            gap: 4,
+            alignItems: "stretch",
           }}
         >
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: `repeat(${footerActions.length}, minmax(0, 1fr))`,
-              gap: 10,
-            }}
-          >
-            {footerActions.map((action) => (
-              <FooterActionButton
-                key={`${action.label}_${action.href || "action"}`}
-                action={action}
-                fontSize={s(14)}
-              />
-            ))}
-          </div>
-        </footer>
-      ) : null}
+          {bottomNavItems.map((item) => {
+            const active = item.href === "/settings" ? pathname === "/settings" : pathname === item.href;
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                style={{
+                  minWidth: 0,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 4,
+                  padding: "8px 4px 6px",
+                  borderRadius: 14,
+                  color: active ? "#fff" : "rgba(255,255,255,0.72)",
+                  background: active ? "rgba(255,255,255,0.12)" : "transparent",
+                  textDecoration: "none",
+                  fontWeight: active ? 900 : 800,
+                  boxShadow: active ? "inset 0 0 0 1px rgba(255,255,255,0.12)" : "none",
+                }}
+                aria-current={active ? "page" : undefined}
+              >
+                <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>
+                  <Icon active={active} />
+                </div>
+                <span
+                  style={{
+                    fontSize: s(11),
+                    lineHeight: 1.05,
+                    textAlign: "center",
+                    letterSpacing: "-0.01em",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {item.label}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
+
     </main>
   );
 }
