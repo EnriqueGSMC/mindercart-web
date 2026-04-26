@@ -323,6 +323,8 @@ export default function ShoppingPage() {
   const [addFlowStep, setAddFlowStep] = React.useState<AddFlowStep>("search");
   const [addSearchValue, setAddSearchValue] = React.useState("");
   const [draftPurchaseItem, setDraftPurchaseItem] = React.useState<DraftPurchaseItem | null>(null);
+  const [isWhatsAppPreviewOpen, setIsWhatsAppPreviewOpen] = React.useState(false);
+  const [whatsAppPreviewText, setWhatsAppPreviewText] = React.useState("");
   const addSearchInputRef = React.useRef<HTMLInputElement | null>(null);
 
   const groups = groupByStore(activeShoppingListItems);
@@ -376,7 +378,19 @@ export default function ShoppingPage() {
   function onWhatsAppStore(store: string) {
     const text = buildShoppingListTextForStore(store);
     if (!text) return;
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+    setWhatsAppPreviewText(text);
+    setIsWhatsAppPreviewOpen(true);
+  }
+
+  function closeWhatsAppPreview() {
+    setIsWhatsAppPreviewOpen(false);
+    setWhatsAppPreviewText("");
+  }
+
+  function continueToWhatsApp() {
+    if (!whatsAppPreviewText) return;
+    window.open(`https://wa.me/?text=${encodeURIComponent(whatsAppPreviewText)}`, "_blank");
+    closeWhatsAppPreview();
   }
 
   function onPdfStore(store: string) {
@@ -1114,6 +1128,80 @@ export default function ShoppingPage() {
                 </div>
               </>
             ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      {isWhatsAppPreviewOpen ? (
+        <div style={modalOverlayStyle} onClick={closeWhatsAppPreview}>
+          <div
+            style={{ ...modalCardStyle, maxHeight: "min(560px, calc(100dvh - 56px))" }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div style={{ fontSize: s(16), fontWeight: 900, color: MC_NAVY }}>
+              {lang === "en" ? "WhatsApp preview" : "Vista previa de WhatsApp"}
+            </div>
+            <div style={{ marginTop: 6, fontSize: s(14), color: MC_NAVY_MUTED }}>
+              {lang === "en"
+                ? "This is the exact text that will be sent."
+                : "Este es el texto exacto que se va a enviar."}
+            </div>
+
+            <textarea
+              readOnly
+              value={whatsAppPreviewText}
+              style={{
+                marginTop: 14,
+                width: "100%",
+                minHeight: 280,
+                borderRadius: 16,
+                border: `1px solid ${MC_NAVY_LINE}`,
+                padding: "12px 14px",
+                fontSize: s(14),
+                lineHeight: 1.45,
+                color: MC_NAVY,
+                resize: "vertical",
+                background: "#fff",
+              }}
+            />
+
+            <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
+              <button
+                type="button"
+                onClick={continueToWhatsApp}
+                style={{
+                  width: "100%",
+                  minHeight: 48,
+                  padding: "12px 14px",
+                  borderRadius: 16,
+                  border: `1px solid ${MC_NAVY}`,
+                  background: MC_NAVY,
+                  color: "#fff",
+                  fontWeight: 900,
+                  fontSize: s(14),
+                }}
+              >
+                {lang === "en" ? "Continue to WhatsApp" : "Continuar a WhatsApp"}
+              </button>
+
+              <button
+                type="button"
+                onClick={closeWhatsAppPreview}
+                style={{
+                  width: "100%",
+                  minHeight: 46,
+                  padding: "12px 14px",
+                  borderRadius: 16,
+                  border: `1px solid ${MC_NAVY_LINE}`,
+                  background: "#fff",
+                  color: MC_NAVY,
+                  fontWeight: 900,
+                  fontSize: s(14),
+                }}
+              >
+                {lang === "en" ? "Close" : "Cerrar"}
+              </button>
+            </div>
           </div>
         </div>
       ) : null}
