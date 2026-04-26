@@ -2,7 +2,7 @@
 
 ## Punto estable actual
 **Tag oficial / base estable:**
-`mindercart-baseline-de-compras-categorias-ok`
+`mindercart-baseline-listas-por-categoria-ok`
 
 ## Ramas de trabajo
 - `main` = estable / testers
@@ -11,7 +11,7 @@
 ## Cómo volver al punto bueno
 ```bash
 git checkout main
-git reset --hard mindercart-baseline-de-compras-categorias-ok
+git reset --hard mindercart-baseline-listas-por-categoria-ok
 rmdir /s /q .next
 npm run build
 ```
@@ -29,6 +29,11 @@ MinderCart debe resolver 3 cosas:
 - coincidencias por artículo funcionando
 - alta de artículo nuevo funcionando
 - ventana de artículo aprobada
+- artículos agrupados por **categoría**
+- encabezados por categoría visibles
+- categorías en el orden oficial de MinderCart
+- artículos en orden alfabético dentro de cada categoría
+- si una categoría queda vacía, su encabezado desaparece
 
 ### Carrito
 - categorías y artículos funcionando
@@ -36,6 +41,11 @@ MinderCart debe resolver 3 cosas:
 - renglón azul clarito cuando está marcado
 - modal de categoría estable
 - recorrido por frecuentes y categorías funcionando bien
+- artículos agrupados por **categoría**
+- encabezados por categoría visibles
+- categorías en el orden oficial de MinderCart
+- artículos en orden alfabético dentro de cada categoría
+- si una categoría queda vacía, su encabezado desaparece
 
 ### De Compras
 - flujo base restaurado y bueno
@@ -72,9 +82,9 @@ MinderCart debe resolver 3 cosas:
 - Footer contextual aprobado por módulo
 
 ## Pendiente
-- configurar flujo estable vs pruebas también en Vercel
-- cambios nuevos solo sobre `testing`
-- seguir refinando solo por cambios puntuales aprobados
+- exportación de **WhatsApp** agrupada por categoría
+- exportación de **PDF** agrupada por categoría
+- seguir haciendo cambios nuevos solo en `testing`
 
 ## Reglas de trabajo
 - Solo cambios puntuales
@@ -92,11 +102,10 @@ Formato:
 `mindercart_<descripcion_corta>_patch_vNN.zip`
 
 Ejemplos:
-- `mindercart_header_refine_patch_v14.zip`
-- `mindercart_branding_header_avatar_patch_v15.zip`
-- `mindercart_header_fix_patch_v16.zip`
 - `mindercart_instore_add_to_this_purchase_ui_patch_v19.zip`
 - `mindercart_instore_category_grouping_patch_v28.zip`
+- `mindercart_my_list_category_grouping_patch_v30.zip`
+- `mindercart_cart_category_grouping_render_fix_patch_v41.zip`
 
 Regla:
 - se entrega **un solo zip**
@@ -110,6 +119,7 @@ Regla:
 - `src/app/in-store/page.tsx` → **De Compras**
 - `src/app/history/page.tsx` → **Historial**
 - `src/app/settings/page.tsx` → **Configuración**
+- `src/app/shopping-list/page.tsx` → redirección a **Carrito**
 
 ## Árbol resumido
 ```text
@@ -125,6 +135,8 @@ C:\dev\mindercart-web
    │  │  └─ page.tsx
    │  ├─ settings
    │  │  └─ page.tsx
+   │  ├─ shopping-list
+   │  │  └─ page.tsx
    │  └─ globals.css
    ├─ components
    │  └─ mindercart
@@ -139,6 +151,8 @@ C:\dev\mindercart-web
 ```
 
 ## Archivos importantes
+- `src/app/page.tsx`
+- `src/app/general-list/page.tsx`
 - `src/app/in-store/page.tsx`
 - `src/components/mindercart/Shell.tsx`
 - `src/lib/mindercart/storage.ts`
@@ -147,7 +161,9 @@ C:\dev\mindercart-web
 - `src/lib/mindercart/types.ts`
 - `src/lib/mindercart/hooks.ts`
 
-## Archivo crítico
+## Archivos críticos
+- `src/app/page.tsx`
+- `src/app/general-list/page.tsx`
 - `src/app/in-store/page.tsx`
 
 ## Catálogo base
@@ -205,6 +221,7 @@ C:\dev\mindercart-web
 - `mindercart-baseline-limpia-carrito-ok`
 - `mindercart-baseline-agregar-a-esta-compra-ok`
 - `mindercart-baseline-de-compras-categorias-ok`
+- `mindercart-baseline-listas-por-categoria-ok`
 
 ## Flujo recomendado desde ahora
 ### Para revisar o entregar estable
@@ -235,7 +252,7 @@ git push origin NOMBRE_DEL_CHECKPOINT
 Cambio puntual solamente.
 
 Checkpoint base obligatorio:
-mindercart-baseline-de-compras-categorias-ok
+mindercart-baseline-listas-por-categoria-ok
 
 Rama de trabajo:
 testing
@@ -247,8 +264,8 @@ Entrégame un solo zip con src.
 ```
 
 ## Nota final
-Si algo vuelve a romper **De Compras**:
-1. restaurar solo `src/app/in-store/page.tsx` desde `mindercart-baseline-de-compras-categorias-ok`
+Si algo vuelve a romper un módulo:
+1. restaurar solo el archivo del módulo desde `mindercart-baseline-listas-por-categoria-ok`
 2. limpiar `.next`
 3. correr `npm run build`
 4. volver a intentar el cambio en `testing`
