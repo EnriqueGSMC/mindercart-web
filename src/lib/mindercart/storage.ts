@@ -884,80 +884,30 @@ function formatQuantityUnit(
   return `${quantity} ${unit}`.trim();
 }
 
-function buildCategoryTextBlocks<T extends { category?: unknown; name?: unknown; quantity?: unknown; unit?: unknown }>(
-  rows: T[],
-  lang: Language
-) {
+function buildCategoryTextBlocks<
+  T extends { category?: unknown; name?: unknown; quantity?: unknown; unit?: unknown; checked?: unknown }
+>(rows: T[], lang: Language) {
   return groupRowsByCategory(rows)
     .map((group) =>
       [
-        `*${group.category}*`,
-        ...group.items.map((item) => `- ${safe((item as { name?: unknown }).name)} — ${formatQuantityUnit(item, lang)}`),
+        `━━━━━━━━━━`,
+        `[ ${safe(group.category).toUpperCase()} ]`,
+        `━━━━━━━━━━`,
+        ...group.items.map((item) => {
+          const checkedPrefix = (item as { checked?: unknown }).checked ? "✓ " : "";
+          return `- ${checkedPrefix}${safe((item as { name?: unknown }).name)} ${formatQuantityUnit(item, lang)}`.trim();
+        }),
       ].join("\n")
     )
     .join("\n\n");
 }
 
 function buildStoreCategoryTextBlock<
-  T extends { store?: unknown; category?: unknown; name?: unknown; quantity?: unknown; unit?: unknown }
+  T extends { store?: unknown; category?: unknown; name?: unknown; quantity?: unknown; unit?: unknown; checked?: unknown }
 >(store: string, rows: T[], lang: Language) {
   const body = buildCategoryTextBlocks(rows, lang);
   if (!body) return "";
-  return [`*${store}*`, body].join("\n\n").trim();
-}
-
-function resolveRowCategoryForExport<
-  T extends { itemKey?: unknown; name?: unknown; category?: unknown }
->(row: T, catalogMap: Map<string, ItemMaster>) {
-  const direct = canonicalizeCategory((row as { category?: unknown }).category);
-  if (direct && direct !== DEFAULT_CATEGORY) return direct;
-
-  const itemKey = safe((row as { itemKey?: unknown }).itemKey);
-  if (itemKey) {
-    const master = catalogMap.get(itemKey);
-    const masterCategory = canonicalizeCategory(master?.category);
-    if (masterCategory) return masterCategory;
-  }
-
-  const seed = getSeedItem({ itemKey, name: safe((row as { name?: unknown }).name) });
-  const seedCategory = canonicalizeCategory(seed?.category);
-  if (seedCategory) return seedCategory;
-
-  return DEFAULT_CATEGORY;
-}
-
-function buildStoreCategoryTextBlockForWhatsApp<
-  T extends {
-    store?: unknown;
-    itemKey?: unknown;
-    category?: unknown;
-    name?: unknown;
-    quantity?: unknown;
-    unit?: unknown;
-    checked?: unknown;
-  }
->(store: string, rows: T[], lang: Language, catalogMap: Map<string, ItemMaster>) {
-  const preparedRows = rows.map((row) => ({
-    ...row,
-    category: resolveRowCategoryForExport(row, catalogMap),
-  }));
-
-  const body = groupRowsByCategory(preparedRows)
-    .map((group) =>
-      [
-        `━━━━━━━━━━`,
-        `[ ${group.category.toUpperCase()} ]`,
-        `━━━━━━━━━━`,
-        ...group.items.map((item) => {
-          const statusPrefix = (item as { checked?: unknown }).checked ? "✓ " : "";
-          return `- ${statusPrefix}${safe((item as { name?: unknown }).name)} — ${formatQuantityUnit(item, lang)}`;
-        }),
-      ].join("\n")
-    )
-    .join("\n\n");
-
-  if (!body) return "";
-  return [`*${store}*`, body].join("\n\n").trim();
+  return [safe(store).toUpperCase(), body].join("\n\n").trim();
 }
 
 function buildCategoryScreenSections<T extends { category?: unknown; name?: unknown; quantity?: unknown; unit?: unknown }>(
@@ -1039,7 +989,7 @@ export function buildShoppingListTextForStore(storeName: string) {
     .filter((item) => safe(item.store) === store)
     .map((item) => localizeRowName(item, catalogMap, lang));
 
-  return buildStoreCategoryTextBlockForWhatsApp(store, rows, lang, catalogMap);
+  return buildStoreCategoryTextBlock(store, rows, lang);
 }
 
 export function buildShoppingListHtml(lang: Language = "en") {
