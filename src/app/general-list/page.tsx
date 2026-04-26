@@ -7,6 +7,7 @@ import { categoryLabel, t } from "@/lib/mindercart/i18n";
 import {
   addGeneralSelections,
   addQuickNeed,
+  itemKey,
   removeActiveItem,
 } from "@/lib/mindercart/storage";
 import { useMinderCartState } from "@/lib/mindercart/hooks";
@@ -46,13 +47,13 @@ type CatalogCategoryGroup = {
   items: CatalogCategoryItem[];
 };
 
-type CartCategoryItem = ActiveShoppingListItem & {
-  resolvedCategory: string;
+type ActiveCategoryItem = ActiveShoppingListItem & {
+  normalizedCategory: string;
 };
 
-type CartCategoryGroup = {
+type ActiveCategoryGroup = {
   category: string;
-  items: CartCategoryItem[];
+  items: ActiveCategoryItem[];
 };
 
 const modalOverlayStyle: React.CSSProperties = {
@@ -97,9 +98,41 @@ function preferredStoreFor(item: Pick<ItemMaster, "defaultStore">, preferredStor
   return item.defaultStore || preferredStore || "HEB";
 }
 
-function resolveCategoryName(category: string | null | undefined) {
-  const trimmed = String(category ?? "").trim();
-  return CATEGORY_ORDER.includes(trimmed as (typeof CATEGORY_ORDER)[number]) ? trimmed : "Otro / Temporal";
+function normalizeCategory(value: string | null | undefined) {
+  const category = String(value ?? "").trim();
+  return CATEGORY_ORDER.includes(category as (typeof CATEGORY_ORDER)[number]) ? category : "Otro / Temporal";
+}
+
+function groupActiveItemsByCategory(items: ActiveShoppingListItem[]) {
+  const grouped = new Map<string, ActiveCategoryItem[]>();
+
+  for (const item of items) {
+    const normalizedCategory = normalizeCategory(item.category);
+    const current = grouped.get(normalizedCategory) || [];
+    current.push({ ...item, normalizedCategory });
+    grouped.set(normalizedCategory, current);
+  }
+
+  const orderedGroups: ActiveCategoryGroup[] = [];
+
+  for (const category of CATEGORY_ORDER) {
+    const categoryItems = grouped.get(category) || [];
+    if (categoryItems.length === 0) continue;
+    orderedGroups.push({
+      category,
+      items: [...categoryItems].sort((a, b) => a.name.localeCompare(b.name)),
+    });
+    grouped.delete(category);
+  }
+
+  for (const [category, categoryItems] of [...grouped.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+    orderedGroups.push({
+      category,
+      items: [...categoryItems].sort((a, b) => a.name.localeCompare(b.name)),
+    });
+  }
+
+  return orderedGroups;
 }
 
 export default function CartPage() {
@@ -143,6 +176,11 @@ export default function CartPage() {
     [activeCatalogKeySet, myListCatalogKeySet]
   );
 
+  const activeCategoryGroups = React.useMemo<ActiveCategoryGroup[]>(
+    () => groupActiveItemsByCategory(activeShoppingListItems),
+    [activeShoppingListItems]
+  );
+
   const activeIdByCatalogKey = React.useMemo(
     () =>
       new Map(
@@ -166,60 +204,6 @@ export default function CartPage() {
       ),
     [generalListItems]
   );
-
-  const generalListCategoryByCatalogKey = React.useMemo(
-    () =>
-      new Map(
-        generalListItems.map((item: GeneralListItem) => [catalogKey(item), resolveCategoryName(item.category)] as const)
-      ),
-    [generalListItems]
-  );
-
-  const itemsMasterCategoryByCatalogKey = React.useMemo(
-    () =>
-      new Map(
-        itemsMaster
-          .filter((item: ItemMaster) => item.active !== false)
-          .map((item: ItemMaster) => [catalogKey(item), resolveCategoryName(item.category)] as const)
-      ),
-    [itemsMaster]
-  );
-
-  const groupedActiveShoppingListItems = React.useMemo<CartCategoryGroup[]>(() => {
-    const grouped = new Map<string, CartCategoryItem[]>();
-
-    for (const item of activeShoppingListItems) {
-      const key = catalogKey(item);
-      const resolvedCategory = resolveCategoryName(
-        item.category || generalListCategoryByCatalogKey.get(key) || itemsMasterCategoryByCatalogKey.get(key)
-      );
-      const current = grouped.get(resolvedCategory) || [];
-      current.push({ ...item, resolvedCategory });
-      grouped.set(resolvedCategory, current);
-    }
-
-    const orderedGroups: CartCategoryGroup[] = [];
-
-    for (const category of CATEGORY_ORDER) {
-      const items = grouped.get(category) || [];
-      if (items.length === 0) continue;
-      orderedGroups.push({
-        category,
-        items: [...items].sort((a, b) => a.name.localeCompare(b.name)),
-      });
-      grouped.delete(category);
-    }
-
-    for (const [category, items] of [...grouped.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
-      if (items.length === 0) continue;
-      orderedGroups.push({
-        category,
-        items: [...items].sort((a, b) => a.name.localeCompare(b.name)),
-      });
-    }
-
-    return orderedGroups;
-  }, [activeShoppingListItems, generalListCategoryByCatalogKey, itemsMasterCategoryByCatalogKey]);
 
   const catalogItems = React.useMemo<CatalogCategoryItem[]>(() => {
     const deduped = new Map<string, CatalogCategoryItem>();
@@ -355,11 +339,11 @@ export default function CartPage() {
           <div style={{ fontSize: s(16), fontWeight: 800 }}>{t(lang, "cartNow")}</div>
         </div>
 
-        {groupedActiveShoppingListItems.length === 0 ? (
+        {activeCategoryGroups.length === 0 ? (
           <div style={{ fontSize: s(15), color: "#6b7280" }}>{t(lang, "noItemsYet")}</div>
         ) : (
           <div style={{ display: "grid", gap: 14 }}>
-            {groupedActiveShoppingListItems.map((group) => (
+            {activeCategoryGroups.map((group) => (
               <div key={group.category}>
                 <div style={{ fontSize: s(15), fontWeight: 800, marginBottom: 8 }}>
                   {categoryLabel(lang, group.category)} · {group.items.length} {t(lang, "itemsLabel")}
@@ -500,7 +484,7 @@ export default function CartPage() {
                       {item.name}
                     </div>
                     <div style={{ fontSize: s(15), color: "#5b6b9a", flexShrink: 0 }}>
-                      <QtyUnitText quantity={String(item.quantity)} unit={item.unit} />
+                      <QtyUnitText quantity={item.quantity} unit={item.unit} />
                     </div>
                   </label>
                 );
