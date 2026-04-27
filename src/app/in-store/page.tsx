@@ -363,7 +363,6 @@ export default function ShoppingPage() {
         footerActions={[
           { label: t("es", "whatsApp"), disabled: true, primary: true },
           { label: t("es", "pdf"), disabled: true },
-          { label: t("es", "back"), href: "/general-list" },
         ]}
       >
         <section style={{ ...cardStyle(), padding: 18 }}>
@@ -669,6 +668,7 @@ export default function ShoppingPage() {
       darkHero
       subtitle={t(lang, "shoppingSubtitle")}
       showCart={false}
+      footerInset={selectedStoreGroup ? 48 : 0}
       footerActions={[
         {
           label: t(lang, "whatsApp"),
@@ -681,9 +681,6 @@ export default function ShoppingPage() {
           disabled: !selectedStoreGroup,
           onClick: selectedStoreGroup ? () => onPdfStore(selectedStoreGroup.store) : undefined,
         },
-        selectedStoreGroup
-          ? { label: t(lang, "back"), onClick: () => setOpenStore(null) }
-          : { label: t(lang, "back"), href: "/general-list" },
       ]}
     >
       {!selectedStoreGroup ? (
