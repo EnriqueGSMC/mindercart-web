@@ -323,6 +323,7 @@ export default function CartPage() {
       darkHero
       subtitle={t(lang, "cartSubtitle")}
       showCart={false}
+      footerInset={selectedCategoryGroup ? 48 : 0}
       footerActions={footerActions}
     >
       <section style={{ ...cardStyle(), padding: 14 }}>
