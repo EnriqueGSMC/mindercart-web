@@ -101,12 +101,12 @@ function BottomNavigation() {
           position: fixed;
           left: 0;
           right: 0;
-          bottom: -6px;
+          bottom: 0;
           z-index: 9999;
           background: #12245e;
           border-top: 1px solid rgba(255,255,255,0.08);
           box-shadow: 0 -8px 18px rgba(6, 13, 36, 0.16);
-          padding: 2px 8px calc(env(safe-area-inset-bottom));
+          padding: 2px 8px max(4px, env(safe-area-inset-bottom));
         }
 
         .mc-bottom-nav__grid {
