@@ -7,7 +7,6 @@ import { categoryLabel, t } from "@/lib/mindercart/i18n";
 import {
   addGeneralSelections,
   addQuickNeed,
-  groupByStore,
   itemKey,
   removeActiveItem,
 } from "@/lib/mindercart/storage";
@@ -46,6 +45,15 @@ type CatalogCategoryItem = {
 type CatalogCategoryGroup = {
   category: string;
   items: CatalogCategoryItem[];
+};
+
+type ActiveCategoryItem = ActiveShoppingListItem & {
+  normalizedCategory: string;
+};
+
+type ActiveCategoryGroup = {
+  category: string;
+  items: ActiveCategoryItem[];
 };
 
 const modalOverlayStyle: React.CSSProperties = {
@@ -90,6 +98,43 @@ function preferredStoreFor(item: Pick<ItemMaster, "defaultStore">, preferredStor
   return item.defaultStore || preferredStore || "HEB";
 }
 
+function normalizeCategory(value: string | null | undefined) {
+  const category = String(value ?? "").trim();
+  return CATEGORY_ORDER.includes(category as (typeof CATEGORY_ORDER)[number]) ? category : "Otro / Temporal";
+}
+
+function groupActiveItemsByCategory(items: ActiveShoppingListItem[]) {
+  const grouped = new Map<string, ActiveCategoryItem[]>();
+
+  for (const item of items) {
+    const normalizedCategory = normalizeCategory(item.category);
+    const current = grouped.get(normalizedCategory) || [];
+    current.push({ ...item, normalizedCategory });
+    grouped.set(normalizedCategory, current);
+  }
+
+  const orderedGroups: ActiveCategoryGroup[] = [];
+
+  for (const category of CATEGORY_ORDER) {
+    const categoryItems = grouped.get(category) || [];
+    if (categoryItems.length === 0) continue;
+    orderedGroups.push({
+      category,
+      items: [...categoryItems].sort((a, b) => a.name.localeCompare(b.name)),
+    });
+    grouped.delete(category);
+  }
+
+  for (const [category, categoryItems] of [...grouped.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+    orderedGroups.push({
+      category,
+      items: [...categoryItems].sort((a, b) => a.name.localeCompare(b.name)),
+    });
+  }
+
+  return orderedGroups;
+}
+
 export default function CartPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -129,6 +174,11 @@ export default function CartPage() {
   const checkedCatalogKeySet = React.useMemo(
     () => new Set([...activeCatalogKeySet, ...myListCatalogKeySet]),
     [activeCatalogKeySet, myListCatalogKeySet]
+  );
+
+  const activeCategoryGroups = React.useMemo<ActiveCategoryGroup[]>(
+    () => groupActiveItemsByCategory(activeShoppingListItems),
+    [activeShoppingListItems]
   );
 
   const activeIdByCatalogKey = React.useMemo(
@@ -242,7 +292,10 @@ export default function CartPage() {
         darkHero
         subtitle={t("es", "cartSubtitle")}
         showCart={false}
-        footerActions={[]}
+        footerActions={[
+          { href: "/in-store", label: t("es", "shoppingTitle"), primary: true },
+          { href: "/", label: t("es", "back") },
+        ]}
       >
         <section style={{ ...cardStyle(), padding: 18 }}>
           <div style={{ fontSize: s(14), color: "#6b7280" }}>{t("es", "loading")}</div>
@@ -251,7 +304,6 @@ export default function CartPage() {
     );
   }
 
-  const groups = groupByStore(activeShoppingListItems);
   const footerActions = selectedCategoryGroup
     ? [
         {
@@ -260,7 +312,10 @@ export default function CartPage() {
           primary: true,
         },
       ]
-    : [];
+    : [
+        { href: "/in-store", label: t(lang, "shoppingTitle"), primary: true },
+        { href: "/", label: t(lang, "back") },
+      ];
 
   return (
     <AppShell
@@ -284,14 +339,14 @@ export default function CartPage() {
           <div style={{ fontSize: s(16), fontWeight: 800 }}>{t(lang, "cartNow")}</div>
         </div>
 
-        {groups.length === 0 ? (
+        {activeCategoryGroups.length === 0 ? (
           <div style={{ fontSize: s(15), color: "#6b7280" }}>{t(lang, "noItemsYet")}</div>
         ) : (
           <div style={{ display: "grid", gap: 14 }}>
-            {groups.map((group) => (
-              <div key={group.store}>
+            {activeCategoryGroups.map((group) => (
+              <div key={group.category}>
                 <div style={{ fontSize: s(15), fontWeight: 800, marginBottom: 8 }}>
-                  {group.store} · {group.items.length} {t(lang, "itemsLabel")}
+                  {categoryLabel(lang, group.category)} · {group.items.length} {t(lang, "itemsLabel")}
                 </div>
 
                 <div style={{ display: "grid", gap: 10 }}>
@@ -310,7 +365,7 @@ export default function CartPage() {
                     >
                       <div style={{ fontSize: s(17), fontWeight: 500, minWidth: 0 }}>{item.name}</div>
                       <div style={{ fontSize: s(15), color: "#6b7280", flexShrink: 0 }}>
-                        <QtyUnitText quantity={item.quantity} unit={item.unit} />
+                        <QtyUnitText quantity={String(item.quantity)} unit={item.unit} />
                       </div>
                     </div>
                   ))}
