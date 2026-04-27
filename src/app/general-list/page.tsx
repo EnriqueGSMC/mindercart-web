@@ -292,7 +292,10 @@ export default function CartPage() {
         darkHero
         subtitle={t("es", "cartSubtitle")}
         showCart={false}
-        footerActions={[]}
+        footerActions={[
+          { href: "/in-store", label: t("es", "shoppingTitle"), primary: true },
+          { href: "/", label: t("es", "back") },
+        ]}
       >
         <section style={{ ...cardStyle(), padding: 18 }}>
           <div style={{ fontSize: s(14), color: "#6b7280" }}>{t("es", "loading")}</div>
@@ -309,7 +312,10 @@ export default function CartPage() {
           primary: true,
         },
       ]
-    : [];
+    : [
+        { href: "/in-store", label: t(lang, "shoppingTitle"), primary: true },
+        { href: "/", label: t(lang, "back") },
+      ];
 
   return (
     <AppShell
@@ -317,6 +323,7 @@ export default function CartPage() {
       darkHero
       subtitle={t(lang, "cartSubtitle")}
       showCart={false}
+      footerInset={selectedCategoryGroup ? 48 : 0}
       footerActions={footerActions}
     >
       <section style={{ ...cardStyle(), padding: 14 }}>
