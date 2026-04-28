@@ -682,7 +682,7 @@ export default function ShoppingPage() {
       darkHero
       subtitle={t(lang, "shoppingSubtitle")}
       showCart={false}
-      footerInset={selectedStoreGroup ? 72 : 0}
+      footerInset={selectedStoreGroup ? 104 : 0}
       footerActions={[
         {
           label: t(lang, "whatsApp"),

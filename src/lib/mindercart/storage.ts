@@ -1519,83 +1519,88 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
           .mc-print-header {
             background: linear-gradient(135deg, #12245E 0%, #1E3C8A 100%);
             color: #fff;
-            padding: 12mm 12mm 10mm;
-            border-radius: 4mm;
+            padding: 7mm 8mm 6mm;
+            border-radius: 3mm;
           }
 
           .mc-print-header-grid {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            gap: 10mm;
+            gap: 5mm;
           }
 
           .mc-print-right {
             text-align: right;
           }
 
+          .mc-print-left,
+          .mc-print-right {
+            min-width: 0;
+          }
+
           .mc-print-brand {
-            font-size: 8.5pt;
-            line-height: 1.2;
+            font-size: 7.1pt;
+            line-height: 1.1;
             font-weight: 800;
-            letter-spacing: 0.12em;
+            letter-spacing: 0.08em;
             text-transform: uppercase;
             opacity: 0.92;
           }
 
           .mc-print-title {
-            margin-top: 3mm;
-            font-size: 19pt;
+            margin-top: 1.5mm;
+            font-size: 13pt;
             line-height: 1.05;
             font-weight: 900;
           }
 
           .mc-print-store {
-            margin-top: 3mm;
-            font-size: 12pt;
+            margin-top: 1.4mm;
+            font-size: 9.5pt;
             font-weight: 800;
-            line-height: 1.2;
+            line-height: 1.15;
           }
 
           .mc-print-meta,
           .mc-print-slogan {
-            margin-top: 2.4mm;
-            font-size: 9.5pt;
-            line-height: 1.35;
+            margin-top: 1.5mm;
+            font-size: 7.8pt;
+            line-height: 1.25;
           }
 
           .mc-print-summary {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            gap: 8mm;
-            padding: 5mm 0 1mm;
-            border-bottom: 0.35mm solid #D8E2FF;
+            gap: 4mm;
+            padding: 3mm 0 0.5mm;
+            border-bottom: 0.3mm solid #D8E2FF;
           }
 
           .mc-print-summary-label {
-            font-size: 8.5pt;
+            font-size: 7.2pt;
             text-transform: uppercase;
-            letter-spacing: 0.08em;
+            letter-spacing: 0.05em;
             color: #53648F;
             font-weight: 800;
           }
 
           .mc-print-summary-value {
-            font-size: 16pt;
+            font-size: 10.5pt;
             font-weight: 900;
             line-height: 1;
           }
 
           .mc-print-list {
-            margin-top: 7mm;
+            margin-top: 4mm;
             display: grid;
-            gap: 5mm;
+            gap: 3mm;
           }
 
           .mc-print-section {
-            border: 0.35mm solid #D8E2FF;
-            border-radius: 4mm;
+            border: 0.25mm solid #D8E2FF;
+            border-radius: 2.5mm;
             overflow: hidden;
             page-break-inside: avoid;
             break-inside: avoid;
@@ -1605,21 +1610,21 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
             display: flex;
             justify-content: space-between;
             align-items: center;
-            gap: 6mm;
-            padding: 4mm 5mm;
+            gap: 4mm;
+            padding: 2.2mm 3mm;
             background: #EAF0FF;
-            border-bottom: 0.35mm solid #D8E2FF;
+            border-bottom: 0.25mm solid #D8E2FF;
           }
 
           .mc-print-section-title {
-            font-size: 11pt;
-            line-height: 1.2;
+            font-size: 8.8pt;
+            line-height: 1.15;
             font-weight: 900;
             color: #12245E;
           }
 
           .mc-print-section-count {
-            font-size: 8.5pt;
+            font-size: 7.2pt;
             line-height: 1;
             font-weight: 800;
             color: #53648F;
@@ -1627,16 +1632,16 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
           }
 
           .mc-print-section-body {
-            padding: 1mm 0;
+            padding: 0.4mm 0;
           }
 
           .mc-print-row {
             display: grid;
-            grid-template-columns: 4mm minmax(0, 1fr) auto;
-            gap: 4mm;
+            grid-template-columns: 2.5mm minmax(0, 1fr) auto;
+            gap: 2.5mm;
             align-items: center;
-            padding: 3.4mm 5mm;
-            border-top: 0.3mm solid rgba(216, 226, 255, 0.9);
+            padding: 2mm 3mm;
+            border-top: 0.25mm solid rgba(216, 226, 255, 0.9);
             page-break-inside: avoid;
             break-inside: avoid;
           }
@@ -1646,37 +1651,37 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
           }
 
           .mc-print-dot {
-            width: 2.2mm;
-            height: 2.2mm;
+            width: 1.5mm;
+            height: 1.5mm;
             border-radius: 999px;
             background: #12245E;
-            opacity: 0.2;
+            opacity: 0.18;
           }
 
           .mc-print-name {
-            font-size: 11pt;
-            line-height: 1.3;
+            font-size: 8.7pt;
+            line-height: 1.2;
             font-weight: 700;
-            padding-right: 4mm;
+            padding-right: 2mm;
           }
 
           .mc-print-qty {
-            font-size: 10pt;
-            line-height: 1.3;
+            font-size: 8pt;
+            line-height: 1.2;
             white-space: nowrap;
             color: #4B5A8A;
             text-align: right;
           }
 
           .mc-print-empty {
-            padding: 4mm 0;
-            font-size: 11pt;
+            padding: 2mm 0;
+            font-size: 8.5pt;
             color: #4B5A8A;
           }
 
           @page {
             size: auto;
-            margin: 12mm;
+            margin: 8mm;
           }
 
           @media print {
