@@ -1,4 +1,4 @@
-import { unitLabel } from "@/lib/mindercart/i18n";
+import { categoryLabel, unitLabel } from "@/lib/mindercart/i18n";
 import { SEED_GENERAL_ITEMS } from "@/lib/mindercart/seed-items";
 import type {
   FontScale,
@@ -1205,7 +1205,7 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
 
         return `
           <section class="mc-${mode}-section">
-            <div class="mc-${mode}-section-title">${escapeHtml(group.category)}</div>
+            <div class="mc-${mode}-section-title">${escapeHtml(categoryLabel(lang, group.category))}</div>
             <div class="mc-${mode}-section-body">${items}</div>
           </section>
         `;

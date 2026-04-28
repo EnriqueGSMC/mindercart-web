@@ -11,7 +11,7 @@ import {
   cardStyle,
   scalePx,
 } from "@/components/mindercart/Shell";
-import { t } from "@/lib/mindercart/i18n";
+import { categoryLabel, t } from "@/lib/mindercart/i18n";
 import {
   buildShoppingListHtmlForStore,
   closeShoppingForStore,
@@ -377,7 +377,7 @@ export default function ShoppingPage() {
     const lines = [selectedStoreGroup.store];
 
     groupedPendingItems.forEach((group) => {
-      lines.push("", `*${group.category}*`);
+      lines.push("", `*${categoryLabel(lang, group.category)}*`);
 
       group.items.forEach((item) => {
         const quantity = toSafeText(item.quantity);
@@ -610,7 +610,7 @@ export default function ShoppingPage() {
           fontWeight: 900,
         }}
       >
-        {category}
+        {categoryLabel(lang, category)}
       </div>
     );
   }
@@ -1099,7 +1099,7 @@ export default function ShoppingPage() {
                     >
                       {OFFICIAL_CATEGORIES.map((category) => (
                         <option key={category} value={category}>
-                          {category}
+                          {categoryLabel(lang, category)}
                         </option>
                       ))}
                     </select>
