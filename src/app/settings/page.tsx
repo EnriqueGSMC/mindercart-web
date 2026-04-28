@@ -269,10 +269,11 @@ export default function SettingsPage() {
         <div
           style={{
             position: "fixed",
-            inset: 0,
+            top: "calc(env(safe-area-inset-top, 0px) + 96px)",
+            right: 0,
+            bottom: "calc(env(safe-area-inset-bottom, 0px) + 78px)",
+            left: 0,
             background: "rgba(0, 0, 0, 0.35)",
-            display: "grid",
-            placeItems: "center",
             padding: 12,
             zIndex: 80,
           }}
@@ -281,7 +282,11 @@ export default function SettingsPage() {
             style={{
               width: "100%",
               maxWidth: 560,
-              maxHeight: "78vh",
+              height: "100%",
+              maxHeight: "100%",
+              margin: "0 auto",
+              display: "flex",
+              flexDirection: "column",
               overflow: "hidden",
               borderRadius: 18,
               background: "#fff",
@@ -324,7 +329,17 @@ export default function SettingsPage() {
             </div>
 
             {!storeEditorOpen ? (
-              <div style={{ padding: 14, display: "grid", gap: 12, maxHeight: "calc(78vh - 76px)", overflowY: "auto" }}>
+              <div
+                style={{
+                  padding: 14,
+                  display: "grid",
+                  gap: 12,
+                  flex: 1,
+                  minHeight: 0,
+                  overflowY: "auto",
+                  WebkitOverflowScrolling: "touch",
+                }}
+              >
                 <div style={{ display: "grid", gap: 10 }}>
                   {filteredStoreProfiles.length ? (
                     filteredStoreProfiles.map((profile) => (
@@ -370,7 +385,17 @@ export default function SettingsPage() {
                 </button>
               </div>
             ) : (
-              <div style={{ padding: 14, display: "grid", gap: 12, maxHeight: "calc(78vh - 76px)", overflowY: "auto" }}>
+              <div
+                style={{
+                  padding: 14,
+                  display: "grid",
+                  gap: 12,
+                  flex: 1,
+                  minHeight: 0,
+                  overflowY: "auto",
+                  WebkitOverflowScrolling: "touch",
+                }}
+              >
                 <div>
                   <div
                     style={{
