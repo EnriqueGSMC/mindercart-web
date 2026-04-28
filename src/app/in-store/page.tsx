@@ -360,10 +360,7 @@ export default function ShoppingPage() {
         darkHero
         subtitle={t("es", "shoppingSubtitle")}
         showCart={false}
-        footerActions={[
-          { label: t("es", "whatsApp"), disabled: true, primary: true },
-          { label: t("es", "pdf"), disabled: true },
-        ]}
+        footerActions={[]}
       >
         <section style={{ ...cardStyle(), padding: 18 }}>
           <div style={{ fontSize: s(14), color: MC_NAVY_MUTED }}>{t("es", "loading")}</div>
@@ -669,19 +666,23 @@ export default function ShoppingPage() {
       subtitle={t(lang, "shoppingSubtitle")}
       showCart={false}
       footerInset={selectedStoreGroup ? 48 : 0}
-      footerActions={[
-        {
-          label: t(lang, "whatsApp"),
-          primary: true,
-          disabled: !selectedStoreGroup,
-          onClick: selectedStoreGroup ? () => onWhatsAppStore(selectedStoreGroup.store) : undefined,
-        },
-        {
-          label: t(lang, "pdf"),
-          disabled: !selectedStoreGroup,
-          onClick: selectedStoreGroup ? () => onPdfStore(selectedStoreGroup.store) : undefined,
-        },
-      ]}
+      footerActions={
+        selectedStoreGroup
+          ? [
+              {
+                label: t(lang, "whatsApp"),
+                primary: true,
+                disabled: false,
+                onClick: () => onWhatsAppStore(selectedStoreGroup.store),
+              },
+              {
+                label: t(lang, "pdf"),
+                disabled: false,
+                onClick: () => onPdfStore(selectedStoreGroup.store),
+              },
+            ]
+          : []
+      }
     >
       {!selectedStoreGroup ? (
         <section style={{ ...cardStyle(), padding: 14 }}>
