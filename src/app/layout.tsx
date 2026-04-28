@@ -106,26 +106,26 @@ function BottomNavigation() {
           background: #12245e;
           border-top: 1px solid rgba(255,255,255,0.08);
           box-shadow: 0 -8px 18px rgba(6, 13, 36, 0.16);
-          padding: 2px 8px max(4px, env(safe-area-inset-bottom));
+          padding: 8px 10px max(12px, env(safe-area-inset-bottom));
         }
 
         .mc-bottom-nav__grid {
           display: grid;
           grid-template-columns: repeat(5, minmax(0, 1fr));
-          gap: 2px;
+          gap: 4px;
           max-width: 980px;
           margin: 0 auto;
         }
 
         .mc-bottom-nav__item {
           position: relative;
-          min-height: 48px;
-          border-radius: 12px;
+          min-height: 62px;
+          border-radius: 14px;
           display: flex;
           align-items: center;
           justify-content: center;
           text-align: center;
-          padding: 3px 4px 4px;
+          padding: 6px 6px 8px;
           color: rgba(255, 255, 255, 0.72);
           transition: color .15s ease, transform .15s ease;
         }
@@ -160,7 +160,9 @@ function BottomNavigation() {
         .mc-bottom-nav__inner {
           display: grid;
           justify-items: center;
-          gap: 1px;
+          align-content: start;
+          gap: 4px;
+          transform: translateY(-1px);
         }
 
         .mc-bottom-nav__icon {
@@ -171,8 +173,8 @@ function BottomNavigation() {
         }
 
         .mc-bottom-nav__label {
-          font-size: 9.5px;
-          line-height: 1.05;
+          font-size: 10.5px;
+          line-height: 1.1;
           font-weight: 800;
           letter-spacing: -0.01em;
           color: currentColor;
@@ -181,20 +183,26 @@ function BottomNavigation() {
 
         .mc-app-frame {
           min-height: 100dvh;
-          padding-bottom: calc(56px + env(safe-area-inset-bottom));
+          padding-bottom: calc(78px + env(safe-area-inset-bottom));
         }
 
         @media (max-width: 430px) {
           .mc-bottom-nav {
-            padding-left: 6px;
-            padding-right: 6px;
+            padding: 9px 8px max(14px, env(safe-area-inset-bottom));
+          }
+          .mc-bottom-nav__grid {
+            gap: 3px;
           }
           .mc-bottom-nav__item {
-            min-height: 50px;
-            padding: 3px 2px 3px;
+            min-height: 64px;
+            padding: 6px 2px 8px;
+          }
+          .mc-bottom-nav__inner {
+            gap: 3px;
+            transform: translateY(-2px);
           }
           .mc-bottom-nav__label {
-            font-size: 9.5px;
+            font-size: 10px;
           }
         }
       `}</style>
