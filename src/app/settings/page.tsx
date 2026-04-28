@@ -127,7 +127,7 @@ export default function SettingsPage() {
   }
 
   function openNewStore() {
-    setStoreDraft(emptyStoreDraft(preferredStore));
+    setStoreDraft(emptyStoreDraft(""));
     setStoreError("");
     setStoreEditorOpen(true);
   }
