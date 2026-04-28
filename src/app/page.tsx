@@ -2,7 +2,7 @@
 
 import React from "react";
 import { AppShell, QtyUnitText, cardStyle, scalePx } from "@/components/mindercart/Shell";
-import { t } from "@/lib/mindercart/i18n";
+import { categoryLabel, t } from "@/lib/mindercart/i18n";
 import {
   CATEGORY_OPTIONS,
   STORE_OPTIONS,
@@ -397,7 +397,7 @@ export default function NeedsPage() {
         ) : (
           <div style={{ display: "grid", gap: 14 }}>
             {groupedActiveShoppingListItems.map((section) => (
-              <div key={section.category} style={{ display: "grid", gap: 4 }}>
+              <div key={categoryLabel(lang, section.category)} style={{ display: "grid", gap: 4 }}>
                 <div
                   style={{
                     fontSize: s(13),
@@ -407,7 +407,7 @@ export default function NeedsPage() {
                     color: MC_NAVY,
                   }}
                 >
-                  {section.category}
+                  {categoryLabel(lang, section.category)}
                 </div>
 
                 <div
