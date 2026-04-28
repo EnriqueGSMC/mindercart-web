@@ -665,7 +665,7 @@ export default function ShoppingPage() {
       darkHero
       subtitle={t(lang, "shoppingSubtitle")}
       showCart={false}
-      footerInset={selectedStoreGroup ? 48 : 0}
+      footerInset={selectedStoreGroup ? 96 : 0}
       footerActions={
         selectedStoreGroup
           ? [
