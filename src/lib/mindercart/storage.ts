@@ -1,4 +1,4 @@
-import { categoryLabel, unitLabel } from "@/lib/mindercart/i18n";
+import { unitLabel } from "@/lib/mindercart/i18n";
 import { SEED_GENERAL_ITEMS } from "@/lib/mindercart/seed-items";
 import type {
   FontScale,
@@ -122,7 +122,10 @@ function emptyStoreProfile(name = ""): StoreProfile {
   };
 }
 
-function normalizeStoreProfile(input: Partial<StoreProfile> & { name?: unknown }, fallbackName = ""): StoreProfile {
+function normalizeStoreProfile(
+  input: Partial<StoreProfile> & { name?: unknown },
+  fallbackName = ""
+): StoreProfile {
   const base = emptyStoreProfile(fallbackName);
 
   return {
@@ -482,27 +485,29 @@ export function readState(): MinderCartState {
     const catalogMap = new Map(itemsMasterBase.map((item) => [item.itemKey, item]));
 
     const generalListItems = Array.isArray(parsed.generalListItems)
-      ? parsed.generalListItems.map((item) => localizeRowName(enrichTrackedRow(item), catalogMap, language))
+      ? parsed.generalListItems.map((item) =>
+          localizeRowName(enrichTrackedRow(item), catalogMap, language)
+        )
       : [];
 
     const activeShoppingListItems = Array.isArray(parsed.activeShoppingListItems)
-      ? parsed.activeShoppingListItems.map((item) => localizeRowName(enrichTrackedRow(item), catalogMap, language))
+      ? parsed.activeShoppingListItems.map((item) =>
+          localizeRowName(enrichTrackedRow(item), catalogMap, language)
+        )
       : [];
 
     const shoppingHistory = Array.isArray(parsed.shoppingHistory)
       ? parsed.shoppingHistory.map((group) => ({
           ...group,
           items: Array.isArray(group?.items)
-            ? group.items.map((item) => localizeRowName(enrichTrackedRow(item), catalogMap, language))
+            ? group.items.map((item) =>
+                localizeRowName(enrichTrackedRow(item), catalogMap, language)
+              )
             : [],
         }))
       : [];
 
     const preferredStore = safe(parsed.settings?.preferredStore) || "HEB";
-    const fontScale =
-      parsed.settings?.fontScale === "large" || parsed.settings?.fontScale === "xlarge"
-        ? parsed.settings.fontScale
-        : "normal";
 
     const storeProfiles = mergeStoreProfiles(
       Array.isArray((parsed as Partial<MinderCartState>).storeProfiles)
@@ -516,7 +521,10 @@ export function readState(): MinderCartState {
         settings: {
           language,
           preferredStore,
-          fontScale,
+          fontScale:
+            parsed.settings?.fontScale === "large" || parsed.settings?.fontScale === "xlarge"
+              ? parsed.settings.fontScale
+              : "normal",
         },
       })
     );
@@ -533,13 +541,16 @@ export function readState(): MinderCartState {
       settings: {
         language,
         preferredStore,
-        fontScale,
+        fontScale:
+          parsed.settings?.fontScale === "large" || parsed.settings?.fontScale === "xlarge"
+            ? parsed.settings.fontScale
+            : "normal",
       },
     };
   } catch {
-    const fallback = defaultState();
-    writeState(fallback);
-    return fallback;
+    const initial = defaultState();
+    writeState(initial);
+    return initial;
   }
 }
 
@@ -1140,9 +1151,6 @@ export function buildShoppingListHtml(lang: Language = "en") {
   `;
 }
 
-
-const MINDERCART_AVATAR_PDF = "data:image/png;base64,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";
-
 export function buildShoppingListHtmlForStore(storeName: string, lang: Language = "en") {
   const store = safe(storeName);
   const state = readState();
@@ -1151,69 +1159,35 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
     .filter((item) => safe(item.store) === store)
     .map((item) => localizeRowName(item, catalogMap, lang));
 
-  const title = lang === "en" ? "Shopping List" : "Lista de Compras";
+  const title = lang === "en" ? "Your Shopping Cart" : "Tu Carrito de Compras";
+  const slogan = lang === "en" ? "Never Forget what to buy" : "Nunca olvides qué comprar";
   const printLabel = lang === "en" ? "Print" : "Imprimir";
   const backLabel = lang === "en" ? "Back" : "Regresar";
   const emptyLabel = lang === "en" ? "No items." : "No hay artículos.";
+  const printedOn = lang === "en" ? "Date" : "Fecha";
   const displayDate = escapeHtml(formatDisplayDate(lang));
-  const categoryOrder = new Map(CATEGORY_OPTIONS.map((category, index) => [normalize(category), index]));
 
-  const groupedRows = [...rows]
-    .map((item) => ({
-      ...item,
-      category: canonicalizeCategory((item as { category?: string }).category),
-    }))
-    .sort((a, b) => safe(a.name).localeCompare(safe(b.name), lang === "en" ? "en" : "es", { sensitivity: "base" }))
-    .reduce<Array<{ category: string; items: typeof rows }>>((groups, item) => {
-      const category = canonicalizeCategory(item.category);
-      const existing = groups.find((group) => normalize(group.category) === normalize(category));
-      if (existing) {
-        existing.items.push(item);
-      } else {
-        groups.push({ category, items: [item] });
-      }
-      return groups;
-    }, [])
-    .sort((a, b) => {
-      const orderA = categoryOrder.get(normalize(a.category)) ?? Number.MAX_SAFE_INTEGER;
-      const orderB = categoryOrder.get(normalize(b.category)) ?? Number.MAX_SAFE_INTEGER;
-      if (orderA !== orderB) return orderA - orderB;
-      return a.category.localeCompare(b.category, lang === "en" ? "en" : "es", { sensitivity: "base" });
-    });
+  const screenBody = rows
+    .map(
+      (item) => `
+        <div class="mc-screen-row">
+          <div class="mc-screen-name">${escapeHtml(item.name)}</div>
+          <div class="mc-screen-qty">${escapeHtml(item.quantity)} ${escapeHtml(unitLabel(lang, item.unit))}</div>
+        </div>
+      `
+    )
+    .join("");
 
-  const totalItems = rows.length;
-  const storeLine = `${escapeHtml(store)}${totalItems ? ` (${totalItems})` : ""}`;
-
-  const renderRows = (mode: "screen" | "print") =>
-    groupedRows
-      .map((group) => {
-        const items = group.items
-          .map((item) => {
-            const quantity = escapeHtml(item.quantity);
-            const unit = escapeHtml(unitLabel(lang, item.unit));
-            const qtyText = [quantity, unit].filter(Boolean).join(" ").trim();
-
-            return `
-              <div class="mc-${mode}-row">
-                <span class="mc-${mode}-checkbox"></span>
-                <div class="mc-${mode}-name">${escapeHtml(item.name)}</div>
-                <div class="mc-${mode}-qty">${qtyText}</div>
-              </div>
-            `;
-          })
-          .join("");
-
-        return `
-          <section class="mc-${mode}-section">
-            <div class="mc-${mode}-section-title">${escapeHtml(categoryLabel(lang, group.category))}</div>
-            <div class="mc-${mode}-section-body">${items}</div>
-          </section>
-        `;
-      })
-      .join("");
-
-  const screenBody = renderRows("screen");
-  const printBody = renderRows("print");
+  const printBody = rows
+    .map(
+      (item) => `
+        <div class="mc-print-row">
+          <div class="mc-print-name">${escapeHtml(item.name)}</div>
+          <div class="mc-print-qty">${escapeHtml(item.quantity)} ${escapeHtml(unitLabel(lang, item.unit))}</div>
+        </div>
+      `
+    )
+    .join("");
 
   return `
     <html>
@@ -1225,11 +1199,10 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
           :root {
             color-scheme: light;
             --mc-navy: #12245E;
+            --mc-navy-soft: #EAF0FF;
             --mc-line: #D8E2FF;
-            --mc-soft: #EEF3FF;
+            --mc-muted: #5D6B98;
             --mc-bg: #F5F7FF;
-            --mc-text: #12245E;
-            --mc-muted: #64739B;
           }
 
           * {
@@ -1240,9 +1213,12 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
           body {
             margin: 0;
             padding: 0;
-            background: var(--mc-bg);
-            color: var(--mc-text);
             font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+            background: var(--mc-bg);
+            color: var(--mc-navy);
+          }
+
+          body {
             -webkit-text-size-adjust: 100%;
           }
 
@@ -1255,165 +1231,89 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
             max-width: 560px;
             min-height: 100dvh;
             margin: 0 auto;
-            padding: 14px 14px calc(96px + env(safe-area-inset-bottom));
+            padding: 16px 16px calc(104px + env(safe-area-inset-bottom));
           }
 
           .mc-screen-header {
             background: var(--mc-navy);
             color: #fff;
             border-radius: 18px;
-            padding: 12px 14px;
+            padding: 18px 18px 16px;
           }
 
-          .mc-screen-header-grid,
-          .mc-print-header-grid {
-            display: grid;
-            grid-template-columns: 1fr auto;
-            gap: 12px;
-            align-items: start;
+          .mc-screen-header-grid {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
           }
 
           .mc-screen-left,
-          .mc-print-left {
-            display: grid;
-            grid-template-columns: 46px minmax(0, 1fr);
-            gap: 10px;
-            align-items: center;
+          .mc-screen-right {
             min-width: 0;
           }
 
-          .mc-screen-avatar,
-          .mc-print-avatar {
-            width: 46px;
-            height: 46px;
-            border-radius: 12px;
-            background: rgba(255, 255, 255, 0.12);
-            overflow: hidden;
-            display: grid;
-            place-items: center;
-            flex: 0 0 auto;
-          }
-
-          .mc-screen-avatar img,
-          .mc-print-avatar img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
-          }
-
-          .mc-screen-title,
-          .mc-print-title {
-            font-size: 16px;
-            line-height: 1.1;
-            font-weight: 800;
-            margin: 0;
-          }
-
-          .mc-screen-store,
-          .mc-print-store {
-            font-size: 13px;
-            line-height: 1.2;
-            font-weight: 600;
-            margin-top: 4px;
-            opacity: 0.96;
-          }
-
-          .mc-screen-right,
-          .mc-print-right {
+          .mc-screen-right {
             text-align: right;
-            min-width: 0;
           }
 
-          .mc-screen-brand,
-          .mc-print-brand {
-            font-size: 14px;
+          .mc-screen-title {
+            font-size: 21px;
             line-height: 1.1;
-            font-weight: 800;
-            margin: 0;
+            font-weight: 900;
           }
 
-          .mc-screen-date,
-          .mc-print-date {
-            font-size: 12px;
-            line-height: 1.2;
-            margin-top: 4px;
-            opacity: 0.96;
-          }
-
-          .mc-screen-list {
-            margin-top: 12px;
-            display: grid;
-            gap: 10px;
-          }
-
-          .mc-screen-section,
-          .mc-print-section {
-            background: #fff;
-            border: 1px solid var(--mc-line);
-            border-radius: 14px;
-            overflow: hidden;
-            page-break-inside: avoid;
-            break-inside: avoid;
-          }
-
-          .mc-screen-section-title {
-            padding: 8px 12px;
-            background: var(--mc-soft);
-            border-bottom: 1px solid var(--mc-line);
-            font-size: 14px;
+          .mc-screen-store {
+            margin-top: 8px;
+            font-size: 18px;
             line-height: 1.15;
             font-weight: 800;
           }
 
-          .mc-screen-section-body {
-            padding: 2px 10px;
+          .mc-screen-date,
+          .mc-screen-slogan {
+            margin-top: 8px;
+            font-size: 13px;
+            line-height: 1.35;
+            opacity: 0.94;
+          }
+
+          .mc-screen-list {
+            display: grid;
+            gap: 12px;
+            margin-top: 16px;
           }
 
           .mc-screen-row {
-            display: grid;
-            grid-template-columns: 16px minmax(0, 1fr) auto;
-            gap: 10px;
-            align-items: center;
-            padding: 9px 2px;
-            border-bottom: 1px solid #EEF3FF;
-          }
-
-          .mc-screen-row:last-child {
-            border-bottom: 0;
-          }
-
-          .mc-screen-checkbox,
-          .mc-print-checkbox {
-            width: 12px;
-            height: 12px;
-            border: 1.6px solid var(--mc-navy);
-            border-radius: 3px;
-            display: inline-block;
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 14px 16px;
+            border: 1px solid var(--mc-line);
+            border-radius: 18px;
             background: #fff;
           }
 
           .mc-screen-name {
-            font-size: 15px;
+            font-size: 18px;
             line-height: 1.2;
-            font-weight: 700;
-            min-width: 0;
+            font-weight: 800;
+            color: var(--mc-navy);
           }
 
           .mc-screen-qty {
-            font-size: 13px;
-            line-height: 1.2;
+            font-size: 15px;
+            line-height: 1.25;
             color: var(--mc-muted);
             white-space: nowrap;
           }
 
-          .mc-screen-empty,
-          .mc-print-empty {
+          .mc-screen-empty {
             background: #fff;
             border: 1px solid var(--mc-line);
-            border-radius: 14px;
-            padding: 12px;
-            font-size: 14px;
+            border-radius: 18px;
+            padding: 18px;
+            font-size: 17px;
             color: var(--mc-muted);
           }
 
@@ -1422,9 +1322,9 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
             left: 0;
             right: 0;
             bottom: 0;
-            padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+            padding: 12px 12px calc(12px + env(safe-area-inset-bottom));
             background: rgba(255, 255, 255, 0.98);
-            backdrop-filter: blur(10px);
+            backdrop-filter: blur(12px);
             border-top: 1px solid var(--mc-line);
           }
 
@@ -1437,11 +1337,11 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
           }
 
           .mc-btn {
-            min-height: 46px;
-            padding: 12px 10px;
-            border-radius: 14px;
-            font-size: 15px;
-            font-weight: 800;
+            min-height: 48px;
+            padding: 14px 12px;
+            border-radius: 16px;
+            font-size: 16px;
+            font-weight: 900;
           }
 
           .mc-btn-primary {
@@ -1458,115 +1358,94 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
 
           .mc-print-sheet {
             display: none;
-            background: #fff;
             color: #111827;
-          }
-
-          .mc-print-sheet-inner {
-            padding: 0;
+            background: #fff;
           }
 
           .mc-print-header {
             background: var(--mc-navy);
             color: #fff;
-            padding: 6.5mm 7mm;
-            border-radius: 3mm;
+            padding: 12mm 12mm 9mm;
+            border-radius: 4mm;
           }
 
-          .mc-print-left {
-            grid-template-columns: 18mm minmax(0, 1fr);
-            gap: 4mm;
+          .mc-print-header-grid {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 10mm;
           }
 
-          .mc-print-avatar {
-            width: 18mm;
-            height: 18mm;
-            border-radius: 3.2mm;
-            background: rgba(255, 255, 255, 0.12);
+          .mc-print-left,
+          .mc-print-right {
+            min-width: 0;
+            flex: 1 1 0;
           }
 
-          .mc-print-title {
-            font-size: 11pt;
+          .mc-print-right {
+            text-align: right;
+          }
+
+          .mc-print-title-left,
+          .mc-print-title-right {
+            font-size: 16pt;
+            line-height: 1.1;
+            font-weight: 800;
           }
 
           .mc-print-store {
-            font-size: 9pt;
-            margin-top: 1mm;
+            margin-top: 3mm;
+            font-size: 12pt;
+            font-weight: 700;
+            line-height: 1.2;
           }
 
-          .mc-print-brand {
-            font-size: 10pt;
-          }
-
-          .mc-print-date {
-            font-size: 8.5pt;
-            margin-top: 1mm;
+          .mc-print-date,
+          .mc-print-slogan {
+            margin-top: 2.5mm;
+            font-size: 9.5pt;
+            line-height: 1.35;
           }
 
           .mc-print-list {
-            margin-top: 4mm;
-            display: grid;
-            gap: 2.4mm;
-          }
-
-          .mc-print-section {
-            border-radius: 3mm;
-          }
-
-          .mc-print-section-title {
-            padding: 2.3mm 3mm;
-            background: #EEF3FF;
-            border-bottom: 0.3mm solid #D8E2FF;
-            font-size: 8.8pt;
-            line-height: 1.1;
-            font-weight: 800;
-            color: #12245E;
-          }
-
-          .mc-print-section-body {
-            padding: 0.4mm 2.8mm;
+            margin-top: 7mm;
           }
 
           .mc-print-row {
             display: grid;
-            grid-template-columns: 4.5mm minmax(0, 1fr) auto;
-            gap: 2.5mm;
-            align-items: center;
-            padding: 1.7mm 0;
-            border-bottom: 0.25mm solid #EEF3FF;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 8mm;
+            align-items: start;
+            padding: 3.5mm 0;
+            border-bottom: 0.35mm solid #D8E2FF;
             page-break-inside: avoid;
             break-inside: avoid;
           }
 
-          .mc-print-row:last-child {
-            border-bottom: 0;
-          }
-
-          .mc-print-checkbox {
-            width: 3.2mm;
-            height: 3.2mm;
-            border-width: 0.35mm;
-            border-radius: 0.55mm;
-          }
-
           .mc-print-name {
-            font-size: 8.8pt;
-            line-height: 1.15;
+            font-size: 12pt;
+            line-height: 1.3;
             font-weight: 700;
-            min-width: 0;
+            padding-right: 4mm;
           }
 
           .mc-print-qty {
-            font-size: 8.2pt;
-            line-height: 1.1;
-            color: #4B5A8A;
+            font-size: 10.5pt;
+            line-height: 1.3;
             white-space: nowrap;
+            color: #4B5A8A;
             text-align: right;
+          }
+
+          .mc-print-empty {
+            padding: 4mm 0;
+            font-size: 11pt;
+            color: #4B5A8A;
           }
 
           @page {
             size: auto;
-            margin: 8mm;
+            margin: 12mm;
           }
 
           @media print {
@@ -1599,17 +1478,13 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
             <div class="mc-screen-header">
               <div class="mc-screen-header-grid">
                 <div class="mc-screen-left">
-                  <div class="mc-screen-avatar">
-                    <img src="${MINDERCART_AVATAR_PDF}" alt="MinderCart" />
-                  </div>
-                  <div>
-                    <div class="mc-screen-title">${title}</div>
-                    <div class="mc-screen-store">${storeLine}</div>
-                  </div>
+                  <div class="mc-screen-title">${title}</div>
+                  <div class="mc-screen-store">${escapeHtml(store)}</div>
+                  <div class="mc-screen-date">${printedOn}: ${displayDate}</div>
                 </div>
                 <div class="mc-screen-right">
-                  <div class="mc-screen-brand">MinderCart</div>
-                  <div class="mc-screen-date">${displayDate}</div>
+                  <div class="mc-screen-title">MinderCart</div>
+                  <div class="mc-screen-slogan">${slogan}</div>
                 </div>
               </div>
             </div>
@@ -1628,31 +1503,26 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
         </div>
 
         <div class="mc-print-sheet">
-          <div class="mc-print-sheet-inner">
-            <div class="mc-print-header">
-              <div class="mc-print-header-grid">
-                <div class="mc-print-left">
-                  <div class="mc-print-avatar">
-                    <img src="${MINDERCART_AVATAR_PDF}" alt="MinderCart" />
-                  </div>
-                  <div>
-                    <div class="mc-print-title">${title}</div>
-                    <div class="mc-print-store">${storeLine}</div>
-                  </div>
-                </div>
-                <div class="mc-print-right">
-                  <div class="mc-print-brand">MinderCart</div>
-                  <div class="mc-print-date">${displayDate}</div>
-                </div>
+          <div class="mc-print-header">
+            <div class="mc-print-header-grid">
+              <div class="mc-print-left">
+                <div class="mc-print-title-left">${title}</div>
+                <div class="mc-print-store">${escapeHtml(store)}</div>
+                <div class="mc-print-date">${printedOn}: ${displayDate}</div>
+              </div>
+              <div class="mc-print-right">
+                <div class="mc-print-title-right">MinderCart</div>
+                <div class="mc-print-slogan">${slogan}</div>
               </div>
             </div>
+          </div>
 
-            <div class="mc-print-list">
-              ${printBody || `<div class="mc-print-empty">${emptyLabel}</div>`}
-            </div>
+          <div class="mc-print-list">
+            ${printBody || `<div class="mc-print-empty">${emptyLabel}</div>`}
           </div>
         </div>
       </body>
     </html>
   `;
 }
+
