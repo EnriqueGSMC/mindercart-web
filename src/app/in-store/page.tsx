@@ -11,9 +11,10 @@ import {
   cardStyle,
   scalePx,
 } from "@/components/mindercart/Shell";
-import { categoryLabel, t } from "@/lib/mindercart/i18n";
+import { t } from "@/lib/mindercart/i18n";
 import {
   buildShoppingListHtmlForStore,
+  buildShoppingListTextForStore,
   closeShoppingForStore,
   groupByStore,
   readState,
@@ -359,10 +360,7 @@ export default function ShoppingPage() {
         darkHero
         subtitle={t("es", "shoppingSubtitle")}
         showCart={false}
-        footerActions={[
-          { label: t("es", "whatsApp"), disabled: true, primary: true },
-          { label: t("es", "pdf"), disabled: true },
-        ]}
+        footerActions={[]}
       >
         <section style={{ ...cardStyle(), padding: 18 }}>
           <div style={{ fontSize: s(14), color: MC_NAVY_MUTED }}>{t("es", "loading")}</div>
@@ -371,23 +369,8 @@ export default function ShoppingPage() {
     );
   }
 
-  function onWhatsAppStore() {
-    if (!selectedStoreGroup) return;
-
-    const lines = [selectedStoreGroup.store];
-
-    groupedPendingItems.forEach((group) => {
-      lines.push("", `*${categoryLabel(lang, group.category)}*`);
-
-      group.items.forEach((item) => {
-        const quantity = toSafeText(item.quantity);
-        const unit = toSafeText(item.unit);
-        const detail = [quantity, unit].filter(Boolean).join(" ").trim();
-        lines.push(detail ? `- ${item.name} ${detail}` : `- ${item.name}`);
-      });
-    });
-
-    const text = lines.join("\n").trim();
+  function onWhatsAppStore(store: string) {
+    const text = buildShoppingListTextForStore(store);
     if (!text) return;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
   }
@@ -610,7 +593,7 @@ export default function ShoppingPage() {
           fontWeight: 900,
         }}
       >
-        {categoryLabel(lang, category)}
+        {category}
       </div>
     );
   }
@@ -682,20 +665,24 @@ export default function ShoppingPage() {
       darkHero
       subtitle={t(lang, "shoppingSubtitle")}
       showCart={false}
-      footerInset={selectedStoreGroup ? 88 : 0}
-      footerActions={[
-        {
-          label: t(lang, "whatsApp"),
-          primary: true,
-          disabled: !selectedStoreGroup,
-          onClick: selectedStoreGroup ? () => onWhatsAppStore() : undefined,
-        },
-        {
-          label: t(lang, "pdf"),
-          disabled: !selectedStoreGroup,
-          onClick: selectedStoreGroup ? () => onPdfStore(selectedStoreGroup.store) : undefined,
-        },
-      ]}
+      footerInset={selectedStoreGroup ? 96 : 0}
+      footerActions={
+        selectedStoreGroup
+          ? [
+              {
+                label: t(lang, "whatsApp"),
+                primary: true,
+                disabled: false,
+                onClick: () => onWhatsAppStore(selectedStoreGroup.store),
+              },
+              {
+                label: t(lang, "pdf"),
+                disabled: false,
+                onClick: () => onPdfStore(selectedStoreGroup.store),
+              },
+            ]
+          : []
+      }
     >
       {!selectedStoreGroup ? (
         <section style={{ ...cardStyle(), padding: 14 }}>
@@ -772,10 +759,6 @@ export default function ShoppingPage() {
 
 
           <section style={{ ...cardStyle(), padding: 14 }}>
-            <div style={{ fontSize: s(15), fontWeight: 800, marginBottom: 10 }}>
-              {lang === "en" ? "To add right now" : "Para agregar ahorita"}
-            </div>
-
             {pendingItems.length === 0 ? (
               <div
                 style={{
@@ -1099,7 +1082,7 @@ export default function ShoppingPage() {
                     >
                       {OFFICIAL_CATEGORIES.map((category) => (
                         <option key={category} value={category}>
-                          {categoryLabel(lang, category)}
+                          {category}
                         </option>
                       ))}
                     </select>
