@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AppShell, QtyUnitText, cardStyle, scalePx } from "@/components/mindercart/Shell";
+import { AppShell, MC_NAVY, QtyUnitText, cardStyle, scalePx } from "@/components/mindercart/Shell";
 import { categoryLabel, t } from "@/lib/mindercart/i18n";
 import {
   addGeneralSelections,
@@ -339,9 +339,19 @@ export default function CartPage() {
         ) : (
           <div style={{ display: "grid", gap: 14 }}>
             {activeCategoryGroups.map((group) => (
-              <div key={group.category}>
-                <div style={{ fontSize: s(15), fontWeight: 800, marginBottom: 8 }}>
-                  {categoryLabel(lang, group.category)} · {group.items.length} {t(lang, "itemsLabel")}
+              <div key={group.category} style={{ display: "grid", gap: 8 }}>
+                <div
+                  style={{
+                    padding: "9px 12px",
+                    borderRadius: 12,
+                    border: `1px solid ${CHECKED_ROW_BORDER}`,
+                    background: CHECKED_ROW_BG,
+                    color: MC_NAVY,
+                    fontSize: s(13),
+                    fontWeight: 900,
+                  }}
+                >
+                  {categoryLabel(lang, group.category)}
                 </div>
 
                 <div style={{ display: "grid", gap: 10 }}>

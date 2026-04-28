@@ -397,14 +397,16 @@ export default function NeedsPage() {
         ) : (
           <div style={{ display: "grid", gap: 14 }}>
             {groupedActiveShoppingListItems.map((section) => (
-              <div key={categoryLabel(lang, section.category)} style={{ display: "grid", gap: 4 }}>
+              <div key={categoryLabel(lang, section.category)} style={{ display: "grid", gap: 8 }}>
                 <div
                   style={{
+                    padding: "9px 12px",
+                    borderRadius: 12,
+                    border: `1px solid ${MC_NAVY_LINE}`,
+                    background: MC_NAVY_SOFT,
+                    color: MC_NAVY,
                     fontSize: s(13),
                     fontWeight: 900,
-                    letterSpacing: "0.02em",
-                    textTransform: "uppercase",
-                    color: MC_NAVY,
                   }}
                 >
                   {categoryLabel(lang, section.category)}
