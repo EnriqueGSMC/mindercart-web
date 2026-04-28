@@ -30,6 +30,7 @@ type StoreDraft = {
   country: string;
   phone: string;
   notes: string;
+  preferred: boolean;
 };
 
 function emptyStoreDraft(name = ""): StoreDraft {
@@ -44,10 +45,11 @@ function emptyStoreDraft(name = ""): StoreDraft {
     country: "",
     phone: "",
     notes: "",
+    preferred: false,
   };
 }
 
-function draftFromProfile(profile: StoreProfile): StoreDraft {
+function draftFromProfile(profile: StoreProfile, preferredStore: string): StoreDraft {
   return {
     previousName: profile.name,
     name: profile.name,
@@ -59,6 +61,7 @@ function draftFromProfile(profile: StoreProfile): StoreDraft {
     country: profile.country,
     phone: profile.phone,
     notes: profile.notes,
+    preferred: profile.name.trim().toLowerCase() === preferredStore.trim().toLowerCase(),
   };
 }
 
@@ -85,26 +88,18 @@ export default function SettingsPage() {
     setStoreDraft(emptyStoreDraft(settings.preferredStore));
   }, [settings.language, settings.preferredStore, settings.fontScale]);
 
-  const filteredStoreProfiles = React.useMemo(() => {
-    const query = storeSearch.trim().toLowerCase();
-    if (!query) return storeProfiles;
+  const filteredStoreProfiles = React.useMemo(() => storeProfiles, [storeProfiles]);
 
-    return storeProfiles.filter((profile) =>
-      [
-        profile.name,
-        profile.addressLine1,
-        profile.addressLine2,
-        profile.city,
-        profile.state,
-        profile.postalCode,
-        profile.country,
-        profile.phone,
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(query)
-    );
-  }, [storeProfiles, storeSearch]);
+  const storeEditorHasContent =
+    !!storeDraft.name.trim() ||
+    !!storeDraft.addressLine1.trim() ||
+    !!storeDraft.addressLine2.trim() ||
+    !!storeDraft.city.trim() ||
+    !!storeDraft.state.trim() ||
+    !!storeDraft.postalCode.trim() ||
+    !!storeDraft.country.trim() ||
+    !!storeDraft.phone.trim() ||
+    !!storeDraft.notes.trim();
 
   const s = (px: number) => scalePx(fontScale, px);
 
@@ -133,7 +128,7 @@ export default function SettingsPage() {
   }
 
   function openExistingStore(profile: StoreProfile) {
-    setStoreDraft(draftFromProfile(profile));
+    setStoreDraft(draftFromProfile(profile, preferredStore));
     setStoreError("");
     setStoreEditorOpen(true);
   }
@@ -151,6 +146,10 @@ export default function SettingsPage() {
       return;
     }
 
+    const confirmed = window.confirm(language === "en" ? "Save store?" : "¿Guardar tienda?");
+
+    if (!confirmed) return;
+
     const next = upsertStoreProfile({
       previousName: storeDraft.previousName,
       name: storeDraft.name,
@@ -162,6 +161,7 @@ export default function SettingsPage() {
       country: storeDraft.country,
       phone: storeDraft.phone,
       notes: storeDraft.notes,
+      makePreferred: storeDraft.preferred,
     });
 
     setStoreProfiles(next.storeProfiles);
@@ -199,7 +199,7 @@ export default function SettingsPage() {
           </div>
 
           <div>
-            <div style={{ fontWeight: 900, marginBottom: 6, fontSize: s(15) }}>{t(language, "preferredStore")}</div>
+            <div style={{ fontWeight: 900, marginBottom: 6, fontSize: s(15) }}>{language === "en" ? "Stores" : "Tiendas"}</div>
             <button
               type="button"
               onClick={openStorePicker}
@@ -300,11 +300,11 @@ export default function SettingsPage() {
               }}
             >
               <div style={{ fontWeight: 900, fontSize: s(16), color: MC_NAVY }}>
-                {storeEditorOpen ? t(language, "editStore") : t(language, "preferredStore")}
+                {language === "en" ? "Stores" : "Tiendas"}
               </div>
               <button
                 type="button"
-                onClick={closeStoreModal}
+                onClick={storeEditorOpen && storeEditorHasContent ? onSaveStoreProfile : closeStoreModal}
                 style={{
                   border: `1px solid ${MC_NAVY_LINE}`,
                   background: "#fff",
@@ -315,27 +315,16 @@ export default function SettingsPage() {
                   fontSize: s(13),
                 }}
               >
-                {t(language, "close")}
+                {storeEditorOpen && storeEditorHasContent
+                  ? language === "en"
+                    ? "Save"
+                    : "Guardar"
+                  : t(language, "close")}
               </button>
             </div>
 
             {!storeEditorOpen ? (
               <div style={{ padding: 14, display: "grid", gap: 12, maxHeight: "calc(78vh - 76px)", overflowY: "auto" }}>
-                <input
-                  type="text"
-                  value={storeSearch}
-                  onChange={(e) => setStoreSearch(e.target.value)}
-                  placeholder={t(language, "searchStore")}
-                  style={{
-                    width: "100%",
-                    padding: "12px 14px",
-                    borderRadius: 14,
-                    border: `1px solid ${MC_NAVY_LINE}`,
-                    boxSizing: "border-box",
-                    fontSize: s(15),
-                  }}
-                />
-
                 <div style={{ display: "grid", gap: 10 }}>
                   {filteredStoreProfiles.length ? (
                     filteredStoreProfiles.map((profile) => (
@@ -383,7 +372,36 @@ export default function SettingsPage() {
             ) : (
               <div style={{ padding: 14, display: "grid", gap: 12, maxHeight: "calc(78vh - 76px)", overflowY: "auto" }}>
                 <div>
-                  <div style={{ fontWeight: 900, marginBottom: 6, fontSize: s(14) }}>{t(language, "storeName")}</div>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 12,
+                      marginBottom: 6,
+                    }}
+                  >
+                    <div style={{ fontWeight: 900, fontSize: s(14) }}>{t(language, "storeName")}</div>
+                    <label
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        fontSize: s(13),
+                        fontWeight: 800,
+                        color: MC_NAVY,
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={storeDraft.preferred}
+                        onChange={(e) =>
+                          setStoreDraft((prev) => ({ ...prev, preferred: e.target.checked }))
+                        }
+                      />
+                      <span>{language === "en" ? "Preferred store" : "Tienda preferida"}</span>
+                    </label>
+                  </div>
                   <input
                     type="text"
                     value={storeDraft.name}

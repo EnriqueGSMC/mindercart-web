@@ -903,6 +903,7 @@ export function upsertStoreProfile(input: {
   country: string;
   phone: string;
   notes: string;
+  makePreferred?: boolean;
 }) {
   const state = readState();
   const previousName = safe(input.previousName);
@@ -930,6 +931,10 @@ export function upsertStoreProfile(input: {
     [previousName, nextProfile.name].map((value) => normalize(value)).filter(Boolean)
   );
 
+  const shouldMakePreferred =
+    input.makePreferred === true ||
+    normalize(state.settings.preferredStore) === normalize(previousName);
+
   nextState = {
     ...nextState,
     storeProfiles: mergeStoreProfiles(
@@ -941,13 +946,13 @@ export function upsertStoreProfile(input: {
         ...nextState,
         settings: {
           ...nextState.settings,
-          preferredStore: nextProfile.name,
+          preferredStore: shouldMakePreferred ? nextProfile.name : nextState.settings.preferredStore,
         },
       })
     ),
     settings: {
       ...nextState.settings,
-      preferredStore: nextProfile.name,
+      preferredStore: shouldMakePreferred ? nextProfile.name : nextState.settings.preferredStore,
     },
   };
 
