@@ -9,6 +9,7 @@ const EMPTY_STATE: MinderCartState = {
   generalListItems: [],
   activeShoppingListItems: [],
   shoppingHistory: [],
+  storeProfiles: [],
   settings: {
     language: "es",
     preferredStore: "HEB",
