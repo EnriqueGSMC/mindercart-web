@@ -20,16 +20,7 @@ export default function HistoryPage() {
         darkHero
         subtitle={t("es", "historySubtitle")}
         showCart={false}
-        footerActions={[
-          {
-            label: t("es", "back"),
-            primary: true,
-            onClick: () => {
-              if (window.history.length > 1) router.back();
-              else router.push("/in-store");
-            },
-          },
-        ]}
+        footerActions={[]}
       >
         <section style={{ ...cardStyle(), padding: 18 }}>
           <div style={{ fontSize: s(14), color: "#6b7280" }}>{t("es", "loading")}</div>
@@ -44,16 +35,7 @@ export default function HistoryPage() {
       darkHero
       subtitle={t(lang, "historySubtitle")}
       showCart={false}
-      footerActions={[
-        {
-          label: t(lang, "back"),
-          primary: true,
-          onClick: () => {
-            if (window.history.length > 1) router.back();
-            else router.push("/in-store");
-          },
-        },
-      ]}
+      footerActions={[]}
     >
       {shoppingHistory.length === 0 ? (
         <section style={{ ...cardStyle(), padding: 18 }}>
@@ -106,23 +88,6 @@ export default function HistoryPage() {
                       ))}
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => setExpandedId(null)}
-                      style={{
-                        marginTop: 12,
-                        width: "100%",
-                        padding: "12px 14px",
-                        borderRadius: 14,
-                        border: "1px solid #ddd",
-                        background: "#fff",
-                        color: "#111",
-                        fontWeight: 900,
-                        fontSize: s(14),
-                      }}
-                    >
-                      {t(lang, "back")}
-                    </button>
                   </div>
                 ) : null}
               </section>
