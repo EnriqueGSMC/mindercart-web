@@ -74,7 +74,6 @@ export default function SettingsPage() {
   const [preferredStore, setPreferredStore] = React.useState(settings.preferredStore);
   const [fontScale, setFontScale] = React.useState<FontScale>(settings.fontScale);
   const [storeProfiles, setStoreProfiles] = React.useState<StoreProfile[]>([]);
-  const [storePickerOpen, setStorePickerOpen] = React.useState(false);
   const [storeEditorOpen, setStoreEditorOpen] = React.useState(false);
   const [storeError, setStoreError] = React.useState("");
   const [storeDraft, setStoreDraft] = React.useState<StoreDraft>(emptyStoreDraft(settings.preferredStore));
@@ -112,12 +111,6 @@ export default function SettingsPage() {
     );
   }
 
-  function openStorePicker() {
-    setStoreProfiles(listStoreProfiles());
-    setStoreError("");
-    setStorePickerOpen(true);
-    setStoreEditorOpen(false);
-  }
 
   function openNewStore() {
     setStoreDraft(emptyStoreDraft(""));
@@ -126,6 +119,8 @@ export default function SettingsPage() {
   }
 
   function onChooseStore(value: string) {
+    if (!value) return;
+
     if (value === "__add__") {
       openNewStore();
       return;
@@ -133,12 +128,10 @@ export default function SettingsPage() {
 
     setPreferredStore(value);
     setStoreError("");
-    setStorePickerOpen(false);
     setStoreEditorOpen(false);
   }
 
   function closeStoreModal() {
-    setStorePickerOpen(false);
     setStoreEditorOpen(false);
     setStoreError("");
   }
@@ -203,27 +196,51 @@ export default function SettingsPage() {
 
           <div>
             <div style={{ fontWeight: 900, marginBottom: 6, fontSize: s(15) }}>{language === "en" ? "Stores" : "Tiendas"}</div>
-            <button
-              type="button"
-              onClick={openStorePicker}
+            <div
               style={{
+                position: "relative",
                 width: "100%",
-                padding: "12px 14px",
                 borderRadius: 14,
                 border: `1px solid ${MC_NAVY_LINE}`,
                 background: "#fff",
                 boxSizing: "border-box",
-                fontSize: s(15),
-                textAlign: "left",
               }}
             >
-              <div style={{ fontWeight: 800, color: MC_NAVY }}>
-                {preferredStore || t(language, "preferredStorePlaceholder")}
+              <div
+                style={{
+                  padding: "12px 14px",
+                  fontSize: s(15),
+                  textAlign: "left",
+                }}
+              >
+                <div style={{ fontWeight: 800, color: MC_NAVY }}>
+                  {preferredStore || t(language, "preferredStorePlaceholder")}
+                </div>
+                <div style={{ marginTop: 4, fontSize: s(13), color: MC_NAVY_MUTED }}>
+                  {t(language, "choosePreferredStore")}
+                </div>
               </div>
-              <div style={{ marginTop: 4, fontSize: s(13), color: MC_NAVY_MUTED }}>
-                {t(language, "choosePreferredStore")}
-              </div>
-            </button>
+              <select
+                value={preferredStore}
+                onChange={(e) => onChooseStore(e.target.value)}
+                aria-label={language === "en" ? "Store" : "Tienda"}
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  width: "100%",
+                  height: "100%",
+                  opacity: 0,
+                  cursor: "pointer",
+                }}
+              >
+                {filteredStoreProfiles.map((profile) => (
+                  <option key={profile.id} value={profile.name}>
+                    {profile.name}
+                  </option>
+                ))}
+                <option value="__add__">{language === "en" ? "Add" : "Agregar"}</option>
+              </select>
+            </div>
           </div>
 
           <div>
@@ -268,11 +285,11 @@ export default function SettingsPage() {
         </form>
       </section>
 
-      {storePickerOpen ? (
+      {storeEditorOpen ? (
         <div
           style={{
             position: "fixed",
-            top: "calc(env(safe-area-inset-top, 0px) + 132px)",
+            top: "calc(env(safe-area-inset-top, 0px) + 144px)",
             right: 0,
             bottom: "calc(env(safe-area-inset-bottom, 0px) + 78px)",
             left: 0,
@@ -284,7 +301,7 @@ export default function SettingsPage() {
           <div
             style={{
               width: "100%",
-              maxWidth: storeEditorOpen ? 560 : 520,
+              maxWidth: 560,
               height: "100%",
               maxHeight: "100%",
               margin: "0 auto",
@@ -297,130 +314,47 @@ export default function SettingsPage() {
               boxShadow: "0 18px 50px rgba(0, 0, 0, 0.16)",
             }}
           >
-            {storeEditorOpen ? (
-              <div
-                style={{
-                  padding: 14,
-                  borderBottom: `1px solid ${MC_NAVY_LINE}`,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 12,
-                }}
-              >
-                <div style={{ fontWeight: 900, fontSize: s(16), color: MC_NAVY }}>
-                  {language === "en" ? "Stores" : "Tiendas"}
-                </div>
-                <button
-                  type="button"
-                  onClick={storeEditorHasContent ? onSaveStoreProfile : closeStoreModal}
-                  style={{
-                    border: `1px solid ${MC_NAVY_LINE}`,
-                    background: "#fff",
-                    color: MC_NAVY,
-                    borderRadius: 12,
-                    padding: "8px 12px",
-                    fontWeight: 800,
-                    fontSize: s(13),
-                  }}
-                >
-                  {storeEditorHasContent ? (language === "en" ? "Save" : "Guardar") : t(language, "close")}
-                </button>
+            <div
+              style={{
+                padding: 14,
+                borderBottom: `1px solid ${MC_NAVY_LINE}`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
+              }}
+            >
+              <div style={{ fontWeight: 900, fontSize: s(16), color: MC_NAVY }}>
+                {language === "en" ? "Stores" : "Tiendas"}
               </div>
-            ) : null}
-
-            {!storeEditorOpen ? (
-              <div
+              <button
+                type="button"
+                onClick={storeEditorHasContent ? onSaveStoreProfile : closeStoreModal}
                 style={{
-                  padding: 12,
-                  display: "grid",
-                  gap: 12,
-                  flex: 1,
-                  minHeight: 0,
-                  overflowY: "auto",
-                  WebkitOverflowScrolling: "touch",
+                  border: `1px solid ${MC_NAVY_LINE}`,
+                  background: "#fff",
+                  color: MC_NAVY,
+                  borderRadius: 12,
+                  padding: "8px 12px",
+                  fontWeight: 800,
+                  fontSize: s(13),
                 }}
               >
-                <section
-                  style={{
-                    ...cardStyle(),
-                    padding: 14,
-                    display: "grid",
-                    gap: 8,
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={closeStoreModal}
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 6,
-                      padding: 0,
-                      border: 0,
-                      background: "transparent",
-                      color: MC_NAVY,
-                      fontWeight: 900,
-                      fontSize: s(14),
-                      textAlign: "left",
-                    }}
-                  >
-                    <span>←</span>
-                    <span>{language === "en" ? "Back to Settings" : "Regresar a Configuración"}</span>
-                  </button>
+                {storeEditorHasContent ? (language === "en" ? "Save" : "Guardar") : t(language, "close")}
+              </button>
+            </div>
 
-                  <div style={{ fontWeight: 900, fontSize: s(18), color: MC_NAVY }}>
-                    {language === "en" ? "Your Stores" : "Tus Tiendas"}
-                  </div>
-
-                  <div style={{ fontSize: s(13), color: MC_NAVY_MUTED }}>
-                    {language === "en"
-                      ? "Choose your preferred store or add a new one"
-                      : "Selecciona tu tienda preferida o agrega una nueva"}
-                  </div>
-
-                  <div>
-                    <div style={{ fontWeight: 900, marginBottom: 6, fontSize: s(14), color: MC_NAVY }}>
-                      {language === "en" ? "Store" : "Tienda"}
-                    </div>
-                    <select
-                      value=""
-                      onChange={(e) => onChooseStore(e.target.value)}
-                      style={{
-                        width: "100%",
-                        padding: "12px 14px",
-                        borderRadius: 14,
-                        border: `1px solid ${MC_NAVY_LINE}`,
-                        boxSizing: "border-box",
-                        fontSize: s(15),
-                        background: "#fff",
-                      }}
-                    >
-                      <option value="" disabled>
-                        {preferredStore || (language === "en" ? "Select a store" : "Selecciona una tienda")}
-                      </option>
-                      {filteredStoreProfiles.map((profile) => (
-                        <option key={profile.id} value={profile.name}>
-                          {profile.name}
-                        </option>
-                      ))}
-                      <option value="__add__">{language === "en" ? "Add" : "Agregar"}</option>
-                    </select>
-                  </div>
-                </section>
-              </div>
-            ) : (
-              <div
-                style={{
-                  padding: 14,
-                  display: "grid",
-                  gap: 12,
-                  flex: 1,
-                  minHeight: 0,
-                  overflowY: "auto",
-                  WebkitOverflowScrolling: "touch",
-                }}
-              >
+            <div
+              style={{
+                padding: 14,
+                display: "grid",
+                gap: 12,
+                flex: 1,
+                minHeight: 0,
+                overflowY: "auto",
+                WebkitOverflowScrolling: "touch",
+              }}
+            >
                 <div>
                   <div
                     style={{
@@ -649,7 +583,6 @@ export default function SettingsPage() {
                   </button>
                 </div>
               </div>
-            )}
           </div>
         </div>
       ) : null}
