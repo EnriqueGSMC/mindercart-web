@@ -281,7 +281,7 @@ export default function SettingsPage() {
           <div
             style={{
               width: "100%",
-              maxWidth: 560,
+              maxWidth: storeEditorOpen ? 560 : 520,
               height: "100%",
               maxHeight: "100%",
               margin: "0 auto",
@@ -294,53 +294,90 @@ export default function SettingsPage() {
               boxShadow: "0 18px 50px rgba(0, 0, 0, 0.16)",
             }}
           >
-            <div
-              style={{
-                padding: 14,
-                borderBottom: `1px solid ${MC_NAVY_LINE}`,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 12,
-              }}
-            >
-              <div style={{ fontWeight: 900, fontSize: s(16), color: MC_NAVY }}>
-                {language === "en" ? "Stores" : "Tiendas"}
-              </div>
-              <button
-                type="button"
-                onClick={storeEditorOpen && storeEditorHasContent ? onSaveStoreProfile : closeStoreModal}
+            {storeEditorOpen ? (
+              <div
                 style={{
-                  border: `1px solid ${MC_NAVY_LINE}`,
-                  background: "#fff",
-                  color: MC_NAVY,
-                  borderRadius: 12,
-                  padding: "8px 12px",
-                  fontWeight: 800,
-                  fontSize: s(13),
+                  padding: 14,
+                  borderBottom: `1px solid ${MC_NAVY_LINE}`,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 12,
                 }}
               >
-                {storeEditorOpen && storeEditorHasContent
-                  ? language === "en"
-                    ? "Save"
-                    : "Guardar"
-                  : t(language, "close")}
-              </button>
-            </div>
+                <div style={{ fontWeight: 900, fontSize: s(16), color: MC_NAVY }}>
+                  {language === "en" ? "Stores" : "Tiendas"}
+                </div>
+                <button
+                  type="button"
+                  onClick={storeEditorHasContent ? onSaveStoreProfile : closeStoreModal}
+                  style={{
+                    border: `1px solid ${MC_NAVY_LINE}`,
+                    background: "#fff",
+                    color: MC_NAVY,
+                    borderRadius: 12,
+                    padding: "8px 12px",
+                    fontWeight: 800,
+                    fontSize: s(13),
+                  }}
+                >
+                  {storeEditorHasContent ? (language === "en" ? "Save" : "Guardar") : t(language, "close")}
+                </button>
+              </div>
+            ) : null}
 
             {!storeEditorOpen ? (
               <div
                 style={{
-                  padding: 14,
+                  padding: 12,
                   display: "grid",
-                  gap: 12,
+                  gap: 10,
                   flex: 1,
                   minHeight: 0,
                   overflowY: "auto",
                   WebkitOverflowScrolling: "touch",
                 }}
               >
-                <div style={{ display: "grid", gap: 10 }}>
+                <section
+                  style={{
+                    ...cardStyle(),
+                    padding: 14,
+                    display: "grid",
+                    gap: 6,
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={closeStoreModal}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: 0,
+                      border: 0,
+                      background: "transparent",
+                      color: MC_NAVY,
+                      fontWeight: 900,
+                      fontSize: s(14),
+                      textAlign: "left",
+                    }}
+                  >
+                    <span>←</span>
+                    <span>{language === "en" ? "Back to Settings" : "Regresar a Configuración"}</span>
+                  </button>
+
+                  <div style={{ fontWeight: 900, fontSize: s(18), color: MC_NAVY }}>
+                    {language === "en" ? "Your Stores" : "Tus Tiendas"}
+                  </div>
+
+                  <div style={{ fontSize: s(13), color: MC_NAVY_MUTED }}>
+                    {language === "en"
+                      ? "Select, edit or create a store"
+                      : "Selecciona, edita o da de alta una tienda"}
+                  </div>
+                </section>
+
+                <div style={{ display: "grid", gap: 8 }}>
                   {filteredStoreProfiles.length ? (
                     filteredStoreProfiles.map((profile) => (
                       <button
@@ -349,21 +386,25 @@ export default function SettingsPage() {
                         onClick={() => openExistingStore(profile)}
                         style={{
                           width: "100%",
-                          padding: "12px 14px",
-                          borderRadius: 14,
+                          padding: "10px 12px",
+                          borderRadius: 16,
                           border: `1px solid ${MC_NAVY_LINE}`,
                           background: "#fff",
                           textAlign: "left",
                         }}
                       >
                         <div style={{ fontWeight: 900, fontSize: s(15), color: MC_NAVY }}>{profile.name}</div>
-                        <div style={{ marginTop: 4, fontSize: s(13), color: MC_NAVY_MUTED }}>
-                          {[profile.addressLine1, profile.city, profile.phone].filter(Boolean).join(" • ") || " "}
-                        </div>
+                        {[profile.addressLine1, profile.city, profile.phone].filter(Boolean).length ? (
+                          <div style={{ marginTop: 3, fontSize: s(12), color: MC_NAVY_MUTED }}>
+                            {[profile.addressLine1, profile.city, profile.phone].filter(Boolean).join(" • ")}
+                          </div>
+                        ) : null}
                       </button>
                     ))
                   ) : (
-                    <div style={{ fontSize: s(14), color: MC_NAVY_MUTED }}>{t(language, "noStores")}</div>
+                    <div style={{ ...cardStyle(), padding: 14, fontSize: s(14), color: MC_NAVY_MUTED }}>
+                      {t(language, "noStores")}
+                    </div>
                   )}
                 </div>
 
@@ -372,13 +413,14 @@ export default function SettingsPage() {
                   onClick={openNewStore}
                   style={{
                     width: "100%",
-                    padding: "12px 14px",
-                    borderRadius: 14,
-                    border: `1px solid ${MC_NAVY}`,
-                    background: "#fff",
+                    padding: "14px 16px",
+                    borderRadius: 18,
+                    border: `1px solid ${MC_NAVY_LINE}`,
+                    background: "#f7f8fd",
                     color: MC_NAVY,
                     fontWeight: 900,
                     fontSize: s(15),
+                    textAlign: "left",
                   }}
                 >
                   + {t(language, "addStore")}
