@@ -76,7 +76,6 @@ export default function SettingsPage() {
   const [storeProfiles, setStoreProfiles] = React.useState<StoreProfile[]>([]);
   const [storePickerOpen, setStorePickerOpen] = React.useState(false);
   const [storeEditorOpen, setStoreEditorOpen] = React.useState(false);
-  const [storeSearch, setStoreSearch] = React.useState("");
   const [storeError, setStoreError] = React.useState("");
   const [storeDraft, setStoreDraft] = React.useState<StoreDraft>(emptyStoreDraft(settings.preferredStore));
 
@@ -115,7 +114,6 @@ export default function SettingsPage() {
 
   function openStorePicker() {
     setStoreProfiles(listStoreProfiles());
-    setStoreSearch("");
     setStoreError("");
     setStorePickerOpen(true);
     setStoreEditorOpen(false);
@@ -127,16 +125,21 @@ export default function SettingsPage() {
     setStoreEditorOpen(true);
   }
 
-  function openExistingStore(profile: StoreProfile) {
-    setStoreDraft(draftFromProfile(profile, preferredStore));
+  function onChooseStore(value: string) {
+    if (value === "__add__") {
+      openNewStore();
+      return;
+    }
+
+    setPreferredStore(value);
     setStoreError("");
-    setStoreEditorOpen(true);
+    setStorePickerOpen(false);
+    setStoreEditorOpen(false);
   }
 
   function closeStoreModal() {
     setStorePickerOpen(false);
     setStoreEditorOpen(false);
-    setStoreSearch("");
     setStoreError("");
   }
 
@@ -269,7 +272,7 @@ export default function SettingsPage() {
         <div
           style={{
             position: "fixed",
-            top: "calc(env(safe-area-inset-top, 0px) + 96px)",
+            top: "calc(env(safe-area-inset-top, 0px) + 132px)",
             right: 0,
             bottom: "calc(env(safe-area-inset-bottom, 0px) + 78px)",
             left: 0,
@@ -331,7 +334,7 @@ export default function SettingsPage() {
                 style={{
                   padding: 12,
                   display: "grid",
-                  gap: 10,
+                  gap: 12,
                   flex: 1,
                   minHeight: 0,
                   overflowY: "auto",
@@ -343,7 +346,7 @@ export default function SettingsPage() {
                     ...cardStyle(),
                     padding: 14,
                     display: "grid",
-                    gap: 6,
+                    gap: 8,
                   }}
                 >
                   <button
@@ -372,59 +375,39 @@ export default function SettingsPage() {
 
                   <div style={{ fontSize: s(13), color: MC_NAVY_MUTED }}>
                     {language === "en"
-                      ? "Select, edit or create a store"
-                      : "Selecciona, edita o da de alta una tienda"}
+                      ? "Choose your preferred store or add a new one"
+                      : "Selecciona tu tienda preferida o agrega una nueva"}
+                  </div>
+
+                  <div>
+                    <div style={{ fontWeight: 900, marginBottom: 6, fontSize: s(14), color: MC_NAVY }}>
+                      {language === "en" ? "Store" : "Tienda"}
+                    </div>
+                    <select
+                      value=""
+                      onChange={(e) => onChooseStore(e.target.value)}
+                      style={{
+                        width: "100%",
+                        padding: "12px 14px",
+                        borderRadius: 14,
+                        border: `1px solid ${MC_NAVY_LINE}`,
+                        boxSizing: "border-box",
+                        fontSize: s(15),
+                        background: "#fff",
+                      }}
+                    >
+                      <option value="" disabled>
+                        {preferredStore || (language === "en" ? "Select a store" : "Selecciona una tienda")}
+                      </option>
+                      {filteredStoreProfiles.map((profile) => (
+                        <option key={profile.id} value={profile.name}>
+                          {profile.name}
+                        </option>
+                      ))}
+                      <option value="__add__">{language === "en" ? "Add" : "Agregar"}</option>
+                    </select>
                   </div>
                 </section>
-
-                <div style={{ display: "grid", gap: 8 }}>
-                  {filteredStoreProfiles.length ? (
-                    filteredStoreProfiles.map((profile) => (
-                      <button
-                        key={profile.id}
-                        type="button"
-                        onClick={() => openExistingStore(profile)}
-                        style={{
-                          width: "100%",
-                          padding: "10px 12px",
-                          borderRadius: 16,
-                          border: `1px solid ${MC_NAVY_LINE}`,
-                          background: "#fff",
-                          textAlign: "left",
-                        }}
-                      >
-                        <div style={{ fontWeight: 900, fontSize: s(15), color: MC_NAVY }}>{profile.name}</div>
-                        {[profile.addressLine1, profile.city, profile.phone].filter(Boolean).length ? (
-                          <div style={{ marginTop: 3, fontSize: s(12), color: MC_NAVY_MUTED }}>
-                            {[profile.addressLine1, profile.city, profile.phone].filter(Boolean).join(" • ")}
-                          </div>
-                        ) : null}
-                      </button>
-                    ))
-                  ) : (
-                    <div style={{ ...cardStyle(), padding: 14, fontSize: s(14), color: MC_NAVY_MUTED }}>
-                      {t(language, "noStores")}
-                    </div>
-                  )}
-                </div>
-
-                <button
-                  type="button"
-                  onClick={openNewStore}
-                  style={{
-                    width: "100%",
-                    padding: "14px 16px",
-                    borderRadius: 18,
-                    border: `1px solid ${MC_NAVY_LINE}`,
-                    background: "#f7f8fd",
-                    color: MC_NAVY,
-                    fontWeight: 900,
-                    fontSize: s(15),
-                    textAlign: "left",
-                  }}
-                >
-                  + {t(language, "addStore")}
-                </button>
               </div>
             ) : (
               <div
