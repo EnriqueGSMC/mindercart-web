@@ -6,6 +6,7 @@ import type {
   ItemMaster,
   Language,
   MinderCartState,
+  StoreProfile,
   Suggestion,
 } from "@/lib/mindercart/types";
 
@@ -102,6 +103,122 @@ export const UNIT_OPTIONS = [
 ] as const;
 
 export const STORE_OPTIONS = ["HEB", "Costco", "Sam\'s"] as const;
+
+function emptyStoreProfile(name = ""): StoreProfile {
+  return {
+    id: uid(),
+    name: safe(name),
+    addressLine1: "",
+    addressLine2: "",
+    city: "",
+    state: "",
+    postalCode: "",
+    country: "",
+    phone: "",
+    notes: "",
+    active: true,
+    createdAt: now(),
+    updatedAt: now(),
+  };
+}
+
+function normalizeStoreProfile(input: Partial<StoreProfile> & { name?: unknown }, fallbackName = ""): StoreProfile {
+  const base = emptyStoreProfile(fallbackName);
+
+  return {
+    id: safe(input.id) || base.id,
+    name: safe(input.name) || safe(fallbackName),
+    addressLine1: safe(input.addressLine1),
+    addressLine2: safe(input.addressLine2),
+    city: safe(input.city),
+    state: safe(input.state),
+    postalCode: safe(input.postalCode),
+    country: safe(input.country),
+    phone: safe(input.phone),
+    notes: safe(input.notes),
+    active: input.active !== false,
+    createdAt: typeof input.createdAt === "number" ? input.createdAt : base.createdAt,
+    updatedAt: typeof input.updatedAt === "number" ? input.updatedAt : now(),
+  };
+}
+
+function collectKnownStoreNames(
+  source: Partial<MinderCartState> & { storeProfiles?: StoreProfile[] }
+): string[] {
+  const names = [
+    ...STORE_OPTIONS,
+    safe(source.settings?.preferredStore),
+    ...((source.storeProfiles || []).map((profile) => profile.name)),
+    ...((source.itemsMaster || []).map((item) => item.defaultStore)),
+    ...((source.generalListItems || []).map((item) => item.store)),
+    ...((source.activeShoppingListItems || []).map((item) => item.store)),
+    ...((source.shoppingHistory || []).flatMap((group) => [
+      group.store,
+      ...(Array.isArray(group.items) ? group.items.map((item) => item.store) : []),
+    ])),
+  ];
+
+  const map = new Map<string, string>();
+
+  for (const name of names) {
+    const cleaned = safe(name);
+    const key = normalize(cleaned);
+    if (!cleaned || !key || map.has(key)) continue;
+    map.set(key, cleaned);
+  }
+
+  return Array.from(map.values());
+}
+
+function mergeStoreProfiles(profiles: StoreProfile[], fallbackNames: string[]): StoreProfile[] {
+  const map = new Map<string, StoreProfile>();
+
+  for (const profile of profiles) {
+    const normalizedName = normalize(profile.name);
+    if (!normalizedName) continue;
+    map.set(normalizedName, normalizeStoreProfile(profile, profile.name));
+  }
+
+  for (const name of fallbackNames) {
+    const normalizedName = normalize(name);
+    if (!normalizedName || map.has(normalizedName)) continue;
+    map.set(normalizedName, normalizeStoreProfile({ name }, name));
+  }
+
+  return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name, "es"));
+}
+
+function renameStoreReferences(state: MinderCartState, previousName: string, nextName: string): MinderCartState {
+  const from = safe(previousName);
+  const to = safe(nextName);
+
+  if (!from || !to || normalize(from) === normalize(to)) return state;
+
+  const matchesPrevious = (value: unknown) => normalize(value) === normalize(from);
+
+  return {
+    ...state,
+    itemsMaster: state.itemsMaster.map((item) =>
+      matchesPrevious(item.defaultStore) ? { ...item, defaultStore: to } : item
+    ),
+    generalListItems: state.generalListItems.map((item) =>
+      matchesPrevious(item.store) ? { ...item, store: to } : item
+    ),
+    activeShoppingListItems: state.activeShoppingListItems.map((item) =>
+      matchesPrevious(item.store) ? { ...item, store: to } : item
+    ),
+    shoppingHistory: state.shoppingHistory.map((group) => ({
+      ...group,
+      store: matchesPrevious(group.store) ? to : group.store,
+      items: group.items.map((item) => (matchesPrevious(item.store) ? { ...item, store: to } : item)),
+    })),
+    settings: {
+      ...state.settings,
+      preferredStore: matchesPrevious(state.settings.preferredStore) ? to : state.settings.preferredStore,
+    },
+  };
+}
+
 
 const SEED_BY_ITEM_KEY = new Map(SEED_GENERAL_ITEMS.map((item) => [item.itemKey, item]));
 const SEED_BY_NAME = new Map<string, (typeof SEED_GENERAL_ITEMS)[number]>();
@@ -334,6 +451,7 @@ function defaultState(): MinderCartState {
     generalListItems: [],
     activeShoppingListItems: [],
     shoppingHistory: [],
+    storeProfiles: mergeStoreProfiles([], [...STORE_OPTIONS]),
     settings: {
       language: "es",
       preferredStore: "HEB",
@@ -364,38 +482,59 @@ export function readState(): MinderCartState {
 
     const catalogMap = new Map(itemsMasterBase.map((item) => [item.itemKey, item]));
 
+    const generalListItems = Array.isArray(parsed.generalListItems)
+      ? parsed.generalListItems.map((item) => localizeRowName(enrichTrackedRow(item), catalogMap, language))
+      : [];
+
+    const activeShoppingListItems = Array.isArray(parsed.activeShoppingListItems)
+      ? parsed.activeShoppingListItems.map((item) => localizeRowName(enrichTrackedRow(item), catalogMap, language))
+      : [];
+
+    const shoppingHistory = Array.isArray(parsed.shoppingHistory)
+      ? parsed.shoppingHistory.map((group) => ({
+          ...group,
+          items: Array.isArray(group?.items)
+            ? group.items.map((item) => localizeRowName(enrichTrackedRow(item), catalogMap, language))
+            : [],
+        }))
+      : [];
+
+    const preferredStore = safe(parsed.settings?.preferredStore) || "HEB";
+    const fontScale =
+      parsed.settings?.fontScale === "large" || parsed.settings?.fontScale === "xlarge"
+        ? parsed.settings.fontScale
+        : "normal";
+
+    const storeProfiles = mergeStoreProfiles(
+      Array.isArray((parsed as Partial<MinderCartState>).storeProfiles)
+        ? (((parsed as Partial<MinderCartState>).storeProfiles || []) as StoreProfile[])
+        : [],
+      collectKnownStoreNames({
+        itemsMaster: itemsMasterBase,
+        generalListItems,
+        activeShoppingListItems,
+        shoppingHistory,
+        settings: {
+          language,
+          preferredStore,
+          fontScale,
+        },
+      })
+    );
+
     return {
       itemsMaster: itemsMasterBase.map((item) => ({
         ...item,
         name: localizedMasterName(item, language),
       })),
-      generalListItems: Array.isArray(parsed.generalListItems)
-        ? parsed.generalListItems.map((item) =>
-            localizeRowName(enrichTrackedRow(item), catalogMap, language)
-          )
-        : [],
-      activeShoppingListItems: Array.isArray(parsed.activeShoppingListItems)
-        ? parsed.activeShoppingListItems.map((item) =>
-            localizeRowName(enrichTrackedRow(item), catalogMap, language)
-          )
-        : [],
-      shoppingHistory: Array.isArray(parsed.shoppingHistory)
-        ? parsed.shoppingHistory.map((group) => ({
-            ...group,
-            items: Array.isArray(group?.items)
-              ? group.items.map((item) =>
-                  localizeRowName(enrichTrackedRow(item), catalogMap, language)
-                )
-              : [],
-          }))
-        : [],
+      generalListItems,
+      activeShoppingListItems,
+      shoppingHistory,
+      storeProfiles,
       settings: {
         language,
-        preferredStore: safe(parsed.settings?.preferredStore) || "HEB",
-        fontScale:
-          parsed.settings?.fontScale === "large" || parsed.settings?.fontScale === "xlarge"
-            ? parsed.settings.fontScale
-            : "normal",
+        preferredStore,
+        fontScale,
       },
     };
   } catch {
@@ -732,17 +871,88 @@ export function saveSettings(input: {
   fontScale: FontScale;
 }) {
   const state = readState();
+  const preferredStore = safe(input.preferredStore) || "HEB";
+
   const next: MinderCartState = {
     ...state,
+    storeProfiles: mergeStoreProfiles(state.storeProfiles, [preferredStore]),
     settings: {
       language: input.language === "en" ? "en" : "es",
-      preferredStore: safe(input.preferredStore) || "HEB",
+      preferredStore,
       fontScale:
         input.fontScale === "large" || input.fontScale === "xlarge" ? input.fontScale : "normal",
     },
   };
+
   writeState(next);
   return next;
+}
+
+export function listStoreProfiles() {
+  return readState().storeProfiles;
+}
+
+export function upsertStoreProfile(input: {
+  previousName?: string;
+  name: string;
+  addressLine1: string;
+  addressLine2: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+  phone: string;
+  notes: string;
+}) {
+  const state = readState();
+  const previousName = safe(input.previousName);
+  const nextName = safe(input.name);
+
+  const existing = state.storeProfiles.find((profile) =>
+    normalize(profile.name) === normalize(previousName || nextName)
+  );
+
+  const nextProfile = normalizeStoreProfile(
+    {
+      ...existing,
+      ...input,
+      id: existing?.id,
+      createdAt: existing?.createdAt,
+      updatedAt: now(),
+      active: true,
+    },
+    nextName
+  );
+
+  let nextState = renameStoreReferences(state, previousName, nextProfile.name);
+
+  const previousKeys = new Set(
+    [previousName, nextProfile.name].map((value) => normalize(value)).filter(Boolean)
+  );
+
+  nextState = {
+    ...nextState,
+    storeProfiles: mergeStoreProfiles(
+      [
+        ...nextState.storeProfiles.filter((profile) => !previousKeys.has(normalize(profile.name))),
+        nextProfile,
+      ],
+      collectKnownStoreNames({
+        ...nextState,
+        settings: {
+          ...nextState.settings,
+          preferredStore: nextProfile.name,
+        },
+      })
+    ),
+    settings: {
+      ...nextState.settings,
+      preferredStore: nextProfile.name,
+    },
+  };
+
+  writeState(nextState);
+  return nextState;
 }
 
 export function buildSuggestions(query: string): Suggestion[] {
