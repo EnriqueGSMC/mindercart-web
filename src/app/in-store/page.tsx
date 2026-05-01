@@ -14,7 +14,6 @@ import {
 import { t } from "@/lib/mindercart/i18n";
 import {
   buildShoppingListHtmlForStore,
-  buildShoppingListTextForStore,
   closeShoppingForStore,
   groupByStore,
   readState,
@@ -302,13 +301,34 @@ function translateCategoryLabel(category: string, language: string) {
   return CATEGORY_LABELS_EN[normalizeCategory(category)] ?? category;
 }
 
-function translateWhatsAppCategoryLabels(text: string, language: string) {
-  if (language !== "en" || !text) return text;
+function formatWhatsAppItemLine(item: Pick<DisplayListItem, "name" | "quantity" | "unit">) {
+  const quantity = toSafeText(item.quantity);
+  const unit = toSafeText(item.unit);
+  const details = [quantity, unit].filter(Boolean).join(" ");
 
-  return OFFICIAL_CATEGORIES.reduce((currentText, category) => {
-    const translatedCategory = CATEGORY_LABELS_EN[category];
-    return currentText.split(category).join(translatedCategory);
-  }, text);
+  return details ? `- ${item.name} (${details})` : `- ${item.name}`;
+}
+
+function buildStoreWhatsAppText(
+  store: string,
+  items: Pick<DisplayListItem, "name" | "quantity" | "unit" | "category">[],
+  language: string
+) {
+  const groupedItems = groupItemsByCategory(items);
+  if (!store || groupedItems.length === 0) return store;
+
+  return [
+    store,
+    "",
+    ...groupedItems.map((group) =>
+      [
+        translateCategoryLabel(group.category, language),
+        ...group.items.map((item) => formatWhatsAppItemLine(item)),
+      ].join("\n")
+    ),
+  ]
+    .join("\n\n")
+    .trim();
 }
 
 function sideActionButtonStyle(fontSize: number): React.CSSProperties {
@@ -400,7 +420,7 @@ export default function ShoppingPage() {
   }
 
   function onWhatsAppStore(store: string) {
-    const text = translateWhatsAppCategoryLabels(buildShoppingListTextForStore(store), lang);
+    const text = buildStoreWhatsAppText(store, visibleStoreItems as DisplayListItem[], lang);
     if (!text) return;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
   }
