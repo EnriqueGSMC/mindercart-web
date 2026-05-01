@@ -14,6 +14,7 @@ import {
 import { t } from "@/lib/mindercart/i18n";
 import {
   buildShoppingListHtmlForStore,
+  buildShoppingListTextForStore,
   closeShoppingForStore,
   groupByStore,
   readState,
@@ -68,6 +69,22 @@ const OFFICIAL_CATEGORIES = [
   "Otro / Temporal",
 ] as const;
 
+const CATEGORY_LABELS_EN: Record<(typeof OFFICIAL_CATEGORIES)[number], string> = {
+  "Frutas y Verduras": "Fruits and Vegetables",
+  "Carnes, Pollo y Pescados": "Meat, Chicken and Fish",
+  "Lácteos y Refrigerados": "Dairy and Refrigerated",
+  "Panadería y Tortillería": "Bakery and Tortilla Shop",
+  Abarrotes: "Groceries",
+  Bebidas: "Beverages",
+  Congelados: "Frozen Foods",
+  "Limpieza y Hogar": "Cleaning and Home",
+  "Farmacia, Bebé y Cuidado Personal": "Pharmacy, Baby and Personal Care",
+  Mascotas: "Pets",
+  "Cajas y Salida": "Checkout",
+  "Otro / Temporal": "Other / Temporary",
+};
+
+
 const OFFICIAL_UNITS = [
   "pza",
   "paquete",
@@ -117,27 +134,6 @@ function openPdf(html: string) {
   const blob = new Blob([html], { type: "text/html" });
   const url = URL.createObjectURL(blob);
   window.open(url, "_blank");
-}
-function formatWhatsAppItemLine(item: DisplayListItem) {
-  const quantity = toSafeText(item.quantity);
-  const unit = toSafeText(item.unit);
-  const qtyUnit = [quantity, unit].filter(Boolean).join(" ").trim();
-
-  return qtyUnit ? `• ${item.name} — ${qtyUnit}` : `• ${item.name}`;
-}
-
-function buildStoreWhatsAppText(store: string, items: DisplayListItem[]) {
-  const groupedItems = groupItemsByCategory(items);
-  if (groupedItems.length === 0) return store;
-
-  return [
-    store,
-    ...groupedItems.flatMap((group) => [
-      "",
-      group.category,
-      ...group.items.map((item) => formatWhatsAppItemLine(item)),
-    ]),
-  ].join("\n");
 }
 
 function normalizeValue(value: unknown) {
@@ -301,6 +297,20 @@ function groupItemsByCategory<T extends { name?: unknown; category?: unknown }>(
   })).filter((group) => group.items.length > 0);
 }
 
+function translateCategoryLabel(category: string, language: string) {
+  if (language !== "en") return category;
+  return CATEGORY_LABELS_EN[normalizeCategory(category)] ?? category;
+}
+
+function translateWhatsAppCategoryLabels(text: string, language: string) {
+  if (language !== "en" || !text) return text;
+
+  return OFFICIAL_CATEGORIES.reduce((currentText, category) => {
+    const translatedCategory = CATEGORY_LABELS_EN[category];
+    return currentText.split(category).join(translatedCategory);
+  }, text);
+}
+
 function sideActionButtonStyle(fontSize: number): React.CSSProperties {
   return {
     padding: "8px 12px",
@@ -390,7 +400,7 @@ export default function ShoppingPage() {
   }
 
   function onWhatsAppStore(store: string) {
-    const text = buildStoreWhatsAppText(store, visibleStoreItems as DisplayListItem[]);
+    const text = translateWhatsAppCategoryLabels(buildShoppingListTextForStore(store), lang);
     if (!text) return;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
   }
@@ -613,7 +623,7 @@ export default function ShoppingPage() {
           fontWeight: 900,
         }}
       >
-        {category}
+        {translateCategoryLabel(category, lang)}
       </div>
     );
   }
@@ -685,7 +695,7 @@ export default function ShoppingPage() {
       darkHero
       subtitle={t(lang, "shoppingSubtitle")}
       showCart={false}
-      footerInset={selectedStoreGroup ? 88 : 0}
+      footerInset={selectedStoreGroup ? 96 : 0}
       footerActions={
         selectedStoreGroup
           ? [
