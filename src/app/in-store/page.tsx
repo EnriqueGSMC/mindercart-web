@@ -317,18 +317,16 @@ function buildStoreWhatsAppText(
   const groupedItems = groupItemsByCategory(items);
   if (!store || groupedItems.length === 0) return store;
 
-  return [
-    store,
-    "",
-    ...groupedItems.map((group) =>
+  const groupedText = groupedItems
+    .map((group) =>
       [
         translateCategoryLabel(group.category, language),
         ...group.items.map((item) => formatWhatsAppItemLine(item)),
       ].join("\n")
-    ),
-  ]
-    .join("\n\n")
-    .trim();
+    )
+    .join("\n\n");
+
+  return `${store}\n\n${groupedText}`.trim();
 }
 
 function sideActionButtonStyle(fontSize: number): React.CSSProperties {
@@ -715,7 +713,7 @@ export default function ShoppingPage() {
       darkHero
       subtitle={t(lang, "shoppingSubtitle")}
       showCart={false}
-      footerInset={selectedStoreGroup ? 96 : 0}
+      footerInset={selectedStoreGroup ? 88 : 0}
       footerActions={
         selectedStoreGroup
           ? [
