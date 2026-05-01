@@ -14,7 +14,6 @@ import {
 import { t } from "@/lib/mindercart/i18n";
 import {
   buildShoppingListHtmlForStore,
-  buildShoppingListTextForStore,
   closeShoppingForStore,
   groupByStore,
   readState,
@@ -281,6 +280,28 @@ function groupItemsByCategory<T extends { name?: unknown; category?: unknown }>(
   })).filter((group) => group.items.length > 0);
 }
 
+function formatWhatsAppItemLine(item: DisplayListItem) {
+  const quantity = toSafeText(item.quantity);
+  const unit = toSafeText(item.unit);
+  const qtyUnit = [quantity, unit].filter(Boolean).join(" ").trim();
+
+  return qtyUnit ? `• ${item.name} — ${qtyUnit}` : `• ${item.name}`;
+}
+
+function buildStoreWhatsAppText(store: string, items: DisplayListItem[]) {
+  const groupedItems = groupItemsByCategory(items);
+  if (groupedItems.length === 0) return store;
+
+  return [
+    store,
+    ...groupedItems.flatMap((group) => [
+      "",
+      group.category,
+      ...group.items.map((item) => formatWhatsAppItemLine(item)),
+    ]),
+  ].join("\n");
+}
+
 function sideActionButtonStyle(fontSize: number): React.CSSProperties {
   return {
     padding: "8px 12px",
@@ -370,7 +391,7 @@ export default function ShoppingPage() {
   }
 
   function onWhatsAppStore(store: string) {
-    const text = buildShoppingListTextForStore(store);
+    const text = buildStoreWhatsAppText(store, visibleStoreItems as DisplayListItem[]);
     if (!text) return;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
   }
@@ -665,7 +686,7 @@ export default function ShoppingPage() {
       darkHero
       subtitle={t(lang, "shoppingSubtitle")}
       showCart={false}
-      footerInset={selectedStoreGroup ? 96 : 0}
+      footerInset={selectedStoreGroup ? 132 : 0}
       footerActions={
         selectedStoreGroup
           ? [
