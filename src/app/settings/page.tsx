@@ -77,6 +77,7 @@ export default function SettingsPage() {
   const [storeEditorOpen, setStoreEditorOpen] = React.useState(false);
   const [storeError, setStoreError] = React.useState("");
   const [storeDraft, setStoreDraft] = React.useState<StoreDraft>(emptyStoreDraft(settings.preferredStore));
+  const storeEditorScrollRef = React.useRef<HTMLDivElement | null>(null);
 
   React.useEffect(() => {
     setLanguage(settings.language);
@@ -111,6 +112,12 @@ export default function SettingsPage() {
     );
   }
 
+
+  function keepStoreFieldVisible(target: HTMLInputElement | HTMLTextAreaElement) {
+    window.setTimeout(() => {
+      target.scrollIntoView({ block: "center", behavior: "smooth" });
+    }, 180);
+  }
 
   function openNewStore() {
     setStoreDraft(emptyStoreDraft(""));
@@ -345,14 +352,19 @@ export default function SettingsPage() {
             </div>
 
             <div
+              ref={storeEditorScrollRef}
               style={{
                 padding: 14,
+                paddingBottom: "max(28px, env(safe-area-inset-bottom, 0px) + 12px)",
                 display: "grid",
                 gap: 12,
                 flex: 1,
                 minHeight: 0,
                 overflowY: "auto",
                 WebkitOverflowScrolling: "touch",
+                overscrollBehavior: "contain",
+                scrollPaddingTop: 96,
+                scrollPaddingBottom: 160,
               }}
             >
                 <div>
@@ -390,6 +402,7 @@ export default function SettingsPage() {
                     type="text"
                     value={storeDraft.name}
                     onChange={(e) => setStoreDraft((prev) => ({ ...prev, name: e.target.value }))}
+                    onFocus={(e) => keepStoreFieldVisible(e.target)}
                     style={{
                       width: "100%",
                       padding: "12px 14px",
@@ -407,6 +420,7 @@ export default function SettingsPage() {
                     type="text"
                     value={storeDraft.addressLine1}
                     onChange={(e) => setStoreDraft((prev) => ({ ...prev, addressLine1: e.target.value }))}
+                    onFocus={(e) => keepStoreFieldVisible(e.target)}
                     style={{
                       width: "100%",
                       padding: "12px 14px",
@@ -424,6 +438,7 @@ export default function SettingsPage() {
                     type="text"
                     value={storeDraft.addressLine2}
                     onChange={(e) => setStoreDraft((prev) => ({ ...prev, addressLine2: e.target.value }))}
+                    onFocus={(e) => keepStoreFieldVisible(e.target)}
                     style={{
                       width: "100%",
                       padding: "12px 14px",
@@ -442,6 +457,7 @@ export default function SettingsPage() {
                       type="text"
                       value={storeDraft.city}
                       onChange={(e) => setStoreDraft((prev) => ({ ...prev, city: e.target.value }))}
+                      onFocus={(e) => keepStoreFieldVisible(e.target)}
                       style={{
                         width: "100%",
                         padding: "12px 14px",
@@ -459,6 +475,7 @@ export default function SettingsPage() {
                       type="text"
                       value={storeDraft.state}
                       onChange={(e) => setStoreDraft((prev) => ({ ...prev, state: e.target.value }))}
+                      onFocus={(e) => keepStoreFieldVisible(e.target)}
                       style={{
                         width: "100%",
                         padding: "12px 14px",
@@ -476,6 +493,7 @@ export default function SettingsPage() {
                       type="text"
                       value={storeDraft.postalCode}
                       onChange={(e) => setStoreDraft((prev) => ({ ...prev, postalCode: e.target.value }))}
+                      onFocus={(e) => keepStoreFieldVisible(e.target)}
                       style={{
                         width: "100%",
                         padding: "12px 14px",
@@ -493,6 +511,7 @@ export default function SettingsPage() {
                       type="text"
                       value={storeDraft.country}
                       onChange={(e) => setStoreDraft((prev) => ({ ...prev, country: e.target.value }))}
+                      onFocus={(e) => keepStoreFieldVisible(e.target)}
                       style={{
                         width: "100%",
                         padding: "12px 14px",
@@ -510,6 +529,7 @@ export default function SettingsPage() {
                       type="text"
                       value={storeDraft.phone}
                       onChange={(e) => setStoreDraft((prev) => ({ ...prev, phone: e.target.value }))}
+                      onFocus={(e) => keepStoreFieldVisible(e.target)}
                       style={{
                         width: "100%",
                         padding: "12px 14px",
@@ -526,6 +546,7 @@ export default function SettingsPage() {
                     <textarea
                       value={storeDraft.notes}
                       onChange={(e) => setStoreDraft((prev) => ({ ...prev, notes: e.target.value }))}
+                      onFocus={(e) => keepStoreFieldVisible(e.target)}
                       rows={3}
                       style={{
                         width: "100%",
