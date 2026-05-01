@@ -14,7 +14,6 @@ import {
 import { t } from "@/lib/mindercart/i18n";
 import {
   buildShoppingListHtmlForStore,
-  buildShoppingListTextForStore,
   closeShoppingForStore,
   groupByStore,
   readState,
@@ -118,6 +117,27 @@ function openPdf(html: string) {
   const blob = new Blob([html], { type: "text/html" });
   const url = URL.createObjectURL(blob);
   window.open(url, "_blank");
+}
+function formatWhatsAppItemLine(item: DisplayListItem) {
+  const quantity = toSafeText(item.quantity);
+  const unit = toSafeText(item.unit);
+  const qtyUnit = [quantity, unit].filter(Boolean).join(" ").trim();
+
+  return qtyUnit ? `• ${item.name} — ${qtyUnit}` : `• ${item.name}`;
+}
+
+function buildStoreWhatsAppText(store: string, items: DisplayListItem[]) {
+  const groupedItems = groupItemsByCategory(items);
+  if (groupedItems.length === 0) return store;
+
+  return [
+    store,
+    ...groupedItems.flatMap((group) => [
+      "",
+      group.category,
+      ...group.items.map((item) => formatWhatsAppItemLine(item)),
+    ]),
+  ].join("\n");
 }
 
 function normalizeValue(value: unknown) {
@@ -370,7 +390,7 @@ export default function ShoppingPage() {
   }
 
   function onWhatsAppStore(store: string) {
-    const text = buildShoppingListTextForStore(store);
+    const text = buildStoreWhatsAppText(store, visibleStoreItems as DisplayListItem[]);
     if (!text) return;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
   }
