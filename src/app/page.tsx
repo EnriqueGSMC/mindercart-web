@@ -247,8 +247,11 @@ export default function NeedsPage() {
   const savedListMode = searchParams.get("saved-list-mode");
   const isNewSavedListView = savedListMode === "new";
   const isEditSavedListView = savedListMode === "edit";
+  const isViewSavedListView = savedListMode === "view";
   const isSavedListEditorView = isSavedListsView && (isNewSavedListView || isEditSavedListView);
   const editingSavedListId = String(searchParams.get("saved-list-id") ?? "");
+  const viewingSavedListId = String(searchParams.get("saved-list-id") ?? "");
+  const viewingSavedListCategory = String(searchParams.get("saved-list-category") ?? "");
 
   const addArticleLabel = lang === "en" ? "Add item" : "Agregar artículo";
   const addArticleModalHelp =
@@ -271,6 +274,7 @@ export default function NeedsPage() {
   const [savedListsMessage, setSavedListsMessage] = React.useState("");
   const searchInputRef = React.useRef<HTMLInputElement | null>(null);
   const [isNewSavedListConfirmed, setIsNewSavedListConfirmed] = React.useState(false);
+  const [selectedSavedListViewItemIds, setSelectedSavedListViewItemIds] = React.useState<string[]>([]);
 
   React.useEffect(() => {
     if (!hydrated) return;
@@ -358,6 +362,44 @@ export default function NeedsPage() {
     () => groupItemsByCategory(savedListItemsDraft),
     [savedListItemsDraft]
   );
+
+  const activeShoppingListKeySet = React.useMemo(
+    () => new Set(activeShoppingListItems.map((item) => normalizeItemKey(item.name, item.category))),
+    [activeShoppingListItems]
+  );
+
+  const viewingSavedList = React.useMemo(
+    () => savedLists.find((entry) => entry.id === viewingSavedListId) ?? null,
+    [savedLists, viewingSavedListId]
+  );
+
+  const groupedViewingSavedListItems = React.useMemo(
+    () => groupItemsByCategory(viewingSavedList?.items ?? []),
+    [viewingSavedList]
+  );
+
+  const viewingSavedListSection = React.useMemo(
+    () => groupedViewingSavedListItems.find((section) => section.category === viewingSavedListCategory) ?? null,
+    [groupedViewingSavedListItems, viewingSavedListCategory]
+  );
+
+  React.useEffect(() => {
+    if (!isViewSavedListView) {
+      setSelectedSavedListViewItemIds([]);
+      return;
+    }
+
+    if (!viewingSavedList) {
+      setSelectedSavedListViewItemIds([]);
+      return;
+    }
+
+    setSelectedSavedListViewItemIds(
+      viewingSavedList.items
+        .filter((item) => activeShoppingListKeySet.has(normalizeItemKey(item.name, item.category)))
+        .map((item) => item.id)
+    );
+  }, [isViewSavedListView, viewingSavedList, activeShoppingListKeySet]);
 
   function resetInput() {
     setName("");
@@ -457,6 +499,56 @@ export default function NeedsPage() {
     const next = savedLists.filter((entry) => entry.id !== savedListId);
     persistSavedLists(next);
     setSavedListsMessage(lang === "en" ? "Saved list deleted." : "Lista guardada eliminada.");
+  }
+
+  function isSavedListItemAlreadyInMyList(item: SavedListDraftItem) {
+    return activeShoppingListKeySet.has(normalizeItemKey(item.name, item.category));
+  }
+
+  function toggleSavedListViewItem(item: SavedListDraftItem) {
+    if (isSavedListItemAlreadyInMyList(item)) return;
+
+    setSelectedSavedListViewItemIds((prev) =>
+      prev.includes(item.id) ? prev.filter((entry) => entry !== item.id) : [...prev, item.id]
+    );
+  }
+
+  function applySelectedSavedListItemsToMyList() {
+    if (!viewingSavedList) return;
+
+    const selectedItems = viewingSavedList.items.filter(
+      (item) => selectedSavedListViewItemIds.includes(item.id) && !isSavedListItemAlreadyInMyList(item)
+    );
+
+    if (selectedItems.length === 0) {
+      setSavedListsMessage(lang === "en" ? "There are no new items to add." : "No hay artículos nuevos por agregar.");
+      return;
+    }
+
+    try {
+      selectedItems.forEach((item) => {
+        addQuickNeed({
+          name: item.name,
+          category: item.category,
+          unit: item.unit,
+          quantity: item.quantity,
+          store: item.store,
+        });
+      });
+
+      setSavedListsMessage(
+        lang === "en"
+          ? `${selectedItems.length} item${selectedItems.length === 1 ? "" : "s"} added to My List.`
+          : `${selectedItems.length} artículo${selectedItems.length === 1 ? "" : "s"} agregado${selectedItems.length === 1 ? "" : "s"} a Mi Lista.`
+      );
+
+      setSelectedSavedListViewItemIds((prev) =>
+        prev.filter((itemId) => !selectedItems.some((item) => item.id === itemId))
+      );
+      router.refresh();
+    } catch (e: unknown) {
+      setSavedListsMessage(`⚠ ${String((e as { message?: string })?.message || e)}`);
+    }
   }
 
   function beginNewSavedListFlow() {
@@ -564,258 +656,6 @@ export default function NeedsPage() {
     }
   }
 
-
-  function renderDraftEditor(asModal: boolean) {
-    if (!draft) return null;
-
-    const content = (
-      <section
-        style={
-          asModal
-            ? modalCardStyle
-            : {
-                ...cardStyle(),
-                padding: 14,
-              }
-        }
-        onClick={asModal ? (e) => e.stopPropagation() : undefined}
-      >
-        <div style={{ fontSize: s(21), fontWeight: 900 }}>{draft.name}</div>
-        <div style={{ marginTop: 4, fontSize: s(13), color: MC_NAVY_MUTED }}>{addArticleModalHelp}</div>
-
-        <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
-          <div>
-            <div style={{ fontSize: s(12), fontWeight: 700, marginBottom: 5 }}>{t(lang, "category")}</div>
-            <select
-              value={draft.category}
-              onChange={(e) => updateDraftField("category", e.target.value)}
-              style={{
-                width: "100%",
-                padding: "12px 14px",
-                borderRadius: 14,
-                border: `1px solid ${MC_NAVY_LINE}`,
-                boxSizing: "border-box",
-                fontSize: s(15),
-                background: "#fff",
-              }}
-            >
-              {draftSelectOptions.categories.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <div style={{ fontSize: s(12), fontWeight: 700, marginBottom: 5 }}>{t(lang, "unit")}</div>
-            <select
-              value={draft.unit}
-              onChange={(e) => updateDraftField("unit", e.target.value)}
-              style={{
-                width: "100%",
-                padding: "12px 14px",
-                borderRadius: 14,
-                border: `1px solid ${MC_NAVY_LINE}`,
-                boxSizing: "border-box",
-                fontSize: s(15),
-                background: "#fff",
-              }}
-            >
-              {draftSelectOptions.units.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <div style={{ fontSize: s(12), fontWeight: 700, marginBottom: 5 }}>{t(lang, "quantity")}</div>
-            <input
-              value={draft.quantity}
-              inputMode="numeric"
-              onChange={(e) => updateDraftField("quantity", e.target.value)}
-              style={{
-                width: "100%",
-                padding: "12px 14px",
-                borderRadius: 14,
-                border: `1px solid ${MC_NAVY_LINE}`,
-                boxSizing: "border-box",
-                fontSize: s(15),
-              }}
-            />
-          </div>
-
-          <div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 10,
-                marginBottom: 5,
-              }}
-            >
-              <div style={{ fontSize: s(12), fontWeight: 700 }}>{t(lang, "store")}</div>
-            </div>
-
-            <select
-              value={draft.store}
-              onChange={(e) => {
-                const value = e.target.value;
-                if (value === ADD_STORE_VALUE) {
-                  openAddStore();
-                  return;
-                }
-                closeAddStore();
-                updateDraftField("store", value);
-              }}
-              style={{
-                width: "100%",
-                padding: "12px 14px",
-                borderRadius: 14,
-                border: `1px solid ${MC_NAVY_LINE}`,
-                boxSizing: "border-box",
-                fontSize: s(15),
-                background: "#fff",
-              }}
-            >
-              {draftSelectOptions.stores.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-              <option value={ADD_STORE_VALUE}>{lang === "en" ? "Add" : "Agregar"}</option>
-            </select>
-          </div>
-        </div>
-
-        <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-          <button
-            type="button"
-            onClick={closeDraft}
-            style={{
-              flex: 1,
-              padding: "13px 14px",
-              borderRadius: 14,
-              border: `1px solid ${MC_NAVY_LINE}`,
-              background: "#fff",
-              fontWeight: 800,
-              fontSize: s(14),
-            }}
-          >
-            {t(lang, "back")}
-          </button>
-          <button
-            type="button"
-            onClick={confirmDraft}
-            style={{
-              flex: 1,
-              padding: "13px 14px",
-              borderRadius: 14,
-              border: `1px solid ${MC_NAVY}`,
-              background: MC_NAVY,
-              color: "#fff",
-              fontWeight: 900,
-              fontSize: s(14),
-            }}
-          >
-            {t(lang, "add")}
-          </button>
-        </div>
-
-        {addingStore ? (
-          <div
-            style={{
-              ...modalOverlayStyle,
-              zIndex: 140,
-              background: "rgba(17,24,39,0.22)",
-            }}
-            onClick={closeAddStore}
-          >
-            <section
-              style={{
-                ...modalCardStyle,
-                width: "min(420px, 100%)",
-                padding: 14,
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div style={{ fontSize: s(20), fontWeight: 900 }}>
-                {lang === "en" ? "New store" : "Nueva tienda"}
-              </div>
-              <div style={{ marginTop: 4, fontSize: s(13), color: MC_NAVY_MUTED }}>
-                {lang === "en" ? "Add the store for this item." : "Agrega la tienda para este artículo."}
-              </div>
-
-              <input
-                autoFocus
-                value={newStoreName}
-                onChange={(e) => setNewStoreName(e.target.value)}
-                placeholder={lang === "en" ? "New store" : "Nueva tienda"}
-                style={{
-                  width: "100%",
-                  marginTop: 14,
-                  padding: "12px 14px",
-                  borderRadius: 12,
-                  border: `1px solid ${MC_NAVY_LINE}`,
-                  boxSizing: "border-box",
-                  fontSize: s(15),
-                  background: "#fff",
-                }}
-              />
-
-              <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-                <button
-                  type="button"
-                  onClick={closeAddStore}
-                  style={{
-                    flex: 1,
-                    padding: "12px 12px",
-                    borderRadius: 12,
-                    border: `1px solid ${MC_NAVY_LINE}`,
-                    background: "#fff",
-                    fontWeight: 800,
-                    fontSize: s(14),
-                  }}
-                >
-                  {t(lang, "back")}
-                </button>
-                <button
-                  type="button"
-                  onClick={saveNewStore}
-                  style={{
-                    flex: 1,
-                    padding: "12px 12px",
-                    borderRadius: 12,
-                    border: `1px solid ${MC_NAVY}`,
-                    background: MC_NAVY,
-                    color: "#fff",
-                    fontWeight: 900,
-                    fontSize: s(14),
-                  }}
-                >
-                  {lang === "en" ? "Save" : "Guardar"}
-                </button>
-              </div>
-            </section>
-          </div>
-        ) : null}
-      </section>
-    );
-
-    if (asModal) {
-      return (
-        <div style={modalOverlayStyle} onClick={closeDraft}>
-          {content}
-        </div>
-      );
-    }
-
-    return content;
-  }
-
   if (!hydrated) {
     return (
       <AppShell title={t("es", "myListTitle")} darkHero subtitle={t("es", "myListSubtitle")}>
@@ -850,6 +690,12 @@ export default function NeedsPage() {
     const noDraftItemsLabel = lang === "en" ? "No items in this list yet." : "Aún no hay artículos en esta lista.";
     const editLabel = lang === "en" ? "Edit" : "Editar";
     const deleteLabel = lang === "en" ? "Delete" : "Borrar";
+    const openLabel = lang === "en" ? "Open" : "Abrir";
+    const addSelectedLabel = lang === "en" ? "Add selected to My List" : "Agregar seleccionados a Mi Lista";
+    const useListSubtitle =
+      lang === "en"
+        ? "Review this saved list by category and mark what is still missing."
+        : "Revisa esta lista guardada por categoría y marca lo que todavía te hace falta.";
     const itemsCountLabel = (count: number) =>
       lang === "en" ? `${count} item${count === 1 ? "" : "s"}` : `${count} artículo${count === 1 ? "" : "s"}`;
 
@@ -961,98 +807,94 @@ export default function NeedsPage() {
 
             {isNewSavedListView && !isNewSavedListConfirmed ? null : (
             <>
-            {draft ? (
-              renderDraftEditor(false)
-            ) : (
-              <section style={{ ...cardStyle(), padding: 14 }}>
-                <div style={{ display: "grid", gap: 12 }}>
-                  <div style={{ fontSize: s(16), fontWeight: 700 }}>{t(lang, "item")}</div>
+            <section style={{ ...cardStyle(), padding: 14 }}>
+              <div style={{ display: "grid", gap: 12 }}>
+                <div style={{ fontSize: s(16), fontWeight: 700 }}>{t(lang, "item")}</div>
 
-                  <input
-                    ref={searchInputRef}
-                    value={name}
-                    onChange={(e) => {
-                      setName(e.target.value);
-                      setMessage("");
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && canOpenCustomDraft) {
-                        e.preventDefault();
-                        openCustomDraft();
-                      }
-                    }}
-                    placeholder={itemPlaceholder}
+                <input
+                  ref={searchInputRef}
+                  value={name}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    setMessage("");
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && canOpenCustomDraft) {
+                      e.preventDefault();
+                      openCustomDraft();
+                    }
+                  }}
+                  placeholder={itemPlaceholder}
+                  style={{
+                    width: "100%",
+                    padding: "16px 18px",
+                    borderRadius: 18,
+                    border: `1px solid ${MC_NAVY_LINE}`,
+                    fontSize: s(18),
+                    boxSizing: "border-box",
+                  }}
+                />
+
+                {showSuggestions ? (
+                  <div
                     style={{
-                      width: "100%",
-                      padding: "16px 18px",
-                      borderRadius: 18,
                       border: `1px solid ${MC_NAVY_LINE}`,
-                      fontSize: s(18),
-                      boxSizing: "border-box",
+                      borderRadius: 18,
+                      overflow: "hidden",
+                      background: "#fff",
                     }}
-                  />
-
-                  {showSuggestions ? (
-                    <div
-                      style={{
-                        border: `1px solid ${MC_NAVY_LINE}`,
-                        borderRadius: 18,
-                        overflow: "hidden",
-                        background: "#fff",
-                      }}
-                    >
-                      {suggestions.map((row, index) => (
-                        <button
-                          key={`${row.source}_${row.id}`}
-                          type="button"
-                          onClick={() => applySuggestion(row)}
-                          style={{
-                            width: "100%",
-                            textAlign: "left",
-                            padding: "14px 16px",
-                            border: 0,
-                            borderBottom: index === suggestions.length - 1 ? "none" : `1px solid ${MC_NAVY_SOFT}`,
-                            background: "#fff",
-                            cursor: "pointer",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            gap: 10,
-                          }}
-                        >
-                          <div style={{ fontSize: s(17), fontWeight: 500 }}>{row.name}</div>
-                          <div style={{ fontSize: s(14), color: MC_NAVY_MUTED, whiteSpace: "nowrap" }}>{row.store}</div>
-                        </button>
-                      ))}
-                    </div>
-                  ) : null}
-
-                  {canOpenCustomDraft ? (
-                    <div style={{ display: "grid", gap: 10 }}>
+                  >
+                    {suggestions.map((row, index) => (
                       <button
+                        key={`${row.source}_${row.id}`}
                         type="button"
-                        onClick={openCustomDraft}
+                        onClick={() => applySuggestion(row)}
                         style={{
                           width: "100%",
+                          textAlign: "left",
                           padding: "14px 16px",
-                          borderRadius: 16,
-                          border: `1px solid ${MC_NAVY}`,
-                          background: MC_NAVY,
-                          color: "#fff",
-                          fontWeight: 900,
-                          fontSize: s(15),
+                          border: 0,
+                          borderBottom: index === suggestions.length - 1 ? "none" : `1px solid ${MC_NAVY_SOFT}`,
+                          background: "#fff",
                           cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: 10,
                         }}
                       >
-                        {addArticleLabel}
+                        <div style={{ fontSize: s(17), fontWeight: 500 }}>{row.name}</div>
+                        <div style={{ fontSize: s(14), color: MC_NAVY_MUTED, whiteSpace: "nowrap" }}>{row.store}</div>
                       </button>
-                    </div>
-                  ) : null}
+                    ))}
+                  </div>
+                ) : null}
 
-                  {message ? <div style={{ fontSize: s(14), color: MC_NAVY }}>{message}</div> : null}
-                </div>
-              </section>
-            )}
+                {canOpenCustomDraft ? (
+                  <div style={{ display: "grid", gap: 10 }}>
+                    <button
+                      type="button"
+                      onClick={openCustomDraft}
+                      style={{
+                        width: "100%",
+                        padding: "14px 16px",
+                        borderRadius: 16,
+                        border: `1px solid ${MC_NAVY}`,
+                        background: MC_NAVY,
+                        color: "#fff",
+                        fontWeight: 900,
+                        fontSize: s(15),
+                        cursor: "pointer",
+                      }}
+                    >
+                      {addArticleLabel}
+                    </button>
+                  </div>
+                ) : null}
+
+                {message ? <div style={{ fontSize: s(14), color: MC_NAVY }}>{message}</div> : null}
+              </div>
+            </section>
 
             <section style={{ ...cardStyle(), padding: 14 }}>
               <div style={{ fontSize: s(16), fontWeight: 800, marginBottom: 10 }}>{savedItemsTitle}</div>
@@ -1129,6 +971,204 @@ export default function NeedsPage() {
               )}
             </section>
             </>
+            )}
+          </>
+        ) : isViewSavedListView && viewingSavedList ? (
+          <>
+            <section style={{ ...cardStyle(), padding: 14 }}>
+              <Link
+                href="/?view=saved-lists"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  color: MC_NAVY,
+                  fontSize: s(14),
+                  fontWeight: 800,
+                  textDecoration: "none",
+                }}
+              >
+                {backToSavedListsLabel}
+              </Link>
+
+              <div
+                style={{
+                  marginTop: 12,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 10,
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: s(18), fontWeight: 900, color: MC_NAVY }}>{viewingSavedList.name}</div>
+                  <div style={{ marginTop: 4, fontSize: s(13), color: MC_NAVY_MUTED }}>{useListSubtitle}</div>
+                </div>
+
+                <Link
+                  href={`/?view=saved-lists&saved-list-mode=edit&saved-list-id=${encodeURIComponent(viewingSavedList.id)}`}
+                  style={{
+                    padding: "10px 14px",
+                    borderRadius: 14,
+                    border: `1px solid ${MC_NAVY}`,
+                    background: "#fff",
+                    color: MC_NAVY,
+                    fontWeight: 900,
+                    fontSize: s(14),
+                    textDecoration: "none",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {editLabel}
+                </Link>
+              </div>
+
+              {savedListsMessage ? (
+                <div style={{ marginTop: 10, fontSize: s(14), color: MC_NAVY }}>{savedListsMessage}</div>
+              ) : null}
+            </section>
+
+            {viewingSavedListSection ? (
+              <section style={{ ...cardStyle(), padding: 14 }}>
+                <Link
+                  href={`/?view=saved-lists&saved-list-mode=view&saved-list-id=${encodeURIComponent(viewingSavedList.id)}`}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    color: MC_NAVY,
+                    fontSize: s(14),
+                    fontWeight: 800,
+                    textDecoration: "none",
+                  }}
+                >
+                  {lang === "en" ? "← Back to categories" : "← Regresar a categorías"}
+                </Link>
+
+                <div style={{ marginTop: 12, fontSize: s(16), fontWeight: 900, color: MC_NAVY }}>
+                  {categoryLabel(lang, viewingSavedListSection.category)}
+                </div>
+                <div style={{ marginTop: 4, fontSize: s(13), color: MC_NAVY_MUTED }}>
+                  {lang === "en"
+                    ? "Check what is already in My List and select what you still need."
+                    : "Revisa qué ya está en Mi Lista y selecciona lo que todavía te hace falta."}
+                </div>
+
+                <div
+                  style={{
+                    marginTop: 14,
+                    border: `1px solid ${MC_NAVY_SOFT}`,
+                    borderRadius: 18,
+                    overflow: "hidden",
+                    background: "#fff",
+                  }}
+                >
+                  {viewingSavedListSection.items.map((item, index) => {
+                    const alreadyInMyList = isSavedListItemAlreadyInMyList(item);
+                    const isChecked = alreadyInMyList || selectedSavedListViewItemIds.includes(item.id);
+
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => toggleSavedListViewItem(item)}
+                        style={{
+                          width: "100%",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: 12,
+                          padding: "14px 16px",
+                          border: 0,
+                          borderBottom: index === viewingSavedListSection.items.length - 1 ? "none" : `1px solid ${MC_NAVY_SOFT}`,
+                          background: isChecked ? MC_NAVY_SOFT : "#fff",
+                          cursor: alreadyInMyList ? "default" : "pointer",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, flex: 1 }}>
+                          <div
+                            style={{
+                              width: 22,
+                              height: 22,
+                              borderRadius: 7,
+                              border: `2px solid ${isChecked ? "#4A90E2" : "#C9D3EE"}`,
+                              background: isChecked ? "#4A90E2" : "#fff",
+                              color: "#fff",
+                              display: "grid",
+                              placeItems: "center",
+                              fontSize: s(14),
+                              fontWeight: 900,
+                              flexShrink: 0,
+                            }}
+                          >
+                            {isChecked ? "✓" : ""}
+                          </div>
+
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: s(17), fontWeight: 500, color: MC_NAVY }}>{item.name}</div>
+                            {alreadyInMyList ? (
+                              <div style={{ marginTop: 2, fontSize: s(12), color: MC_NAVY_MUTED }}>
+                                {lang === "en" ? "Already in My List" : "Ya está en Mi Lista"}
+                              </div>
+                            ) : null}
+                          </div>
+                        </div>
+
+                        <div style={{ fontSize: s(15), color: MC_NAVY_MUTED, whiteSpace: "nowrap", flexShrink: 0 }}>
+                          <QtyUnitText quantity={String(item.quantity)} unit={item.unit} />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={applySelectedSavedListItemsToMyList}
+                  style={{
+                    width: "100%",
+                    marginTop: 14,
+                    padding: "14px 16px",
+                    borderRadius: 16,
+                    border: `1px solid ${MC_NAVY}`,
+                    background: MC_NAVY,
+                    color: "#fff",
+                    fontWeight: 900,
+                    fontSize: s(15),
+                    cursor: "pointer",
+                  }}
+                >
+                  {addSelectedLabel}
+                </button>
+              </section>
+            ) : (
+              <section style={{ ...cardStyle(), padding: 18 }}>
+                <div style={{ display: "grid", gap: 12 }}>
+                  {groupedViewingSavedListItems.map((section) => (
+                    <Link
+                      key={section.category}
+                      href={`/?view=saved-lists&saved-list-mode=view&saved-list-id=${encodeURIComponent(viewingSavedList.id)}&saved-list-category=${encodeURIComponent(section.category)}`}
+                      style={{
+                        border: `1px solid ${MC_NAVY_LINE}`,
+                        borderRadius: 18,
+                        padding: 16,
+                        background: "#fff",
+                        display: "grid",
+                        gap: 6,
+                        textDecoration: "none",
+                        color: MC_NAVY,
+                      }}
+                    >
+                      <div style={{ fontSize: s(18), fontWeight: 900 }}>
+                        {categoryLabel(lang, section.category)}
+                      </div>
+                      <div style={{ fontSize: s(14), color: MC_NAVY_MUTED }}>
+                        {itemsCountLabel(section.items.length)}
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </section>
             )}
           </>
         ) : (
@@ -1212,10 +1252,29 @@ export default function NeedsPage() {
 
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                         <Link
+                          href={`/?view=saved-lists&saved-list-mode=view&saved-list-id=${encodeURIComponent(savedList.id)}`}
+                          style={{
+                            flex: 1,
+                            minWidth: 110,
+                            padding: "12px 14px",
+                            borderRadius: 14,
+                            border: `1px solid ${MC_NAVY}`,
+                            background: MC_NAVY,
+                            color: "#fff",
+                            fontWeight: 800,
+                            fontSize: s(14),
+                            textDecoration: "none",
+                            textAlign: "center",
+                          }}
+                        >
+                          {openLabel}
+                        </Link>
+
+                        <Link
                           href={`/?view=saved-lists&saved-list-mode=edit&saved-list-id=${encodeURIComponent(savedList.id)}`}
                           style={{
                             flex: 1,
-                            minWidth: 130,
+                            minWidth: 110,
                             padding: "12px 14px",
                             borderRadius: 14,
                             border: `1px solid ${MC_NAVY}`,
@@ -1235,7 +1294,7 @@ export default function NeedsPage() {
                           onClick={() => deleteSavedList(savedList.id)}
                           style={{
                             flex: 1,
-                            minWidth: 130,
+                            minWidth: 110,
                             padding: "12px 14px",
                             borderRadius: 14,
                             border: `1px solid ${MC_NAVY_LINE}`,
@@ -1431,7 +1490,240 @@ export default function NeedsPage() {
         )}
       </section>
 
-      {renderDraftEditor(true)}
+      {draft ? (
+        <div style={modalOverlayStyle} onClick={closeDraft}>
+          <section style={modalCardStyle} onClick={(e) => e.stopPropagation()}>
+            <div style={{ fontSize: s(21), fontWeight: 900 }}>{draft.name}</div>
+            <div style={{ marginTop: 4, fontSize: s(13), color: MC_NAVY_MUTED }}>{addArticleModalHelp}</div>
+
+            <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
+              <div>
+                <div style={{ fontSize: s(12), fontWeight: 700, marginBottom: 5 }}>{t(lang, "category")}</div>
+                <select
+                  value={draft.category}
+                  onChange={(e) => updateDraftField("category", e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "12px 14px",
+                    borderRadius: 14,
+                    border: `1px solid ${MC_NAVY_LINE}`,
+                    boxSizing: "border-box",
+                    fontSize: s(15),
+                    background: "#fff",
+                  }}
+                >
+                  {draftSelectOptions.categories.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <div style={{ fontSize: s(12), fontWeight: 700, marginBottom: 5 }}>{t(lang, "unit")}</div>
+                <select
+                  value={draft.unit}
+                  onChange={(e) => updateDraftField("unit", e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "12px 14px",
+                    borderRadius: 14,
+                    border: `1px solid ${MC_NAVY_LINE}`,
+                    boxSizing: "border-box",
+                    fontSize: s(15),
+                    background: "#fff",
+                  }}
+                >
+                  {draftSelectOptions.units.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <div style={{ fontSize: s(12), fontWeight: 700, marginBottom: 5 }}>{t(lang, "quantity")}</div>
+                <input
+                  value={draft.quantity}
+                  inputMode="numeric"
+                  onChange={(e) => updateDraftField("quantity", e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "12px 14px",
+                    borderRadius: 14,
+                    border: `1px solid ${MC_NAVY_LINE}`,
+                    boxSizing: "border-box",
+                    fontSize: s(15),
+                  }}
+                />
+              </div>
+
+              <div>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 10,
+                    marginBottom: 5,
+                  }}
+                >
+                  <div style={{ fontSize: s(12), fontWeight: 700 }}>{t(lang, "store")}</div>
+
+                </div>
+
+                <select
+                  value={draft.store}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value === ADD_STORE_VALUE) {
+                      openAddStore();
+                      return;
+                    }
+                    closeAddStore();
+                    updateDraftField("store", value);
+                  }}
+                  style={{
+                    width: "100%",
+                    padding: "12px 14px",
+                    borderRadius: 14,
+                    border: `1px solid ${MC_NAVY_LINE}`,
+                    boxSizing: "border-box",
+                    fontSize: s(15),
+                    background: "#fff",
+                  }}
+                >
+                  {draftSelectOptions.stores.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                  <option value={ADD_STORE_VALUE}>{lang === "en" ? "Add" : "Agregar"}</option>
+                </select>
+
+
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+              <button
+                type="button"
+                onClick={closeDraft}
+                style={{
+                  flex: 1,
+                  padding: "13px 14px",
+                  borderRadius: 14,
+                  border: `1px solid ${MC_NAVY_LINE}`,
+                  background: "#fff",
+                  fontWeight: 800,
+                  fontSize: s(14),
+                }}
+              >
+                {t(lang, "back")}
+              </button>
+              <button
+                type="button"
+                onClick={confirmDraft}
+                style={{
+                  flex: 1,
+                  padding: "13px 14px",
+                  borderRadius: 14,
+                  border: `1px solid ${MC_NAVY}`,
+                  background: MC_NAVY,
+                  color: "#fff",
+                  fontWeight: 900,
+                  fontSize: s(14),
+                }}
+              >
+                {t(lang, "add")}
+              </button>
+            </div>
+
+            {addingStore ? (
+              <div
+                style={{
+                  ...modalOverlayStyle,
+                  zIndex: 140,
+                  background: "rgba(17,24,39,0.22)",
+                }}
+                onClick={closeAddStore}
+              >
+                <section
+                  style={{
+                    ...modalCardStyle,
+                    width: "min(420px, 100%)",
+                    padding: 14,
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div style={{ fontSize: s(20), fontWeight: 900 }}>
+                    {lang === "en" ? "New store" : "Nueva tienda"}
+                  </div>
+                  <div style={{ marginTop: 4, fontSize: s(13), color: MC_NAVY_MUTED }}>
+                    {lang === "en"
+                      ? "Add the store for this item."
+                      : "Agrega la tienda para este artículo."}
+                  </div>
+
+                  <input
+                    autoFocus
+                    value={newStoreName}
+                    onChange={(e) => setNewStoreName(e.target.value)}
+                    placeholder={lang === "en" ? "New store" : "Nueva tienda"}
+                    style={{
+                      width: "100%",
+                      marginTop: 14,
+                      padding: "12px 14px",
+                      borderRadius: 12,
+                      border: `1px solid ${MC_NAVY_LINE}`,
+                      boxSizing: "border-box",
+                      fontSize: s(15),
+                      background: "#fff",
+                    }}
+                  />
+
+                  <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+                    <button
+                      type="button"
+                      onClick={closeAddStore}
+                      style={{
+                        flex: 1,
+                        padding: "12px 12px",
+                        borderRadius: 12,
+                        border: `1px solid ${MC_NAVY_LINE}`,
+                        background: "#fff",
+                        fontWeight: 800,
+                        fontSize: s(13),
+                      }}
+                    >
+                      {t(lang, "back")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={saveNewStore}
+                      disabled={!newStoreName.trim()}
+                      style={{
+                        flex: 1,
+                        padding: "12px 12px",
+                        borderRadius: 12,
+                        border: `1px solid ${newStoreName.trim() ? MC_NAVY : MC_NAVY_LINE}`,
+                        background: newStoreName.trim() ? MC_NAVY : "#fff",
+                        color: newStoreName.trim() ? "#fff" : MC_NAVY_MUTED,
+                        fontWeight: 900,
+                        fontSize: s(13),
+                      }}
+                    >
+                      {lang === "en" ? "Save" : "Guardar"}
+                    </button>
+                  </div>
+                </section>
+              </div>
+            ) : null}
+          </section>
+        </div>
+      ) : null}
     </AppShell>
   );
 }
