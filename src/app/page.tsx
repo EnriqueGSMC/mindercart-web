@@ -564,6 +564,258 @@ export default function NeedsPage() {
     }
   }
 
+
+  function renderDraftEditor(asModal: boolean) {
+    if (!draft) return null;
+
+    const content = (
+      <section
+        style={
+          asModal
+            ? modalCardStyle
+            : {
+                ...cardStyle(),
+                padding: 14,
+              }
+        }
+        onClick={asModal ? (e) => e.stopPropagation() : undefined}
+      >
+        <div style={{ fontSize: s(21), fontWeight: 900 }}>{draft.name}</div>
+        <div style={{ marginTop: 4, fontSize: s(13), color: MC_NAVY_MUTED }}>{addArticleModalHelp}</div>
+
+        <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
+          <div>
+            <div style={{ fontSize: s(12), fontWeight: 700, marginBottom: 5 }}>{t(lang, "category")}</div>
+            <select
+              value={draft.category}
+              onChange={(e) => updateDraftField("category", e.target.value)}
+              style={{
+                width: "100%",
+                padding: "12px 14px",
+                borderRadius: 14,
+                border: `1px solid ${MC_NAVY_LINE}`,
+                boxSizing: "border-box",
+                fontSize: s(15),
+                background: "#fff",
+              }}
+            >
+              {draftSelectOptions.categories.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <div style={{ fontSize: s(12), fontWeight: 700, marginBottom: 5 }}>{t(lang, "unit")}</div>
+            <select
+              value={draft.unit}
+              onChange={(e) => updateDraftField("unit", e.target.value)}
+              style={{
+                width: "100%",
+                padding: "12px 14px",
+                borderRadius: 14,
+                border: `1px solid ${MC_NAVY_LINE}`,
+                boxSizing: "border-box",
+                fontSize: s(15),
+                background: "#fff",
+              }}
+            >
+              {draftSelectOptions.units.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <div style={{ fontSize: s(12), fontWeight: 700, marginBottom: 5 }}>{t(lang, "quantity")}</div>
+            <input
+              value={draft.quantity}
+              inputMode="numeric"
+              onChange={(e) => updateDraftField("quantity", e.target.value)}
+              style={{
+                width: "100%",
+                padding: "12px 14px",
+                borderRadius: 14,
+                border: `1px solid ${MC_NAVY_LINE}`,
+                boxSizing: "border-box",
+                fontSize: s(15),
+              }}
+            />
+          </div>
+
+          <div>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 10,
+                marginBottom: 5,
+              }}
+            >
+              <div style={{ fontSize: s(12), fontWeight: 700 }}>{t(lang, "store")}</div>
+            </div>
+
+            <select
+              value={draft.store}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value === ADD_STORE_VALUE) {
+                  openAddStore();
+                  return;
+                }
+                closeAddStore();
+                updateDraftField("store", value);
+              }}
+              style={{
+                width: "100%",
+                padding: "12px 14px",
+                borderRadius: 14,
+                border: `1px solid ${MC_NAVY_LINE}`,
+                boxSizing: "border-box",
+                fontSize: s(15),
+                background: "#fff",
+              }}
+            >
+              {draftSelectOptions.stores.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+              <option value={ADD_STORE_VALUE}>{lang === "en" ? "Add" : "Agregar"}</option>
+            </select>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+          <button
+            type="button"
+            onClick={closeDraft}
+            style={{
+              flex: 1,
+              padding: "13px 14px",
+              borderRadius: 14,
+              border: `1px solid ${MC_NAVY_LINE}`,
+              background: "#fff",
+              fontWeight: 800,
+              fontSize: s(14),
+            }}
+          >
+            {t(lang, "back")}
+          </button>
+          <button
+            type="button"
+            onClick={confirmDraft}
+            style={{
+              flex: 1,
+              padding: "13px 14px",
+              borderRadius: 14,
+              border: `1px solid ${MC_NAVY}`,
+              background: MC_NAVY,
+              color: "#fff",
+              fontWeight: 900,
+              fontSize: s(14),
+            }}
+          >
+            {t(lang, "add")}
+          </button>
+        </div>
+
+        {addingStore ? (
+          <div
+            style={{
+              ...modalOverlayStyle,
+              zIndex: 140,
+              background: "rgba(17,24,39,0.22)",
+            }}
+            onClick={closeAddStore}
+          >
+            <section
+              style={{
+                ...modalCardStyle,
+                width: "min(420px, 100%)",
+                padding: 14,
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{ fontSize: s(20), fontWeight: 900 }}>
+                {lang === "en" ? "New store" : "Nueva tienda"}
+              </div>
+              <div style={{ marginTop: 4, fontSize: s(13), color: MC_NAVY_MUTED }}>
+                {lang === "en" ? "Add the store for this item." : "Agrega la tienda para este artículo."}
+              </div>
+
+              <input
+                autoFocus
+                value={newStoreName}
+                onChange={(e) => setNewStoreName(e.target.value)}
+                placeholder={lang === "en" ? "New store" : "Nueva tienda"}
+                style={{
+                  width: "100%",
+                  marginTop: 14,
+                  padding: "12px 14px",
+                  borderRadius: 12,
+                  border: `1px solid ${MC_NAVY_LINE}`,
+                  boxSizing: "border-box",
+                  fontSize: s(15),
+                  background: "#fff",
+                }}
+              />
+
+              <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+                <button
+                  type="button"
+                  onClick={closeAddStore}
+                  style={{
+                    flex: 1,
+                    padding: "12px 12px",
+                    borderRadius: 12,
+                    border: `1px solid ${MC_NAVY_LINE}`,
+                    background: "#fff",
+                    fontWeight: 800,
+                    fontSize: s(14),
+                  }}
+                >
+                  {t(lang, "back")}
+                </button>
+                <button
+                  type="button"
+                  onClick={saveNewStore}
+                  style={{
+                    flex: 1,
+                    padding: "12px 12px",
+                    borderRadius: 12,
+                    border: `1px solid ${MC_NAVY}`,
+                    background: MC_NAVY,
+                    color: "#fff",
+                    fontWeight: 900,
+                    fontSize: s(14),
+                  }}
+                >
+                  {lang === "en" ? "Save" : "Guardar"}
+                </button>
+              </div>
+            </section>
+          </div>
+        ) : null}
+      </section>
+    );
+
+    if (asModal) {
+      return (
+        <div style={modalOverlayStyle} onClick={closeDraft}>
+          {content}
+        </div>
+      );
+    }
+
+    return content;
+  }
+
   if (!hydrated) {
     return (
       <AppShell title={t("es", "myListTitle")} darkHero subtitle={t("es", "myListSubtitle")}>
@@ -709,94 +961,98 @@ export default function NeedsPage() {
 
             {isNewSavedListView && !isNewSavedListConfirmed ? null : (
             <>
-            <section style={{ ...cardStyle(), padding: 14 }}>
-              <div style={{ display: "grid", gap: 12 }}>
-                <div style={{ fontSize: s(16), fontWeight: 700 }}>{t(lang, "item")}</div>
+            {draft ? (
+              renderDraftEditor(false)
+            ) : (
+              <section style={{ ...cardStyle(), padding: 14 }}>
+                <div style={{ display: "grid", gap: 12 }}>
+                  <div style={{ fontSize: s(16), fontWeight: 700 }}>{t(lang, "item")}</div>
 
-                <input
-                  ref={searchInputRef}
-                  value={name}
-                  onChange={(e) => {
-                    setName(e.target.value);
-                    setMessage("");
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && canOpenCustomDraft) {
-                      e.preventDefault();
-                      openCustomDraft();
-                    }
-                  }}
-                  placeholder={itemPlaceholder}
-                  style={{
-                    width: "100%",
-                    padding: "16px 18px",
-                    borderRadius: 18,
-                    border: `1px solid ${MC_NAVY_LINE}`,
-                    fontSize: s(18),
-                    boxSizing: "border-box",
-                  }}
-                />
-
-                {showSuggestions ? (
-                  <div
-                    style={{
-                      border: `1px solid ${MC_NAVY_LINE}`,
-                      borderRadius: 18,
-                      overflow: "hidden",
-                      background: "#fff",
+                  <input
+                    ref={searchInputRef}
+                    value={name}
+                    onChange={(e) => {
+                      setName(e.target.value);
+                      setMessage("");
                     }}
-                  >
-                    {suggestions.map((row, index) => (
-                      <button
-                        key={`${row.source}_${row.id}`}
-                        type="button"
-                        onClick={() => applySuggestion(row)}
-                        style={{
-                          width: "100%",
-                          textAlign: "left",
-                          padding: "14px 16px",
-                          border: 0,
-                          borderBottom: index === suggestions.length - 1 ? "none" : `1px solid ${MC_NAVY_SOFT}`,
-                          background: "#fff",
-                          cursor: "pointer",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          gap: 10,
-                        }}
-                      >
-                        <div style={{ fontSize: s(17), fontWeight: 500 }}>{row.name}</div>
-                        <div style={{ fontSize: s(14), color: MC_NAVY_MUTED, whiteSpace: "nowrap" }}>{row.store}</div>
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && canOpenCustomDraft) {
+                        e.preventDefault();
+                        openCustomDraft();
+                      }
+                    }}
+                    placeholder={itemPlaceholder}
+                    style={{
+                      width: "100%",
+                      padding: "16px 18px",
+                      borderRadius: 18,
+                      border: `1px solid ${MC_NAVY_LINE}`,
+                      fontSize: s(18),
+                      boxSizing: "border-box",
+                    }}
+                  />
 
-                {canOpenCustomDraft ? (
-                  <div style={{ display: "grid", gap: 10 }}>
-                    <button
-                      type="button"
-                      onClick={openCustomDraft}
+                  {showSuggestions ? (
+                    <div
                       style={{
-                        width: "100%",
-                        padding: "14px 16px",
-                        borderRadius: 16,
-                        border: `1px solid ${MC_NAVY}`,
-                        background: MC_NAVY,
-                        color: "#fff",
-                        fontWeight: 900,
-                        fontSize: s(15),
-                        cursor: "pointer",
+                        border: `1px solid ${MC_NAVY_LINE}`,
+                        borderRadius: 18,
+                        overflow: "hidden",
+                        background: "#fff",
                       }}
                     >
-                      {addArticleLabel}
-                    </button>
-                  </div>
-                ) : null}
+                      {suggestions.map((row, index) => (
+                        <button
+                          key={`${row.source}_${row.id}`}
+                          type="button"
+                          onClick={() => applySuggestion(row)}
+                          style={{
+                            width: "100%",
+                            textAlign: "left",
+                            padding: "14px 16px",
+                            border: 0,
+                            borderBottom: index === suggestions.length - 1 ? "none" : `1px solid ${MC_NAVY_SOFT}`,
+                            background: "#fff",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            gap: 10,
+                          }}
+                        >
+                          <div style={{ fontSize: s(17), fontWeight: 500 }}>{row.name}</div>
+                          <div style={{ fontSize: s(14), color: MC_NAVY_MUTED, whiteSpace: "nowrap" }}>{row.store}</div>
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
 
-                {message ? <div style={{ fontSize: s(14), color: MC_NAVY }}>{message}</div> : null}
-              </div>
-            </section>
+                  {canOpenCustomDraft ? (
+                    <div style={{ display: "grid", gap: 10 }}>
+                      <button
+                        type="button"
+                        onClick={openCustomDraft}
+                        style={{
+                          width: "100%",
+                          padding: "14px 16px",
+                          borderRadius: 16,
+                          border: `1px solid ${MC_NAVY}`,
+                          background: MC_NAVY,
+                          color: "#fff",
+                          fontWeight: 900,
+                          fontSize: s(15),
+                          cursor: "pointer",
+                        }}
+                      >
+                        {addArticleLabel}
+                      </button>
+                    </div>
+                  ) : null}
+
+                  {message ? <div style={{ fontSize: s(14), color: MC_NAVY }}>{message}</div> : null}
+                </div>
+              </section>
+            )}
 
             <section style={{ ...cardStyle(), padding: 14 }}>
               <div style={{ fontSize: s(16), fontWeight: 800, marginBottom: 10 }}>{savedItemsTitle}</div>
@@ -1175,240 +1431,7 @@ export default function NeedsPage() {
         )}
       </section>
 
-      {draft ? (
-        <div style={modalOverlayStyle} onClick={closeDraft}>
-          <section style={modalCardStyle} onClick={(e) => e.stopPropagation()}>
-            <div style={{ fontSize: s(21), fontWeight: 900 }}>{draft.name}</div>
-            <div style={{ marginTop: 4, fontSize: s(13), color: MC_NAVY_MUTED }}>{addArticleModalHelp}</div>
-
-            <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
-              <div>
-                <div style={{ fontSize: s(12), fontWeight: 700, marginBottom: 5 }}>{t(lang, "category")}</div>
-                <select
-                  value={draft.category}
-                  onChange={(e) => updateDraftField("category", e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "12px 14px",
-                    borderRadius: 14,
-                    border: `1px solid ${MC_NAVY_LINE}`,
-                    boxSizing: "border-box",
-                    fontSize: s(15),
-                    background: "#fff",
-                  }}
-                >
-                  {draftSelectOptions.categories.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <div style={{ fontSize: s(12), fontWeight: 700, marginBottom: 5 }}>{t(lang, "unit")}</div>
-                <select
-                  value={draft.unit}
-                  onChange={(e) => updateDraftField("unit", e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "12px 14px",
-                    borderRadius: 14,
-                    border: `1px solid ${MC_NAVY_LINE}`,
-                    boxSizing: "border-box",
-                    fontSize: s(15),
-                    background: "#fff",
-                  }}
-                >
-                  {draftSelectOptions.units.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <div style={{ fontSize: s(12), fontWeight: 700, marginBottom: 5 }}>{t(lang, "quantity")}</div>
-                <input
-                  value={draft.quantity}
-                  inputMode="numeric"
-                  onChange={(e) => updateDraftField("quantity", e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "12px 14px",
-                    borderRadius: 14,
-                    border: `1px solid ${MC_NAVY_LINE}`,
-                    boxSizing: "border-box",
-                    fontSize: s(15),
-                  }}
-                />
-              </div>
-
-              <div>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 10,
-                    marginBottom: 5,
-                  }}
-                >
-                  <div style={{ fontSize: s(12), fontWeight: 700 }}>{t(lang, "store")}</div>
-
-                </div>
-
-                <select
-                  value={draft.store}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (value === ADD_STORE_VALUE) {
-                      openAddStore();
-                      return;
-                    }
-                    closeAddStore();
-                    updateDraftField("store", value);
-                  }}
-                  style={{
-                    width: "100%",
-                    padding: "12px 14px",
-                    borderRadius: 14,
-                    border: `1px solid ${MC_NAVY_LINE}`,
-                    boxSizing: "border-box",
-                    fontSize: s(15),
-                    background: "#fff",
-                  }}
-                >
-                  {draftSelectOptions.stores.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                  <option value={ADD_STORE_VALUE}>{lang === "en" ? "Add" : "Agregar"}</option>
-                </select>
-
-
-              </div>
-            </div>
-
-            <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-              <button
-                type="button"
-                onClick={closeDraft}
-                style={{
-                  flex: 1,
-                  padding: "13px 14px",
-                  borderRadius: 14,
-                  border: `1px solid ${MC_NAVY_LINE}`,
-                  background: "#fff",
-                  fontWeight: 800,
-                  fontSize: s(14),
-                }}
-              >
-                {t(lang, "back")}
-              </button>
-              <button
-                type="button"
-                onClick={confirmDraft}
-                style={{
-                  flex: 1,
-                  padding: "13px 14px",
-                  borderRadius: 14,
-                  border: `1px solid ${MC_NAVY}`,
-                  background: MC_NAVY,
-                  color: "#fff",
-                  fontWeight: 900,
-                  fontSize: s(14),
-                }}
-              >
-                {t(lang, "add")}
-              </button>
-            </div>
-
-            {addingStore ? (
-              <div
-                style={{
-                  ...modalOverlayStyle,
-                  zIndex: 140,
-                  background: "rgba(17,24,39,0.22)",
-                }}
-                onClick={closeAddStore}
-              >
-                <section
-                  style={{
-                    ...modalCardStyle,
-                    width: "min(420px, 100%)",
-                    padding: 14,
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div style={{ fontSize: s(20), fontWeight: 900 }}>
-                    {lang === "en" ? "New store" : "Nueva tienda"}
-                  </div>
-                  <div style={{ marginTop: 4, fontSize: s(13), color: MC_NAVY_MUTED }}>
-                    {lang === "en"
-                      ? "Add the store for this item."
-                      : "Agrega la tienda para este artículo."}
-                  </div>
-
-                  <input
-                    autoFocus
-                    value={newStoreName}
-                    onChange={(e) => setNewStoreName(e.target.value)}
-                    placeholder={lang === "en" ? "New store" : "Nueva tienda"}
-                    style={{
-                      width: "100%",
-                      marginTop: 14,
-                      padding: "12px 14px",
-                      borderRadius: 12,
-                      border: `1px solid ${MC_NAVY_LINE}`,
-                      boxSizing: "border-box",
-                      fontSize: s(15),
-                      background: "#fff",
-                    }}
-                  />
-
-                  <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-                    <button
-                      type="button"
-                      onClick={closeAddStore}
-                      style={{
-                        flex: 1,
-                        padding: "12px 12px",
-                        borderRadius: 12,
-                        border: `1px solid ${MC_NAVY_LINE}`,
-                        background: "#fff",
-                        fontWeight: 800,
-                        fontSize: s(13),
-                      }}
-                    >
-                      {t(lang, "back")}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={saveNewStore}
-                      disabled={!newStoreName.trim()}
-                      style={{
-                        flex: 1,
-                        padding: "12px 12px",
-                        borderRadius: 12,
-                        border: `1px solid ${newStoreName.trim() ? MC_NAVY : MC_NAVY_LINE}`,
-                        background: newStoreName.trim() ? MC_NAVY : "#fff",
-                        color: newStoreName.trim() ? "#fff" : MC_NAVY_MUTED,
-                        fontWeight: 900,
-                        fontSize: s(13),
-                      }}
-                    >
-                      {lang === "en" ? "Save" : "Guardar"}
-                    </button>
-                  </div>
-                </section>
-              </div>
-            ) : null}
-          </section>
-        </div>
-      ) : null}
+      {renderDraftEditor(true)}
     </AppShell>
   );
 }
