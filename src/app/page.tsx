@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import React from "react";
 import { AppShell, QtyUnitText, cardStyle, scalePx } from "@/components/mindercart/Shell";
 import { categoryLabel, t } from "@/lib/mindercart/i18n";
@@ -28,6 +28,18 @@ type DraftSelectOptions = {
   categories: string[];
   units: string[];
   stores: string[];
+};
+
+type SavedListDraftItem = DraftItem & {
+  id: string;
+};
+
+type SavedListRecord = {
+  id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+  items: SavedListDraftItem[];
 };
 
 const ADD_STORE_VALUE = "__ADD_STORE__";
@@ -98,6 +110,75 @@ const FALLBACK_CATEGORY = "Otro / Temporal";
 const ORDERED_CATEGORIES = CATEGORY_OPTIONS.includes(FALLBACK_CATEGORY)
   ? [...CATEGORY_OPTIONS]
   : [...CATEGORY_OPTIONS, FALLBACK_CATEGORY];
+const SAVED_LISTS_STORAGE_KEY = "mindercart.savedLists.v1";
+
+function buildLocalId(prefix: string) {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return `${prefix}-${crypto.randomUUID()}`;
+  }
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function normalizeItemKey(name: string, category: string) {
+  return `${String(name ?? "").trim().toLocaleLowerCase("es")}|${normalizeCategory(category).toLocaleLowerCase("es")}`;
+}
+
+function readSavedListsFromBrowser() {
+  if (typeof window === "undefined") return [] as SavedListRecord[];
+
+  try {
+    const raw = window.localStorage.getItem(SAVED_LISTS_STORAGE_KEY);
+    if (!raw) return [] as SavedListRecord[];
+
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [] as SavedListRecord[];
+
+    return parsed
+      .map((entry) => {
+        if (!entry || typeof entry !== "object") return null;
+
+        const record = entry as Partial<SavedListRecord> & { items?: unknown };
+        const name = String(record.name ?? "").trim();
+        if (!name) return null;
+
+        const items = Array.isArray(record.items)
+          ? record.items
+              .map((item) => {
+                if (!item || typeof item !== "object") return null;
+                const row = item as Partial<SavedListDraftItem>;
+                const itemName = String(row.name ?? "").trim();
+                if (!itemName) return null;
+
+                return {
+                  id: String(row.id ?? buildLocalId("saved-list-item")),
+                  name: itemName,
+                  category: normalizeCategory(row.category),
+                  unit: normalizeUnit(String(row.unit ?? "pza")),
+                  quantity: String(row.quantity ?? "1").trim() || "1",
+                  store: String(row.store ?? "").trim() || "HEB",
+                } satisfies SavedListDraftItem;
+              })
+              .filter(Boolean) as SavedListDraftItem[]
+          : [];
+
+        return {
+          id: String(record.id ?? buildLocalId("saved-list")),
+          name,
+          createdAt: String(record.createdAt ?? new Date().toISOString()),
+          updatedAt: String(record.updatedAt ?? new Date().toISOString()),
+          items,
+        } satisfies SavedListRecord;
+      })
+      .filter(Boolean) as SavedListRecord[];
+  } catch {
+    return [] as SavedListRecord[];
+  }
+}
+
+function writeSavedListsToBrowser(lists: SavedListRecord[]) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(SAVED_LISTS_STORAGE_KEY, JSON.stringify(lists));
+}
 
 function normalizeCategory(value: string | null | undefined) {
   const trimmed = String(value ?? "").trim();
@@ -158,11 +239,16 @@ function normalizeUnit(value: string) {
 
 export default function NeedsPage() {
   const { activeShoppingListItems, settings, hydrated } = useMinderCartState();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const lang = settings.language;
   const s = (px: number) => scalePx(settings.fontScale, px);
   const isSavedListsView = searchParams.get("view") === "saved-lists";
-  const isNewSavedListView = searchParams.get("saved-list-mode") === "new";
+  const savedListMode = searchParams.get("saved-list-mode");
+  const isNewSavedListView = savedListMode === "new";
+  const isEditSavedListView = savedListMode === "edit";
+  const isSavedListEditorView = isSavedListsView && (isNewSavedListView || isEditSavedListView);
+  const editingSavedListId = String(searchParams.get("saved-list-id") ?? "");
 
   const addArticleLabel = lang === "en" ? "Add item" : "Agregar artículo";
   const addArticleModalHelp =
@@ -178,11 +264,48 @@ export default function NeedsPage() {
   const [customStores, setCustomStores] = React.useState<string[]>([]);
   const [addingStore, setAddingStore] = React.useState(false);
   const [newStoreName, setNewStoreName] = React.useState("");
+  const [savedLists, setSavedLists] = React.useState<SavedListRecord[]>([]);
+  const [savedListsLoaded, setSavedListsLoaded] = React.useState(false);
+  const [savedListName, setSavedListName] = React.useState("");
+  const [savedListItemsDraft, setSavedListItemsDraft] = React.useState<SavedListDraftItem[]>([]);
+  const [savedListsMessage, setSavedListsMessage] = React.useState("");
 
   React.useEffect(() => {
     if (!hydrated) return;
     setSuggestions(buildSuggestions(name));
   }, [hydrated, name]);
+
+  React.useEffect(() => {
+    if (!hydrated) return;
+    setSavedLists(readSavedListsFromBrowser());
+    setSavedListsLoaded(true);
+  }, [hydrated]);
+
+  React.useEffect(() => {
+    if (!isSavedListEditorView || !savedListsLoaded) return;
+
+    setMessage("");
+    closeDraft();
+
+    if (isNewSavedListView) {
+      setSavedListName("");
+      setSavedListItemsDraft([]);
+      setSavedListsMessage("");
+      return;
+    }
+
+    const existing = savedLists.find((entry) => entry.id === editingSavedListId);
+    if (!existing) {
+      setSavedListName("");
+      setSavedListItemsDraft([]);
+      setSavedListsMessage(lang === "en" ? "Saved list not found." : "No se encontró la lista guardada.");
+      return;
+    }
+
+    setSavedListName(existing.name);
+    setSavedListItemsDraft(existing.items.map((item) => ({ ...item })));
+    setSavedListsMessage("");
+  }, [isSavedListEditorView, isNewSavedListView, savedListsLoaded, savedLists, editingSavedListId, lang]);
 
   const trimmedName = name.trim();
   const showSuggestions = trimmedName.length >= 2 && suggestions.length > 0;
@@ -215,7 +338,12 @@ export default function NeedsPage() {
     [activeShoppingListItems]
   );
 
-    function resetInput() {
+  const groupedSavedListItemsDraft = React.useMemo(
+    () => groupItemsByCategory(savedListItemsDraft),
+    [savedListItemsDraft]
+  );
+
+  function resetInput() {
     setName("");
     setSuggestions([]);
   }
@@ -283,8 +411,106 @@ export default function NeedsPage() {
     closeAddStore();
   }
 
+  function persistSavedLists(next: SavedListRecord[]) {
+    setSavedLists(next);
+    writeSavedListsToBrowser(next);
+  }
+
+  function removeSavedListDraftItem(itemId: string) {
+    setSavedListItemsDraft((prev) => prev.filter((item) => item.id !== itemId));
+    setSavedListsMessage("");
+  }
+
+  function deleteSavedList(savedListId: string) {
+    const target = savedLists.find((entry) => entry.id === savedListId);
+    if (!target) return;
+
+    const confirmationText =
+      lang === "en" ? `Delete "${target.name}"?` : `¿Eliminar "${target.name}"?`;
+
+    if (typeof window !== "undefined" && !window.confirm(confirmationText)) return;
+
+    const next = savedLists.filter((entry) => entry.id !== savedListId);
+    persistSavedLists(next);
+    setSavedListsMessage(lang === "en" ? "Saved list deleted." : "Lista guardada eliminada.");
+  }
+
+  function saveSavedListDraft() {
+    const trimmedListName = savedListName.trim();
+
+    if (!trimmedListName) {
+      setSavedListsMessage(lang === "en" ? "Enter a name for the list." : "Escribe un nombre para la lista.");
+      return;
+    }
+
+    if (savedListItemsDraft.length === 0) {
+      setSavedListsMessage(lang === "en" ? "Add at least one item." : "Agrega al menos un artículo.");
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const existing = savedLists.find((entry) => entry.id === editingSavedListId);
+
+    const nextRecord: SavedListRecord = {
+      id: isEditSavedListView && existing ? existing.id : buildLocalId("saved-list"),
+      name: trimmedListName,
+      createdAt: existing?.createdAt ?? now,
+      updatedAt: now,
+      items: savedListItemsDraft.map((item) => ({ ...item })),
+    };
+
+    const next = isEditSavedListView && existing
+      ? savedLists.map((entry) => (entry.id === existing.id ? nextRecord : entry))
+      : [nextRecord, ...savedLists];
+
+    persistSavedLists(next);
+    setSavedListsMessage(
+      lang === "en"
+        ? isEditSavedListView
+          ? "Saved list updated."
+          : "Saved list created."
+        : isEditSavedListView
+          ? "Lista guardada actualizada."
+          : "Lista guardada creada."
+    );
+    router.push("/?view=saved-lists");
+  }
+
   function confirmDraft() {
     if (!draft) return;
+
+    if (isSavedListEditorView) {
+      const normalizedKey = normalizeItemKey(draft.name, draft.category);
+
+      setSavedListItemsDraft((prev) => {
+        const existingIndex = prev.findIndex((item) => normalizeItemKey(item.name, item.category) === normalizedKey);
+        const nextItem: SavedListDraftItem = {
+          id: existingIndex >= 0 ? prev[existingIndex].id : buildLocalId("saved-list-item"),
+          name: draft.name.trim(),
+          category: normalizeCategory(draft.category),
+          unit: normalizeUnit(draft.unit),
+          quantity: String(draft.quantity ?? "1").trim() || "1",
+          store: draft.store || settings.preferredStore || "HEB",
+        };
+
+        if (existingIndex >= 0) {
+          const next = [...prev];
+          next[existingIndex] = nextItem;
+          return next;
+        }
+
+        return [...prev, nextItem];
+      });
+
+      setMessage(
+        `✅ ${draft.name} ${
+          lang === "en" ? "added to this saved list." : "agregado a esta lista guardada."
+        }`
+      );
+      closeDraft();
+      return;
+    }
+
     try {
       addQuickNeed(draft);
       setMessage(`✅ ${draft.name} ${t(lang, "addedToList")}`);
@@ -311,134 +537,390 @@ export default function NeedsPage() {
         ? "Create, edit and reuse your saved lists."
         : "Crea, edita y reutiliza tus listas guardadas.";
     const newListLabel = lang === "en" ? "New list" : "Nueva lista";
-    const backToMyListLabel = lang === "en" ? "My List" : "Mi Lista";
+    const backToMyListLabel = lang === "en" ? "← Back to My List" : "← Regresar a Mi Lista";
+    const backToSavedListsLabel = lang === "en" ? "← Back to My Lists" : "← Regresar a Mis Listas";
     const emptyTitle = lang === "en" ? "You do not have saved lists yet." : "Aún no tienes listas guardadas.";
     const emptyText =
       lang === "en"
         ? "Here you will keep lists like Monthly List, Paella List or BBQ List."
         : "Aquí podrás guardar listas como Lista Mensual, Lista Paella o Lista Carne Asada.";
+    const editListTitle = lang === "en" ? "Edit list" : "Editar lista";
     const draftTitle = lang === "en" ? "New list" : "Nueva lista";
-    const draftText =
-      lang === "en"
-        ? "This is the base view for the next step. The creation flow will reuse the same navigation as My List."
-        : "Esta es la vista base para el siguiente paso. La creación reutilizará la misma navegación de Mi Lista.";
-    const returnLabel = lang === "en" ? "Back" : "Volver";
-    const continueLabel = lang === "en" ? "Continue" : "Continuar";
+    const listNameLabel = lang === "en" ? "List name" : "Nombre de la lista";
+    const listNamePlaceholder = lang === "en" ? "e.g. Paella List" : "ej. Lista Paella";
+    const saveListLabel = lang === "en" ? "Save list" : "Guardar lista";
+    const savedItemsTitle = lang === "en" ? "List items" : "Artículos de la lista";
+    const noDraftItemsLabel = lang === "en" ? "No items in this list yet." : "Aún no hay artículos en esta lista.";
+    const editLabel = lang === "en" ? "Edit" : "Editar";
+    const deleteLabel = lang === "en" ? "Delete" : "Borrar";
+    const itemsCountLabel = (count: number) =>
+      lang === "en" ? `${count} item${count === 1 ? "" : "s"}` : `${count} artículo${count === 1 ? "" : "s"}`;
 
     return (
-      <AppShell
-        title={savedListsTitle}
-        darkHero
-        subtitle={savedListsSubtitle}
-        secondaryAction={{ label: backToMyListLabel, href: "/" }}
-      >
-        <section style={{ ...cardStyle(), padding: 14 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-            <div style={{ fontSize: s(16), fontWeight: 800 }}>{savedListsTitle}</div>
-
-            <Link
-              href="/?view=saved-lists&saved-list-mode=new"
-              style={{
-                padding: "10px 14px",
-                borderRadius: 14,
-                border: `1px solid ${MC_NAVY}`,
-                background: MC_NAVY,
-                color: "#fff",
-                fontWeight: 900,
-                fontSize: s(14),
-                textDecoration: "none",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {newListLabel}
-            </Link>
-          </div>
-        </section>
-
-        {isNewSavedListView ? (
-          <section style={{ ...cardStyle(), padding: 16 }}>
-            <div style={{ fontSize: s(18), fontWeight: 900 }}>{draftTitle}</div>
-            <div style={{ marginTop: 6, fontSize: s(14), color: MC_NAVY_MUTED }}>{draftText}</div>
-
-            <div
-              style={{
-                marginTop: 14,
-                padding: "14px 16px",
-                borderRadius: 16,
-                border: `1px solid ${MC_NAVY_LINE}`,
-                background: MC_NAVY_SOFT,
-                fontSize: s(14),
-                color: MC_NAVY,
-              }}
-            >
-              {lang === "en"
-                ? "In the next patch you will be able to name the list and select items by category."
-                : "En el siguiente parche podrás poner nombre a la lista y seleccionar artículos por categoría."}
-            </div>
-
-            <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+      <AppShell title={savedListsTitle} darkHero subtitle={savedListsSubtitle}>
+        {isSavedListEditorView ? (
+          <>
+            <section style={{ ...cardStyle(), padding: 14 }}>
               <Link
                 href="/?view=saved-lists"
                 style={{
-                  flex: 1,
-                  padding: "13px 14px",
-                  borderRadius: 14,
-                  border: `1px solid ${MC_NAVY_LINE}`,
-                  background: "#fff",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
                   color: MC_NAVY,
-                  fontWeight: 800,
                   fontSize: s(14),
+                  fontWeight: 800,
                   textDecoration: "none",
-                  textAlign: "center",
                 }}
               >
-                {returnLabel}
+                {backToSavedListsLabel}
               </Link>
 
-              <button
-                type="button"
-                disabled
+              <div
                 style={{
-                  flex: 1,
-                  padding: "13px 14px",
-                  borderRadius: 14,
-                  border: `1px solid ${MC_NAVY_LINE}`,
-                  background: "#E7ECFF",
-                  color: MC_NAVY_MUTED,
-                  fontWeight: 900,
-                  fontSize: s(14),
-                  cursor: "not-allowed",
+                  marginTop: 12,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 10,
                 }}
               >
-                {continueLabel}
-              </button>
-            </div>
-          </section>
-        ) : (
-          <section style={{ ...cardStyle(), padding: 18 }}>
-            <div style={{ fontSize: s(18), fontWeight: 900 }}>{emptyTitle}</div>
-            <div style={{ marginTop: 6, fontSize: s(14), color: MC_NAVY_MUTED }}>{emptyText}</div>
+                <div style={{ fontSize: s(18), fontWeight: 900 }}>
+                  {isEditSavedListView ? editListTitle : draftTitle}
+                </div>
 
-            <Link
-              href="/?view=saved-lists&saved-list-mode=new"
-              style={{
-                marginTop: 16,
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: "13px 16px",
-                borderRadius: 14,
-                border: `1px solid ${MC_NAVY}`,
-                background: MC_NAVY,
-                color: "#fff",
-                fontWeight: 900,
-                fontSize: s(14),
-                textDecoration: "none",
-              }}
-            >
-              {newListLabel}
-            </Link>
-          </section>
+                <button
+                  type="button"
+                  onClick={saveSavedListDraft}
+                  style={{
+                    padding: "10px 14px",
+                    borderRadius: 14,
+                    border: `1px solid ${MC_NAVY}`,
+                    background: MC_NAVY,
+                    color: "#fff",
+                    fontWeight: 900,
+                    fontSize: s(14),
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {saveListLabel}
+                </button>
+              </div>
+
+              <div style={{ marginTop: 14, display: "grid", gap: 8 }}>
+                <div style={{ fontSize: s(13), fontWeight: 700 }}>{listNameLabel}</div>
+                <input
+                  value={savedListName}
+                  onChange={(e) => {
+                    setSavedListName(e.target.value);
+                    setSavedListsMessage("");
+                  }}
+                  placeholder={listNamePlaceholder}
+                  style={{
+                    width: "100%",
+                    padding: "14px 16px",
+                    borderRadius: 16,
+                    border: `1px solid ${MC_NAVY_LINE}`,
+                    boxSizing: "border-box",
+                    fontSize: s(16),
+                    background: "#fff",
+                  }}
+                />
+              </div>
+
+              {savedListsMessage ? (
+                <div style={{ marginTop: 10, fontSize: s(14), color: MC_NAVY }}>{savedListsMessage}</div>
+              ) : null}
+            </section>
+
+            <section style={{ ...cardStyle(), padding: 14 }}>
+              <div style={{ display: "grid", gap: 12 }}>
+                <div style={{ fontSize: s(16), fontWeight: 700 }}>{t(lang, "item")}</div>
+
+                <input
+                  value={name}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    setMessage("");
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && canOpenCustomDraft) {
+                      e.preventDefault();
+                      openCustomDraft();
+                    }
+                  }}
+                  placeholder={itemPlaceholder}
+                  style={{
+                    width: "100%",
+                    padding: "16px 18px",
+                    borderRadius: 18,
+                    border: `1px solid ${MC_NAVY_LINE}`,
+                    fontSize: s(18),
+                    boxSizing: "border-box",
+                  }}
+                />
+
+                {showSuggestions ? (
+                  <div
+                    style={{
+                      border: `1px solid ${MC_NAVY_LINE}`,
+                      borderRadius: 18,
+                      overflow: "hidden",
+                      background: "#fff",
+                    }}
+                  >
+                    {suggestions.map((row, index) => (
+                      <button
+                        key={`${row.source}_${row.id}`}
+                        type="button"
+                        onClick={() => applySuggestion(row)}
+                        style={{
+                          width: "100%",
+                          textAlign: "left",
+                          padding: "14px 16px",
+                          border: 0,
+                          borderBottom: index === suggestions.length - 1 ? "none" : `1px solid ${MC_NAVY_SOFT}`,
+                          background: "#fff",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: 10,
+                        }}
+                      >
+                        <div style={{ fontSize: s(17), fontWeight: 500 }}>{row.name}</div>
+                        <div style={{ fontSize: s(14), color: MC_NAVY_MUTED, whiteSpace: "nowrap" }}>{row.store}</div>
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+
+                {canOpenCustomDraft ? (
+                  <div style={{ display: "grid", gap: 10 }}>
+                    <button
+                      type="button"
+                      onClick={openCustomDraft}
+                      style={{
+                        width: "100%",
+                        padding: "14px 16px",
+                        borderRadius: 16,
+                        border: `1px solid ${MC_NAVY}`,
+                        background: MC_NAVY,
+                        color: "#fff",
+                        fontWeight: 900,
+                        fontSize: s(15),
+                        cursor: "pointer",
+                      }}
+                    >
+                      {addArticleLabel}
+                    </button>
+                  </div>
+                ) : null}
+
+                {message ? <div style={{ fontSize: s(14), color: MC_NAVY }}>{message}</div> : null}
+              </div>
+            </section>
+
+            <section style={{ ...cardStyle(), padding: 14 }}>
+              <div style={{ fontSize: s(16), fontWeight: 800, marginBottom: 10 }}>{savedItemsTitle}</div>
+
+              {groupedSavedListItemsDraft.length === 0 ? (
+                <div style={{ fontSize: s(14), color: MC_NAVY_MUTED }}>{noDraftItemsLabel}</div>
+              ) : (
+                <div style={{ display: "grid", gap: 14 }}>
+                  {groupedSavedListItemsDraft.map((section) => (
+                    <div key={categoryLabel(lang, section.category)} style={{ display: "grid", gap: 8 }}>
+                      <div
+                        style={{
+                          padding: "9px 12px",
+                          borderRadius: 12,
+                          border: `1px solid ${MC_NAVY_LINE}`,
+                          background: MC_NAVY_SOFT,
+                          color: MC_NAVY,
+                          fontSize: s(13),
+                          fontWeight: 900,
+                        }}
+                      >
+                        {categoryLabel(lang, section.category)}
+                      </div>
+
+                      <div
+                        style={{
+                          border: `1px solid ${MC_NAVY_SOFT}`,
+                          borderRadius: 16,
+                          overflow: "hidden",
+                          background: "#fff",
+                        }}
+                      >
+                        {section.items.map((item, index) => (
+                          <div
+                            key={item.id}
+                            style={{
+                              display: "flex",
+                              gap: 10,
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              padding: "14px 12px",
+                              borderBottom: index === section.items.length - 1 ? "none" : "1px solid #f3f4f6",
+                            }}
+                          >
+                            <div style={{ minWidth: 0, flex: 1, fontSize: s(18), fontWeight: 500 }}>{item.name}</div>
+
+                            <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                              <div style={{ fontSize: s(15), color: MC_NAVY_MUTED }}>
+                                <QtyUnitText quantity={String(item.quantity)} unit={item.unit} />
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => removeSavedListDraftItem(item.id)}
+                                style={{
+                                  padding: "8px 12px",
+                                  borderRadius: 12,
+                                  border: `1px solid ${MC_NAVY_LINE}`,
+                                  background: "#fff",
+                                  fontWeight: 700,
+                                  whiteSpace: "nowrap",
+                                  fontSize: s(14),
+                                }}
+                              >
+                                {t(lang, "remove")}
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          </>
+        ) : (
+          <>
+            <section style={{ ...cardStyle(), padding: 14 }}>
+              <Link
+                href="/"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  color: MC_NAVY,
+                  fontSize: s(14),
+                  fontWeight: 800,
+                  textDecoration: "none",
+                }}
+              >
+                {backToMyListLabel}
+              </Link>
+
+              <div
+                style={{
+                  marginTop: 12,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 10,
+                }}
+              >
+                <div style={{ fontSize: s(16), fontWeight: 800 }}>{savedListsTitle}</div>
+
+                <Link
+                  href="/?view=saved-lists&saved-list-mode=new"
+                  style={{
+                    padding: "10px 14px",
+                    borderRadius: 14,
+                    border: `1px solid ${MC_NAVY}`,
+                    background: MC_NAVY,
+                    color: "#fff",
+                    fontWeight: 900,
+                    fontSize: s(14),
+                    textDecoration: "none",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {newListLabel}
+                </Link>
+              </div>
+
+              {savedListsMessage ? (
+                <div style={{ marginTop: 10, fontSize: s(14), color: MC_NAVY }}>{savedListsMessage}</div>
+              ) : null}
+            </section>
+
+            <section style={{ ...cardStyle(), padding: 18 }}>
+              {savedLists.length === 0 ? (
+                <>
+                  <div style={{ fontSize: s(18), fontWeight: 900 }}>{emptyTitle}</div>
+                  <div style={{ marginTop: 6, fontSize: s(14), color: MC_NAVY_MUTED }}>{emptyText}</div>
+                </>
+              ) : (
+                <div style={{ display: "grid", gap: 12 }}>
+                  {savedLists.map((savedList) => (
+                    <div
+                      key={savedList.id}
+                      style={{
+                        border: `1px solid ${MC_NAVY_LINE}`,
+                        borderRadius: 18,
+                        padding: 14,
+                        background: "#fff",
+                        display: "grid",
+                        gap: 12,
+                      }}
+                    >
+                      <div style={{ display: "grid", gap: 4 }}>
+                        <div style={{ fontSize: s(17), fontWeight: 900, color: MC_NAVY }}>{savedList.name}</div>
+                        <div style={{ fontSize: s(13), color: MC_NAVY_MUTED }}>
+                          {itemsCountLabel(savedList.items.length)}
+                        </div>
+                      </div>
+
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <Link
+                          href={`/?view=saved-lists&saved-list-mode=edit&saved-list-id=${encodeURIComponent(savedList.id)}`}
+                          style={{
+                            flex: 1,
+                            minWidth: 130,
+                            padding: "12px 14px",
+                            borderRadius: 14,
+                            border: `1px solid ${MC_NAVY}`,
+                            background: "#fff",
+                            color: MC_NAVY,
+                            fontWeight: 800,
+                            fontSize: s(14),
+                            textDecoration: "none",
+                            textAlign: "center",
+                          }}
+                        >
+                          {editLabel}
+                        </Link>
+
+                        <button
+                          type="button"
+                          onClick={() => deleteSavedList(savedList.id)}
+                          style={{
+                            flex: 1,
+                            minWidth: 130,
+                            padding: "12px 14px",
+                            borderRadius: 14,
+                            border: `1px solid ${MC_NAVY_LINE}`,
+                            background: "#fff",
+                            color: MC_NAVY,
+                            fontWeight: 800,
+                            fontSize: s(14),
+                            cursor: "pointer",
+                          }}
+                        >
+                          {deleteLabel}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          </>
         )}
       </AppShell>
     );
