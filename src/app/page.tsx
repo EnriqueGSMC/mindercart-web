@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import React from "react";
 import { AppShell, QtyUnitText, cardStyle, scalePx } from "@/components/mindercart/Shell";
 import { categoryLabel, t } from "@/lib/mindercart/i18n";
@@ -156,8 +158,11 @@ function normalizeUnit(value: string) {
 
 export default function NeedsPage() {
   const { activeShoppingListItems, settings, hydrated } = useMinderCartState();
+  const searchParams = useSearchParams();
   const lang = settings.language;
   const s = (px: number) => scalePx(settings.fontScale, px);
+  const isSavedListsView = searchParams.get("view") === "saved-lists";
+  const isNewSavedListView = searchParams.get("saved-list-mode") === "new";
 
   const addArticleLabel = lang === "en" ? "Add item" : "Agregar artículo";
   const addArticleModalHelp =
@@ -299,8 +304,153 @@ export default function NeedsPage() {
     );
   }
 
+  if (isSavedListsView) {
+    const savedListsTitle = lang === "en" ? "My Lists" : "Mis Listas";
+    const savedListsSubtitle =
+      lang === "en"
+        ? "Create, edit and reuse your saved lists."
+        : "Crea, edita y reutiliza tus listas guardadas.";
+    const newListLabel = lang === "en" ? "New list" : "Nueva lista";
+    const backToMyListLabel = lang === "en" ? "My List" : "Mi Lista";
+    const emptyTitle = lang === "en" ? "You do not have saved lists yet." : "Aún no tienes listas guardadas.";
+    const emptyText =
+      lang === "en"
+        ? "Here you will keep lists like Monthly List, Paella List or BBQ List."
+        : "Aquí podrás guardar listas como Lista Mensual, Lista Paella o Lista Carne Asada.";
+    const draftTitle = lang === "en" ? "New list" : "Nueva lista";
+    const draftText =
+      lang === "en"
+        ? "This is the base view for the next step. The creation flow will reuse the same navigation as My List."
+        : "Esta es la vista base para el siguiente paso. La creación reutilizará la misma navegación de Mi Lista.";
+    const returnLabel = lang === "en" ? "Back" : "Volver";
+    const continueLabel = lang === "en" ? "Continue" : "Continuar";
+
+    return (
+      <AppShell
+        title={savedListsTitle}
+        darkHero
+        subtitle={savedListsSubtitle}
+        secondaryAction={{ label: backToMyListLabel, href: "/" }}
+      >
+        <section style={{ ...cardStyle(), padding: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+            <div style={{ fontSize: s(16), fontWeight: 800 }}>{savedListsTitle}</div>
+
+            <Link
+              href="/?view=saved-lists&saved-list-mode=new"
+              style={{
+                padding: "10px 14px",
+                borderRadius: 14,
+                border: `1px solid ${MC_NAVY}`,
+                background: MC_NAVY,
+                color: "#fff",
+                fontWeight: 900,
+                fontSize: s(14),
+                textDecoration: "none",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {newListLabel}
+            </Link>
+          </div>
+        </section>
+
+        {isNewSavedListView ? (
+          <section style={{ ...cardStyle(), padding: 16 }}>
+            <div style={{ fontSize: s(18), fontWeight: 900 }}>{draftTitle}</div>
+            <div style={{ marginTop: 6, fontSize: s(14), color: MC_NAVY_MUTED }}>{draftText}</div>
+
+            <div
+              style={{
+                marginTop: 14,
+                padding: "14px 16px",
+                borderRadius: 16,
+                border: `1px solid ${MC_NAVY_LINE}`,
+                background: MC_NAVY_SOFT,
+                fontSize: s(14),
+                color: MC_NAVY,
+              }}
+            >
+              {lang === "en"
+                ? "In the next patch you will be able to name the list and select items by category."
+                : "En el siguiente parche podrás poner nombre a la lista y seleccionar artículos por categoría."}
+            </div>
+
+            <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+              <Link
+                href="/?view=saved-lists"
+                style={{
+                  flex: 1,
+                  padding: "13px 14px",
+                  borderRadius: 14,
+                  border: `1px solid ${MC_NAVY_LINE}`,
+                  background: "#fff",
+                  color: MC_NAVY,
+                  fontWeight: 800,
+                  fontSize: s(14),
+                  textDecoration: "none",
+                  textAlign: "center",
+                }}
+              >
+                {returnLabel}
+              </Link>
+
+              <button
+                type="button"
+                disabled
+                style={{
+                  flex: 1,
+                  padding: "13px 14px",
+                  borderRadius: 14,
+                  border: `1px solid ${MC_NAVY_LINE}`,
+                  background: "#E7ECFF",
+                  color: MC_NAVY_MUTED,
+                  fontWeight: 900,
+                  fontSize: s(14),
+                  cursor: "not-allowed",
+                }}
+              >
+                {continueLabel}
+              </button>
+            </div>
+          </section>
+        ) : (
+          <section style={{ ...cardStyle(), padding: 18 }}>
+            <div style={{ fontSize: s(18), fontWeight: 900 }}>{emptyTitle}</div>
+            <div style={{ marginTop: 6, fontSize: s(14), color: MC_NAVY_MUTED }}>{emptyText}</div>
+
+            <Link
+              href="/?view=saved-lists&saved-list-mode=new"
+              style={{
+                marginTop: 16,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "13px 16px",
+                borderRadius: 14,
+                border: `1px solid ${MC_NAVY}`,
+                background: MC_NAVY,
+                color: "#fff",
+                fontWeight: 900,
+                fontSize: s(14),
+                textDecoration: "none",
+              }}
+            >
+              {newListLabel}
+            </Link>
+          </section>
+        )}
+      </AppShell>
+    );
+  }
+
   return (
-    <AppShell title={t(lang, "myListTitle")} darkHero subtitle={t(lang, "myListSubtitle")}>
+    <AppShell
+      title={t(lang, "myListTitle")}
+      darkHero
+      subtitle={t(lang, "myListSubtitle")}
+      secondaryAction={{ label: lang === "en" ? "My Lists" : "Mis Listas", href: "/?view=saved-lists" }}
+    >
       <section style={{ ...cardStyle(), padding: 14 }}>
         <div style={{ display: "grid", gap: 12 }}>
           <div style={{ fontSize: s(16), fontWeight: 700 }}>{t(lang, "item")}</div>
