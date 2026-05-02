@@ -1211,27 +1211,33 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
     .filter((item) => safe(item.store) === store)
     .map((item) => localizeRowName(item, catalogMap, lang));
 
-  const title = lang === "en" ? "Your Shopping Cart" : "Tu Carrito de Compras";
-  const slogan = lang === "en" ? "Never Forget what to buy" : "Nunca olvides qué comprar";
   const printLabel = lang === "en" ? "Print" : "Imprimir";
   const backLabel = lang === "en" ? "Back" : "Regresar";
   const emptyLabel = lang === "en" ? "No items." : "No hay artículos.";
-  const printedOn = lang === "en" ? "Date" : "Fecha";
   const displayDate = escapeHtml(formatDisplayDate(lang));
   const pdfGroups = groupStoreRowsForPdf(rows, lang);
 
-  const screenBody = rows
-    .map(
-      (item) => `
-        <div class="mc-screen-row">
-          <div class="mc-screen-name">${escapeHtml(item.name)}</div>
-          <div class="mc-screen-qty">${escapeHtml(item.quantity)} ${escapeHtml(unitLabel(lang, item.unit))}</div>
+  const sharedHeader = `
+    <div class="mc-print-header">
+      <div class="mc-print-header-grid">
+        <div class="mc-print-left">
+          <div class="mc-print-avatar-wrap">
+            <img src="${PDF_BRAND_AVATAR_DATA_URI}" alt="" class="mc-print-avatar" />
+          </div>
+          <div class="mc-print-left-copy">
+            <div class="mc-print-title-left">MinderCart</div>
+            <div class="mc-print-store">${escapeHtml(store)}</div>
+          </div>
         </div>
-      `
-    )
-    .join("");
+        <div class="mc-print-right">
+          <div class="mc-print-title-right">Lista de Compras</div>
+          <div class="mc-print-date">${displayDate}</div>
+        </div>
+      </div>
+    </div>
+  `;
 
-  const printBody = pdfGroups
+  const sharedBody = pdfGroups
     .map(
       (group) => `
         <section class="mc-print-category">
@@ -1264,10 +1270,10 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
           :root {
             color-scheme: light;
             --mc-navy: #12245E;
-            --mc-navy-soft: #EAF0FF;
             --mc-line: #D8E2FF;
-            --mc-muted: #5D6B98;
             --mc-bg: #F5F7FF;
+            --mc-paper: #FFFFFF;
+            --mc-muted: #4B5A8A;
           }
 
           * {
@@ -1280,7 +1286,7 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
             padding: 0;
             font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
             background: var(--mc-bg);
-            color: var(--mc-navy);
+            color: #111827;
           }
 
           body {
@@ -1299,87 +1305,20 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
             padding: 16px 16px calc(104px + env(safe-area-inset-bottom));
           }
 
-          .mc-screen-header {
-            background: var(--mc-navy);
-            color: #fff;
-            border-radius: 18px;
-            padding: 18px 18px 16px;
-          }
-
-          .mc-screen-header-grid {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            gap: 16px;
-          }
-
-          .mc-screen-left,
-          .mc-screen-right {
-            min-width: 0;
-          }
-
-          .mc-screen-right {
-            text-align: right;
-          }
-
-          .mc-screen-title {
-            font-size: 21px;
-            line-height: 1.1;
-            font-weight: 900;
-          }
-
-          .mc-screen-store {
-            margin-top: 8px;
-            font-size: 18px;
-            line-height: 1.15;
-            font-weight: 800;
-          }
-
-          .mc-screen-date,
-          .mc-screen-slogan {
-            margin-top: 8px;
-            font-size: 13px;
-            line-height: 1.35;
-            opacity: 0.94;
-          }
-
-          .mc-screen-list {
-            display: grid;
-            gap: 12px;
-            margin-top: 16px;
-          }
-
-          .mc-screen-row {
-            display: flex;
-            justify-content: space-between;
-            gap: 12px;
-            padding: 14px 16px;
+          .mc-screen-preview {
+            background: var(--mc-paper);
             border: 1px solid var(--mc-line);
             border-radius: 18px;
-            background: #fff;
+            overflow: hidden;
+            box-shadow: 0 12px 30px rgba(18, 36, 94, 0.08);
           }
 
-          .mc-screen-name {
-            font-size: 18px;
-            line-height: 1.2;
-            font-weight: 800;
-            color: var(--mc-navy);
+          .mc-screen-preview .mc-print-header {
+            border-radius: 0;
           }
 
-          .mc-screen-qty {
-            font-size: 15px;
-            line-height: 1.25;
-            color: var(--mc-muted);
-            white-space: nowrap;
-          }
-
-          .mc-screen-empty {
-            background: #fff;
-            border: 1px solid var(--mc-line);
-            border-radius: 18px;
-            padding: 18px;
-            font-size: 17px;
-            color: var(--mc-muted);
+          .mc-screen-preview .mc-print-list {
+            padding: 14px 16px 16px;
           }
 
           .mc-screen-controls {
@@ -1449,8 +1388,12 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
             gap: 4mm;
           }
 
+          .mc-print-left-copy,
           .mc-print-right {
             min-width: 0;
+          }
+
+          .mc-print-right {
             text-align: right;
           }
 
@@ -1501,10 +1444,10 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
 
           .mc-print-category-title {
             padding: 1.6mm 2.2mm;
-            border: 0.35mm solid #D8E2FF;
+            border: 0.35mm solid var(--mc-line);
             border-radius: 2.4mm;
             background: #EEF3FF;
-            color: #12245E;
+            color: var(--mc-navy);
             font-size: 9pt;
             line-height: 1.1;
             font-weight: 800;
@@ -1512,15 +1455,17 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
 
           .mc-print-category-items {
             margin-top: 1.2mm;
+            padding-left: 5mm;
+            padding-right: 1mm;
           }
 
           .mc-print-row {
             display: grid;
-            grid-template-columns: 4.8mm minmax(0, 1fr) auto;
-            gap: 2.4mm;
+            grid-template-columns: 4.6mm minmax(0, 1fr) auto;
+            gap: 2.6mm;
             align-items: center;
             padding: 1.5mm 0;
-            border-bottom: 0.25mm solid #D8E2FF;
+            border-bottom: 0.25mm solid var(--mc-line);
             page-break-inside: avoid;
             break-inside: avoid;
           }
@@ -1528,7 +1473,7 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
           .mc-print-checkbox {
             width: 3.6mm;
             height: 3.6mm;
-            border: 0.35mm solid #12245E;
+            border: 0.35mm solid var(--mc-navy);
             border-radius: 0.65mm;
             background: #fff;
           }
@@ -1544,14 +1489,14 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
             font-size: 8.8pt;
             line-height: 1.1;
             white-space: nowrap;
-            color: #4B5A8A;
+            color: var(--mc-muted);
             text-align: right;
           }
 
           .mc-print-empty {
             padding: 3mm 0;
             font-size: 10pt;
-            color: #4B5A8A;
+            color: var(--mc-muted);
           }
 
           @page {
@@ -1586,22 +1531,11 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
       <body>
         <div class="mc-screen">
           <div class="mc-screen-shell">
-            <div class="mc-screen-header">
-              <div class="mc-screen-header-grid">
-                <div class="mc-screen-left">
-                  <div class="mc-screen-title">${title}</div>
-                  <div class="mc-screen-store">${escapeHtml(store)}</div>
-                  <div class="mc-screen-date">${printedOn}: ${displayDate}</div>
-                </div>
-                <div class="mc-screen-right">
-                  <div class="mc-screen-title">MinderCart</div>
-                  <div class="mc-screen-slogan">${slogan}</div>
-                </div>
+            <div class="mc-screen-preview">
+              ${sharedHeader}
+              <div class="mc-print-list">
+                ${sharedBody || `<div class="mc-print-empty">${emptyLabel}</div>`}
               </div>
-            </div>
-
-            <div class="mc-screen-list">
-              ${screenBody || `<div class="mc-screen-empty">${emptyLabel}</div>`}
             </div>
           </div>
 
@@ -1614,32 +1548,13 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
         </div>
 
         <div class="mc-print-sheet">
-          <div class="mc-print-header">
-            <div class="mc-print-header-grid">
-              <div class="mc-print-left">
-                <div class="mc-print-avatar-wrap">
-                  <img src="${PDF_BRAND_AVATAR_DATA_URI}" alt="" class="mc-print-avatar" />
-                </div>
-                <div>
-                  <div class="mc-print-title-left">Lista de Compras</div>
-                  <div class="mc-print-store">${escapeHtml(store)}</div>
-                </div>
-              </div>
-              <div class="mc-print-right">
-                <div class="mc-print-title-right">MinderCart</div>
-                <div class="mc-print-date">${displayDate}</div>
-              </div>
-            </div>
-          </div>
-
+          ${sharedHeader}
           <div class="mc-print-list">
-            ${printBody || `<div class="mc-print-empty">${emptyLabel}</div>`}
+            ${sharedBody || `<div class="mc-print-empty">${emptyLabel}</div>`}
           </div>
         </div>
       </body>
     </html>
   `;
 }
-
-
 
