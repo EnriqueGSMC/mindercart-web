@@ -14,7 +14,6 @@ import {
 import { t } from "@/lib/mindercart/i18n";
 import {
   buildShoppingListHtmlForStore,
-  buildShoppingListTextForStore,
   closeShoppingForStore,
   groupByStore,
   readState,
@@ -68,6 +67,22 @@ const OFFICIAL_CATEGORIES = [
   "Cajas y Salida",
   "Otro / Temporal",
 ] as const;
+
+const CATEGORY_LABELS_EN: Record<(typeof OFFICIAL_CATEGORIES)[number], string> = {
+  "Frutas y Verduras": "Fruits and Vegetables",
+  "Carnes, Pollo y Pescados": "Meat, Chicken and Fish",
+  "Lácteos y Refrigerados": "Dairy and Refrigerated",
+  "Panadería y Tortillería": "Bakery and Tortilla Shop",
+  Abarrotes: "Groceries",
+  Bebidas: "Beverages",
+  Congelados: "Frozen Foods",
+  "Limpieza y Hogar": "Cleaning and Home",
+  "Farmacia, Bebé y Cuidado Personal": "Pharmacy, Baby and Personal Care",
+  Mascotas: "Pets",
+  "Cajas y Salida": "Checkout",
+  "Otro / Temporal": "Other / Temporary",
+};
+
 
 const OFFICIAL_UNITS = [
   "pza",
@@ -281,6 +296,39 @@ function groupItemsByCategory<T extends { name?: unknown; category?: unknown }>(
   })).filter((group) => group.items.length > 0);
 }
 
+function translateCategoryLabel(category: string, language: string) {
+  if (language !== "en") return category;
+  return CATEGORY_LABELS_EN[normalizeCategory(category)] ?? category;
+}
+
+function formatWhatsAppItemLine(item: Pick<DisplayListItem, "name" | "quantity" | "unit">) {
+  const quantity = toSafeText(item.quantity);
+  const unit = toSafeText(item.unit);
+  const details = [quantity, unit].filter(Boolean).join(" ");
+
+  return details ? `- ${item.name} (${details})` : `- ${item.name}`;
+}
+
+function buildStoreWhatsAppText(
+  store: string,
+  items: Pick<DisplayListItem, "name" | "quantity" | "unit" | "category">[],
+  language: string
+) {
+  const groupedItems = groupItemsByCategory(items);
+  if (!store || groupedItems.length === 0) return store;
+
+  const groupedText = groupedItems
+    .map((group) =>
+      [
+        translateCategoryLabel(group.category, language),
+        ...group.items.map((item) => formatWhatsAppItemLine(item)),
+      ].join("\n")
+    )
+    .join("\n\n");
+
+  return `${store}\n\n${groupedText}`.trim();
+}
+
 function sideActionButtonStyle(fontSize: number): React.CSSProperties {
   return {
     padding: "8px 12px",
@@ -360,10 +408,7 @@ export default function ShoppingPage() {
         darkHero
         subtitle={t("es", "shoppingSubtitle")}
         showCart={false}
-        footerActions={[
-          { label: t("es", "whatsApp"), disabled: true, primary: true },
-          { label: t("es", "pdf"), disabled: true },
-        ]}
+        footerActions={[]}
       >
         <section style={{ ...cardStyle(), padding: 18 }}>
           <div style={{ fontSize: s(14), color: MC_NAVY_MUTED }}>{t("es", "loading")}</div>
@@ -373,7 +418,7 @@ export default function ShoppingPage() {
   }
 
   function onWhatsAppStore(store: string) {
-    const text = buildShoppingListTextForStore(store);
+    const text = buildStoreWhatsAppText(store, visibleStoreItems as DisplayListItem[], lang);
     if (!text) return;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
   }
@@ -596,7 +641,7 @@ export default function ShoppingPage() {
           fontWeight: 900,
         }}
       >
-        {category}
+        {translateCategoryLabel(category, lang)}
       </div>
     );
   }
@@ -668,20 +713,24 @@ export default function ShoppingPage() {
       darkHero
       subtitle={t(lang, "shoppingSubtitle")}
       showCart={false}
-      footerInset={selectedStoreGroup ? 48 : 0}
-      footerActions={[
-        {
-          label: t(lang, "whatsApp"),
-          primary: true,
-          disabled: !selectedStoreGroup,
-          onClick: selectedStoreGroup ? () => onWhatsAppStore(selectedStoreGroup.store) : undefined,
-        },
-        {
-          label: t(lang, "pdf"),
-          disabled: !selectedStoreGroup,
-          onClick: selectedStoreGroup ? () => onPdfStore(selectedStoreGroup.store) : undefined,
-        },
-      ]}
+      footerInset={selectedStoreGroup ? 88 : 0}
+      footerActions={
+        selectedStoreGroup
+          ? [
+              {
+                label: t(lang, "whatsApp"),
+                primary: true,
+                disabled: false,
+                onClick: () => onWhatsAppStore(selectedStoreGroup.store),
+              },
+              {
+                label: t(lang, "pdf"),
+                disabled: false,
+                onClick: () => onPdfStore(selectedStoreGroup.store),
+              },
+            ]
+          : []
+      }
     >
       {!selectedStoreGroup ? (
         <section style={{ ...cardStyle(), padding: 14 }}>

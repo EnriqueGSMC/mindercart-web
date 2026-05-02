@@ -47,6 +47,22 @@ export type ShoppingHistoryEntry = {
   items: ActiveShoppingListItem[];
 };
 
+export type StoreProfile = {
+  id: string;
+  name: string;
+  addressLine1: string;
+  addressLine2: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+  phone: string;
+  notes: string;
+  active: boolean;
+  createdAt: number;
+  updatedAt: number;
+};
+
 export type MinderCartSettings = {
   language: Language;
   preferredStore: string;
@@ -58,6 +74,7 @@ export type MinderCartState = {
   generalListItems: GeneralListItem[];
   activeShoppingListItems: ActiveShoppingListItem[];
   shoppingHistory: ShoppingHistoryEntry[];
+  storeProfiles: StoreProfile[];
   settings: MinderCartSettings;
 };
 
