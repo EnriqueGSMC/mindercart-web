@@ -269,7 +269,8 @@ export default function NeedsPage() {
   const [savedListName, setSavedListName] = React.useState("");
   const [savedListItemsDraft, setSavedListItemsDraft] = React.useState<SavedListDraftItem[]>([]);
   const [savedListsMessage, setSavedListsMessage] = React.useState("");
-  const articleInputRef = React.useRef<HTMLInputElement | null>(null);
+  const searchInputRef = React.useRef<HTMLInputElement | null>(null);
+  const [isNewSavedListConfirmed, setIsNewSavedListConfirmed] = React.useState(false);
 
   React.useEffect(() => {
     if (!hydrated) return;
@@ -281,11 +282,6 @@ export default function NeedsPage() {
     setSavedLists(readSavedListsFromBrowser());
     setSavedListsLoaded(true);
   }, [hydrated]);
-
-  React.useEffect(() => {
-    if (!isSavedListEditorView || draft) return;
-    focusArticleInput();
-  }, [isSavedListEditorView, draft]);
 
   React.useEffect(() => {
     if (!isSavedListEditorView || !savedListsLoaded) return;
@@ -312,6 +308,20 @@ export default function NeedsPage() {
     setSavedListItemsDraft(existing.items.map((item) => ({ ...item })));
     setSavedListsMessage("");
   }, [isSavedListEditorView, isNewSavedListView, savedListsLoaded, savedLists, editingSavedListId, lang]);
+
+  React.useEffect(() => {
+    if (!isSavedListEditorView) {
+      setIsNewSavedListConfirmed(false);
+      return;
+    }
+
+    if (isEditSavedListView) {
+      setIsNewSavedListConfirmed(true);
+      return;
+    }
+
+    setIsNewSavedListConfirmed(false);
+  }, [isSavedListEditorView, isEditSavedListView, isNewSavedListView, editingSavedListId]);
 
   const trimmedName = name.trim();
   const showSuggestions = trimmedName.length >= 2 && suggestions.length > 0;
@@ -354,11 +364,10 @@ export default function NeedsPage() {
     setSuggestions([]);
   }
 
-  function focusArticleInput() {
+  function focusSearchInput() {
     if (typeof window === "undefined") return;
     window.setTimeout(() => {
-      articleInputRef.current?.focus();
-      articleInputRef.current?.select();
+      searchInputRef.current?.focus();
     }, 0);
   }
 
@@ -367,7 +376,7 @@ export default function NeedsPage() {
     setAddingStore(false);
     setNewStoreName("");
     resetInput();
-    focusArticleInput();
+    focusSearchInput();
   }
 
   function openDraft(input: DraftItem) {
@@ -448,6 +457,26 @@ export default function NeedsPage() {
     const next = savedLists.filter((entry) => entry.id !== savedListId);
     persistSavedLists(next);
     setSavedListsMessage(lang === "en" ? "Saved list deleted." : "Lista guardada eliminada.");
+  }
+
+  function beginNewSavedListFlow() {
+    const trimmedListName = savedListName.trim();
+
+    if (!trimmedListName) {
+      setSavedListsMessage(lang === "en" ? "Enter a name for the list." : "Escribe un nombre para la lista.");
+      return;
+    }
+
+    const confirmationText =
+      lang === "en"
+        ? `Start "${trimmedListName}" and begin adding items?`
+        : `¿Crear "${trimmedListName}" y empezar a llenarla?`;
+
+    if (typeof window !== "undefined" && !window.confirm(confirmationText)) return;
+
+    setSavedListsMessage("");
+    setIsNewSavedListConfirmed(true);
+    focusSearchInput();
   }
 
   function saveSavedListDraft() {
@@ -563,6 +592,7 @@ export default function NeedsPage() {
     const draftTitle = lang === "en" ? "New list" : "Nueva lista";
     const listNameLabel = lang === "en" ? "List name" : "Nombre de la lista";
     const listNamePlaceholder = lang === "en" ? "e.g. Paella List" : "ej. Lista Paella";
+    const confirmListLabel = lang === "en" ? "Continue" : "Continuar";
     const saveListLabel = lang === "en" ? "Save list" : "Guardar lista";
     const savedItemsTitle = lang === "en" ? "List items" : "Artículos de la lista";
     const noDraftItemsLabel = lang === "en" ? "No items in this list yet." : "Aún no hay artículos en esta lista.";
@@ -601,9 +631,28 @@ export default function NeedsPage() {
                 }}
               >
                 <div style={{ fontSize: s(18), fontWeight: 900 }}>
-                  {isEditSavedListView ? editListTitle : draftTitle}
+                  {isEditSavedListView ? editListTitle : isNewSavedListConfirmed ? savedListName.trim() || draftTitle : draftTitle}
                 </div>
 
+                {isNewSavedListView && !isNewSavedListConfirmed ? (
+                  <button
+                    type="button"
+                    onClick={beginNewSavedListFlow}
+                    style={{
+                      padding: "10px 14px",
+                      borderRadius: 14,
+                      border: `1px solid ${MC_NAVY}`,
+                      background: MC_NAVY,
+                      color: "#fff",
+                      fontWeight: 900,
+                      fontSize: s(14),
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {confirmListLabel}
+                  </button>
+                ) : (
                 <button
                   type="button"
                   onClick={saveSavedListDraft}
@@ -621,6 +670,7 @@ export default function NeedsPage() {
                 >
                   {saveListLabel}
                 </button>
+                )}
               </div>
 
               <div style={{ marginTop: 14, display: "grid", gap: 8 }}>
@@ -647,14 +697,24 @@ export default function NeedsPage() {
               {savedListsMessage ? (
                 <div style={{ marginTop: 10, fontSize: s(14), color: MC_NAVY }}>{savedListsMessage}</div>
               ) : null}
+
+              {isNewSavedListView && !isNewSavedListConfirmed ? (
+                <div style={{ marginTop: 10, fontSize: s(14), color: MC_NAVY_MUTED }}>
+                  {lang === "en"
+                    ? "Confirm the list name to start adding items."
+                    : "Confirma el nombre de la lista para empezar a agregar artículos."}
+                </div>
+              ) : null}
             </section>
 
+            {isNewSavedListView && !isNewSavedListConfirmed ? null : (
+            <>
             <section style={{ ...cardStyle(), padding: 14 }}>
               <div style={{ display: "grid", gap: 12 }}>
                 <div style={{ fontSize: s(16), fontWeight: 700 }}>{t(lang, "item")}</div>
 
                 <input
-                  ref={articleInputRef}
+                  ref={searchInputRef}
                   value={name}
                   onChange={(e) => {
                     setName(e.target.value);
@@ -812,6 +872,8 @@ export default function NeedsPage() {
                 </div>
               )}
             </section>
+            </>
+            )}
           </>
         ) : (
           <>
@@ -954,6 +1016,7 @@ export default function NeedsPage() {
           <div style={{ fontSize: s(16), fontWeight: 700 }}>{t(lang, "item")}</div>
 
           <input
+            ref={searchInputRef}
             value={name}
             onChange={(e) => {
               setName(e.target.value);
