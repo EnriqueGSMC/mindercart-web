@@ -269,6 +269,7 @@ export default function NeedsPage() {
   const [savedListName, setSavedListName] = React.useState("");
   const [savedListItemsDraft, setSavedListItemsDraft] = React.useState<SavedListDraftItem[]>([]);
   const [savedListsMessage, setSavedListsMessage] = React.useState("");
+  const articleInputRef = React.useRef<HTMLInputElement | null>(null);
 
   React.useEffect(() => {
     if (!hydrated) return;
@@ -280,6 +281,11 @@ export default function NeedsPage() {
     setSavedLists(readSavedListsFromBrowser());
     setSavedListsLoaded(true);
   }, [hydrated]);
+
+  React.useEffect(() => {
+    if (!isSavedListEditorView || draft) return;
+    focusArticleInput();
+  }, [isSavedListEditorView, draft]);
 
   React.useEffect(() => {
     if (!isSavedListEditorView || !savedListsLoaded) return;
@@ -348,11 +354,20 @@ export default function NeedsPage() {
     setSuggestions([]);
   }
 
+  function focusArticleInput() {
+    if (typeof window === "undefined") return;
+    window.setTimeout(() => {
+      articleInputRef.current?.focus();
+      articleInputRef.current?.select();
+    }, 0);
+  }
+
   function closeDraft() {
     setDraft(null);
     setAddingStore(false);
     setNewStoreName("");
     resetInput();
+    focusArticleInput();
   }
 
   function openDraft(input: DraftItem) {
@@ -639,6 +654,7 @@ export default function NeedsPage() {
                 <div style={{ fontSize: s(16), fontWeight: 700 }}>{t(lang, "item")}</div>
 
                 <input
+                  ref={articleInputRef}
                   value={name}
                   onChange={(e) => {
                     setName(e.target.value);
