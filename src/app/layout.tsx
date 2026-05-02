@@ -13,7 +13,8 @@ export const revalidate = 0;
 
 type NavItem = {
   href: string;
-  label: string;
+  labelEs: string;
+  labelEn: string;
   match: string[];
   icon: React.ReactNode;
 };
@@ -31,7 +32,8 @@ const iconStyle = {
 const navItems: NavItem[] = [
   {
     href: "/",
-    label: "Mi Lista",
+    labelEs: "Mi Lista",
+    labelEn: "My List",
     match: ["/"],
     icon: (
       <svg viewBox="0 0 24 24" aria-hidden="true" style={iconStyle}>
@@ -46,7 +48,8 @@ const navItems: NavItem[] = [
   },
   {
     href: "/general-list",
-    label: "Carrito",
+    labelEs: "Carrito",
+    labelEn: "Cart",
     match: ["/general-list", "/shopping-list"],
     icon: (
       <svg viewBox="0 0 24 24" aria-hidden="true" style={iconStyle}>
@@ -59,7 +62,8 @@ const navItems: NavItem[] = [
   },
   {
     href: "/in-store",
-    label: "De Compras",
+    labelEs: "De Compras",
+    labelEn: "Shopping",
     match: ["/in-store"],
     icon: (
       <svg viewBox="0 0 24 24" aria-hidden="true" style={iconStyle}>
@@ -70,7 +74,8 @@ const navItems: NavItem[] = [
   },
   {
     href: "/history",
-    label: "Historial",
+    labelEs: "Historial",
+    labelEn: "History",
     match: ["/history"],
     icon: (
       <svg viewBox="0 0 24 24" aria-hidden="true" style={iconStyle}>
@@ -82,7 +87,8 @@ const navItems: NavItem[] = [
   },
   {
     href: "/settings",
-    label: "Configuración",
+    labelEs: "Configuración",
+    labelEn: "Settings",
     match: ["/settings"],
     icon: (
       <svg viewBox="0 0 24 24" aria-hidden="true" style={iconStyle}>
@@ -216,10 +222,12 @@ function BottomNavigation() {
               className="mc-bottom-nav__item"
               data-nav-href={item.href}
               data-nav-match={item.match.join("|")}
+              data-label-es={item.labelEs}
+              data-label-en={item.labelEn}
             >
               <span className="mc-bottom-nav__inner">
                 <span className="mc-bottom-nav__icon">{item.icon}</span>
-                <span className="mc-bottom-nav__label">{item.label}</span>
+                <span className="mc-bottom-nav__label">{item.labelEs}</span>
               </span>
             </a>
           ))}
@@ -230,19 +238,60 @@ function BottomNavigation() {
         dangerouslySetInnerHTML={{
           __html: `
             (function () {
-              var path = window.location.pathname || "/";
-              var items = document.querySelectorAll("[data-nav-match]");
-              items.forEach(function (node) {
-                var matches = (node.getAttribute("data-nav-match") || "").split("|").filter(Boolean);
-                var active = matches.some(function (value) {
-                  return value === "/" ? path === "/" : path === value || path.indexOf(value + "/") === 0;
-                });
-                if (active) {
-                  node.classList.add("is-active");
-                } else {
-                  node.classList.remove("is-active");
+              var STORAGE_KEY = "mindercart_state_v15";
+              var CHANGE_EVENT = "mindercart:changed";
+
+              function getLanguage() {
+                try {
+                  var raw = window.localStorage.getItem(STORAGE_KEY);
+                  if (!raw) return "es";
+                  var parsed = JSON.parse(raw);
+                  return parsed && parsed.settings && parsed.settings.language === "en" ? "en" : "es";
+                } catch {
+                  return "es";
                 }
-              });
+              }
+
+              function syncFooterLanguage() {
+                var lang = getLanguage();
+                var items = document.querySelectorAll(".mc-bottom-nav__item");
+                items.forEach(function (node) {
+                  var labelNode = node.querySelector(".mc-bottom-nav__label");
+                  if (!labelNode) return;
+                  var nextLabel =
+                    lang === "en"
+                      ? node.getAttribute("data-label-en")
+                      : node.getAttribute("data-label-es");
+                  if (nextLabel) {
+                    labelNode.textContent = nextLabel;
+                  }
+                });
+              }
+
+              function syncActivePath() {
+                var path = window.location.pathname || "/";
+                var items = document.querySelectorAll("[data-nav-match]");
+                items.forEach(function (node) {
+                  var matches = (node.getAttribute("data-nav-match") || "").split("|").filter(Boolean);
+                  var active = matches.some(function (value) {
+                    return value === "/" ? path === "/" : path === value || path.indexOf(value + "/") === 0;
+                  });
+                  if (active) {
+                    node.classList.add("is-active");
+                  } else {
+                    node.classList.remove("is-active");
+                  }
+                });
+              }
+
+              function syncFooter() {
+                syncFooterLanguage();
+                syncActivePath();
+              }
+
+              syncFooter();
+              window.addEventListener("storage", syncFooter);
+              window.addEventListener(CHANGE_EVENT, syncFooter);
             })();
           `,
         }}
