@@ -272,6 +272,8 @@ export default function NeedsPage() {
   const [savedListItemsDraft, setSavedListItemsDraft] = React.useState<SavedListDraftItem[]>([]);
   const [savedListsMessage, setSavedListsMessage] = React.useState("");
   const [selectedOpenSavedListItemIds, setSelectedOpenSavedListItemIds] = React.useState<string[]>([]);
+  const [savedListNameEditUnlocked, setSavedListNameEditUnlocked] = React.useState(false);
+  const savedListNameInputRef = React.useRef<HTMLInputElement | null>(null);
 
   React.useEffect(() => {
     if (!hydrated) return;
@@ -294,9 +296,11 @@ export default function NeedsPage() {
       setSavedListName("");
       setSavedListItemsDraft([]);
       setSavedListsMessage("");
+      setSavedListNameEditUnlocked(true);
       return;
     }
 
+    setSavedListNameEditUnlocked(false);
     const existing = savedLists.find((entry) => entry.id === selectedSavedListId);
     if (!existing) {
       setSavedListName("");
@@ -309,6 +313,26 @@ export default function NeedsPage() {
     setSavedListItemsDraft(existing.items.map((item) => ({ ...item })));
     setSavedListsMessage("");
   }, [isSavedListEditorView, isNewSavedListView, savedListsLoaded, savedLists, selectedSavedListId, lang]);
+
+
+  const confirmSavedListNameEdit = React.useCallback(() => {
+    if (!isEditSavedListView || savedListNameEditUnlocked) return true;
+
+    const allowEdit = window.confirm(
+      lang === "en" ? "Do you want to change this list name?" : "¿Quieres modificar el nombre de esta lista?"
+    );
+
+    if (allowEdit) {
+      setSavedListNameEditUnlocked(true);
+      setSavedListsMessage("");
+      window.setTimeout(() => {
+        savedListNameInputRef.current?.focus();
+        savedListNameInputRef.current?.select();
+      }, 0);
+    }
+
+    return allowEdit;
+  }, [isEditSavedListView, lang, savedListNameEditUnlocked]);
 
   React.useEffect(() => {
     if (!isOpenSavedListView) {
@@ -849,8 +873,8 @@ export default function NeedsPage() {
     const openListNotFoundLabel = lang === "en" ? "Saved list not found." : "No se encontró la lista guardada.";
     const openListHelpText =
       lang === "en"
-        ? "Mark the missing items you want to add to My List."
-        : "Marca los artículos faltantes que quieras agregar.";
+        ? "Mark the items you want to add."
+        : "Marca los artículos que quieras agregar.";
     const itemsCountLabel = (count: number) =>
       lang === "en" ? `${count} item${count === 1 ? "" : "s"}` : `${count} artículo${count === 1 ? "" : "s"}`;
 
@@ -935,7 +959,18 @@ export default function NeedsPage() {
               <div style={{ marginTop: 16, display: "grid", gap: 8 }}>
                 <div style={{ fontSize: s(13), fontWeight: 700 }}>{listNameLabel}</div>
                 <input
+                  ref={savedListNameInputRef}
                   value={savedListName}
+                  readOnly={isEditSavedListView && !savedListNameEditUnlocked}
+                  onClick={() => {
+                    confirmSavedListNameEdit();
+                  }}
+                  onFocus={(event) => {
+                    if (isEditSavedListView && !savedListNameEditUnlocked) {
+                      event.currentTarget.blur();
+                      confirmSavedListNameEdit();
+                    }
+                  }}
                   onChange={(e) => {
                     setSavedListName(e.target.value);
                     setSavedListsMessage("");
@@ -948,7 +983,7 @@ export default function NeedsPage() {
                     border: `1px solid ${MC_NAVY_LINE}`,
                     boxSizing: "border-box",
                     fontSize: s(16),
-                    background: "#fff",
+                    background: isEditSavedListView && !savedListNameEditUnlocked ? MC_NAVY_SOFT : "#fff",
                   }}
                 />
               </div>
@@ -1130,7 +1165,7 @@ export default function NeedsPage() {
                   gap: 12,
                 }}
               >
-                <div style={{ display: "grid", gap: 7, minWidth: 0, flex: 1 }}>
+                <div style={{ display: "grid", gap: 5, minWidth: 0, flex: 1 }}>
                   <Link
                     href="/?view=saved-lists"
                     style={{
@@ -1154,9 +1189,9 @@ export default function NeedsPage() {
                   {openedSavedList ? (
                     <div
                       style={{
-                        fontSize: s(13),
+                        fontSize: s(12),
                         color: MC_NAVY_MUTED,
-                        lineHeight: 1.35,
+                        lineHeight: 1.2,
                         maxWidth: "100%",
                       }}
                     >
@@ -1334,7 +1369,7 @@ export default function NeedsPage() {
                   gap: 12,
                 }}
               >
-                <div style={{ display: "grid", gap: 7, minWidth: 0, flex: 1 }}>
+                <div style={{ display: "grid", gap: 5, minWidth: 0, flex: 1 }}>
                   <Link
                     href="/"
                     style={{
