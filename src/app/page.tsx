@@ -43,6 +43,7 @@ type SavedListRecord = {
 };
 
 const ADD_STORE_VALUE = "__ADD_STORE__";
+const SAVED_LISTS_STORAGE_KEY = "mindercart.savedLists.v1";
 
 const MC_NAVY = "#12245E";
 const MC_NAVY_SOFT = "#EEF3FF";
@@ -86,7 +87,6 @@ function uniqueValues(values: Array<string | null | undefined>) {
   );
 }
 
-
 const FIXED_UNIT_OPTIONS = [
   "pza",
   "paquete",
@@ -110,7 +110,63 @@ const FALLBACK_CATEGORY = "Otro / Temporal";
 const ORDERED_CATEGORIES = CATEGORY_OPTIONS.includes(FALLBACK_CATEGORY)
   ? [...CATEGORY_OPTIONS]
   : [...CATEGORY_OPTIONS, FALLBACK_CATEGORY];
-const SAVED_LISTS_STORAGE_KEY = "mindercart.savedLists.v1";
+
+function normalizeCategory(value: string | null | undefined) {
+  const trimmed = String(value ?? "").trim();
+  return ORDERED_CATEGORIES.includes(trimmed) ? trimmed : FALLBACK_CATEGORY;
+}
+
+function groupItemsByCategory<T extends { name: string; category?: string | null }>(items: T[]) {
+  const grouped = new Map<string, T[]>();
+
+  for (const item of items) {
+    const category = normalizeCategory(item.category);
+    const bucket = grouped.get(category);
+    if (bucket) {
+      bucket.push(item);
+    } else {
+      grouped.set(category, [item]);
+    }
+  }
+
+  return ORDERED_CATEGORIES.flatMap((category) => {
+    const categoryItems = grouped.get(category);
+    if (!categoryItems || categoryItems.length === 0) return [];
+
+    return [
+      {
+        category,
+        items: [...categoryItems].sort((a, b) =>
+          String(a.name ?? "").localeCompare(String(b.name ?? ""), "es", { sensitivity: "base" })
+        ),
+      },
+    ];
+  });
+}
+
+function normalizeUnit(value: string) {
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (!raw) return "pza";
+
+  if (["pza", "pzas", "pieza", "piezas", "unidad", "unidades", "ea", "each", "unit", "units"].includes(raw)) return "pza";
+  if (["paquete", "paquetes", "pack", "packs"].includes(raw)) return "paquete";
+  if (["caja", "cajas", "box", "boxes"].includes(raw)) return "caja";
+  if (["lata", "latas", "can", "cans"].includes(raw)) return "lata";
+  if (["botella", "botellas", "bottle", "bottles"].includes(raw)) return "botella";
+  if (["frasco", "frascos", "jar", "jars"].includes(raw)) return "frasco";
+  if (["bolsa", "bolsas", "bag", "bags"].includes(raw)) return "bolsa";
+  if (["rollo", "rollos", "roll", "rolls"].includes(raw)) return "rollo";
+  if (["docena", "docenas", "dozen", "dozens"].includes(raw)) return "docena";
+  if (["g", "gr", "grs", "gramo", "gramos", "gram", "grams"].includes(raw)) return "g";
+  if (["kg", "kilo", "kilos", "kilogramo", "kilogramos", "kilogram", "kilograms"].includes(raw)) return "kg";
+  if (["oz", "onza", "onzas", "ounce", "ounces"].includes(raw)) return "oz";
+  if (["lb", "libra", "libras", "pound", "pounds"].includes(raw)) return "lb";
+  if (["ml", "mililitro", "mililitros", "milliliter", "milliliters"].includes(raw)) return "ml";
+  if (["l", "lt", "lts", "litro", "litros", "liter", "liters"].includes(raw)) return "l";
+  if (["gal", "galon", "galones", "gallon", "gallons"].includes(raw)) return "gal";
+
+  return "pza";
+}
 
 function buildLocalId(prefix: string) {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -152,13 +208,13 @@ function readSavedListsFromBrowser() {
                 return {
                   id: String(row.id ?? buildLocalId("saved-list-item")),
                   name: itemName,
-                  category: normalizeCategory(row.category),
+                  category: normalizeCategory(String(row.category ?? FALLBACK_CATEGORY)),
                   unit: normalizeUnit(String(row.unit ?? "pza")),
                   quantity: String(row.quantity ?? "1").trim() || "1",
-                  store: String(row.store ?? "").trim() || "HEB",
+                  store: String(row.store ?? "HEB").trim() || "HEB",
                 } satisfies SavedListDraftItem;
               })
-              .filter(Boolean) as SavedListDraftItem[]
+              .filter((item): item is SavedListDraftItem => item !== null)
           : [];
 
         return {
@@ -169,72 +225,15 @@ function readSavedListsFromBrowser() {
           items,
         } satisfies SavedListRecord;
       })
-      .filter(Boolean) as SavedListRecord[];
+      .filter((record): record is SavedListRecord => record !== null);
   } catch {
     return [] as SavedListRecord[];
   }
 }
 
-function writeSavedListsToBrowser(lists: SavedListRecord[]) {
+function writeSavedListsToBrowser(savedLists: SavedListRecord[]) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(SAVED_LISTS_STORAGE_KEY, JSON.stringify(lists));
-}
-
-function normalizeCategory(value: string | null | undefined) {
-  const trimmed = String(value ?? "").trim();
-  return ORDERED_CATEGORIES.includes(trimmed) ? trimmed : FALLBACK_CATEGORY;
-}
-
-function groupItemsByCategory<T extends { name: string; category?: string | null }>(items: T[]) {
-  const grouped = new Map<string, T[]>();
-
-  for (const item of items) {
-    const category = normalizeCategory(item.category);
-    const bucket = grouped.get(category);
-    if (bucket) {
-      bucket.push(item);
-    } else {
-      grouped.set(category, [item]);
-    }
-  }
-
-  return ORDERED_CATEGORIES.flatMap((category) => {
-    const categoryItems = grouped.get(category);
-    if (!categoryItems || categoryItems.length === 0) return [];
-
-    return [
-      {
-        category,
-        items: [...categoryItems].sort((a, b) => String(a.name ?? "").localeCompare(String(b.name ?? ""), "es", {
-          sensitivity: "base",
-        })),
-      },
-    ];
-  });
-}
-
-function normalizeUnit(value: string) {
-  const raw = String(value ?? "").trim().toLowerCase();
-  if (!raw) return "pza";
-
-  if (["pza", "pzas", "pieza", "piezas", "unidad", "unidades", "ea", "each", "unit", "units"].includes(raw)) return "pza";
-  if (["paquete", "paquetes", "pack", "packs"].includes(raw)) return "paquete";
-  if (["caja", "cajas", "box", "boxes"].includes(raw)) return "caja";
-  if (["lata", "latas", "can", "cans"].includes(raw)) return "lata";
-  if (["botella", "botellas", "bottle", "bottles"].includes(raw)) return "botella";
-  if (["frasco", "frascos", "jar", "jars"].includes(raw)) return "frasco";
-  if (["bolsa", "bolsas", "bag", "bags"].includes(raw)) return "bolsa";
-  if (["rollo", "rollos", "roll", "rolls"].includes(raw)) return "rollo";
-  if (["docena", "docenas", "dozen", "dozens"].includes(raw)) return "docena";
-  if (["g", "gr", "grs", "gramo", "gramos", "gram", "grams"].includes(raw)) return "g";
-  if (["kg", "kilo", "kilos", "kilogramo", "kilogramos", "kilogram", "kilograms"].includes(raw)) return "kg";
-  if (["oz", "onza", "onzas", "ounce", "ounces"].includes(raw)) return "oz";
-  if (["lb", "libra", "libras", "pound", "pounds"].includes(raw)) return "lb";
-  if (["ml", "mililitro", "mililitros", "milliliter", "milliliters"].includes(raw)) return "ml";
-  if (["l", "lt", "lts", "litro", "litros", "liter", "liters"].includes(raw)) return "l";
-  if (["gal", "galon", "galones", "gallon", "gallons"].includes(raw)) return "gal";
-
-  return "pza";
+  window.localStorage.setItem(SAVED_LISTS_STORAGE_KEY, JSON.stringify(savedLists));
 }
 
 export default function NeedsPage() {
@@ -243,15 +242,14 @@ export default function NeedsPage() {
   const searchParams = useSearchParams();
   const lang = settings.language;
   const s = (px: number) => scalePx(settings.fontScale, px);
+
   const isSavedListsView = searchParams.get("view") === "saved-lists";
   const savedListMode = searchParams.get("saved-list-mode");
   const isNewSavedListView = savedListMode === "new";
   const isEditSavedListView = savedListMode === "edit";
-  const isViewSavedListView = savedListMode === "view";
+  const isOpenSavedListView = savedListMode === "open";
   const isSavedListEditorView = isSavedListsView && (isNewSavedListView || isEditSavedListView);
-  const editingSavedListId = String(searchParams.get("saved-list-id") ?? "");
-  const viewingSavedListId = String(searchParams.get("saved-list-id") ?? "");
-  const viewingSavedListCategory = String(searchParams.get("saved-list-category") ?? "");
+  const selectedSavedListId = String(searchParams.get("saved-list-id") ?? "");
 
   const addArticleLabel = lang === "en" ? "Add item" : "Agregar artículo";
   const addArticleModalHelp =
@@ -267,14 +265,13 @@ export default function NeedsPage() {
   const [customStores, setCustomStores] = React.useState<string[]>([]);
   const [addingStore, setAddingStore] = React.useState(false);
   const [newStoreName, setNewStoreName] = React.useState("");
+
   const [savedLists, setSavedLists] = React.useState<SavedListRecord[]>([]);
   const [savedListsLoaded, setSavedListsLoaded] = React.useState(false);
   const [savedListName, setSavedListName] = React.useState("");
   const [savedListItemsDraft, setSavedListItemsDraft] = React.useState<SavedListDraftItem[]>([]);
   const [savedListsMessage, setSavedListsMessage] = React.useState("");
-  const searchInputRef = React.useRef<HTMLInputElement | null>(null);
-  const [isNewSavedListConfirmed, setIsNewSavedListConfirmed] = React.useState(false);
-  const [selectedSavedListViewItemIds, setSelectedSavedListViewItemIds] = React.useState<string[]>([]);
+  const [selectedOpenSavedListItemIds, setSelectedOpenSavedListItemIds] = React.useState<string[]>([]);
 
   React.useEffect(() => {
     if (!hydrated) return;
@@ -300,7 +297,7 @@ export default function NeedsPage() {
       return;
     }
 
-    const existing = savedLists.find((entry) => entry.id === editingSavedListId);
+    const existing = savedLists.find((entry) => entry.id === selectedSavedListId);
     if (!existing) {
       setSavedListName("");
       setSavedListItemsDraft([]);
@@ -311,21 +308,16 @@ export default function NeedsPage() {
     setSavedListName(existing.name);
     setSavedListItemsDraft(existing.items.map((item) => ({ ...item })));
     setSavedListsMessage("");
-  }, [isSavedListEditorView, isNewSavedListView, savedListsLoaded, savedLists, editingSavedListId, lang]);
+  }, [isSavedListEditorView, isNewSavedListView, savedListsLoaded, savedLists, selectedSavedListId, lang]);
 
   React.useEffect(() => {
-    if (!isSavedListEditorView) {
-      setIsNewSavedListConfirmed(false);
+    if (!isOpenSavedListView) {
+      setSelectedOpenSavedListItemIds([]);
       return;
     }
-
-    if (isEditSavedListView) {
-      setIsNewSavedListConfirmed(true);
-      return;
-    }
-
-    setIsNewSavedListConfirmed(false);
-  }, [isSavedListEditorView, isEditSavedListView, isNewSavedListView, editingSavedListId]);
+    setSelectedOpenSavedListItemIds([]);
+    setSavedListsMessage("");
+  }, [isOpenSavedListView, selectedSavedListId]);
 
   const trimmedName = name.trim();
   const showSuggestions = trimmedName.length >= 2 && suggestions.length > 0;
@@ -363,54 +355,24 @@ export default function NeedsPage() {
     [savedListItemsDraft]
   );
 
-  const activeShoppingListKeySet = React.useMemo(
+  const activeShoppingListItemKeys = React.useMemo(
     () => new Set(activeShoppingListItems.map((item) => normalizeItemKey(item.name, item.category))),
     [activeShoppingListItems]
   );
 
-  const viewingSavedList = React.useMemo(
-    () => savedLists.find((entry) => entry.id === viewingSavedListId) ?? null,
-    [savedLists, viewingSavedListId]
+  const openedSavedList = React.useMemo(
+    () => savedLists.find((entry) => entry.id === selectedSavedListId) ?? null,
+    [savedLists, selectedSavedListId]
   );
 
-  const groupedViewingSavedListItems = React.useMemo(
-    () => groupItemsByCategory(viewingSavedList?.items ?? []),
-    [viewingSavedList]
+  const groupedOpenedSavedListItems = React.useMemo(
+    () => groupItemsByCategory(openedSavedList?.items ?? []),
+    [openedSavedList]
   );
-
-  const viewingSavedListSection = React.useMemo(
-    () => groupedViewingSavedListItems.find((section) => section.category === viewingSavedListCategory) ?? null,
-    [groupedViewingSavedListItems, viewingSavedListCategory]
-  );
-
-  React.useEffect(() => {
-    if (!isViewSavedListView) {
-      setSelectedSavedListViewItemIds([]);
-      return;
-    }
-
-    if (!viewingSavedList) {
-      setSelectedSavedListViewItemIds([]);
-      return;
-    }
-
-    setSelectedSavedListViewItemIds(
-      viewingSavedList.items
-        .filter((item) => activeShoppingListKeySet.has(normalizeItemKey(item.name, item.category)))
-        .map((item) => item.id)
-    );
-  }, [isViewSavedListView, viewingSavedList, activeShoppingListKeySet]);
 
   function resetInput() {
     setName("");
     setSuggestions([]);
-  }
-
-  function focusSearchInput() {
-    if (typeof window === "undefined") return;
-    window.setTimeout(() => {
-      searchInputRef.current?.focus();
-    }, 0);
   }
 
   function closeDraft() {
@@ -418,7 +380,6 @@ export default function NeedsPage() {
     setAddingStore(false);
     setNewStoreName("");
     resetInput();
-    focusSearchInput();
   }
 
   function openDraft(input: DraftItem) {
@@ -489,86 +450,16 @@ export default function NeedsPage() {
 
   function deleteSavedList(savedListId: string) {
     const target = savedLists.find((entry) => entry.id === savedListId);
-    if (!target) return;
+    if (!target) return false;
 
     const confirmationText =
       lang === "en" ? `Delete "${target.name}"?` : `¿Eliminar "${target.name}"?`;
 
-    if (typeof window !== "undefined" && !window.confirm(confirmationText)) return;
+    if (typeof window !== "undefined" && !window.confirm(confirmationText)) return false;
 
-    const next = savedLists.filter((entry) => entry.id !== savedListId);
-    persistSavedLists(next);
+    persistSavedLists(savedLists.filter((entry) => entry.id !== savedListId));
     setSavedListsMessage(lang === "en" ? "Saved list deleted." : "Lista guardada eliminada.");
-  }
-
-  function isSavedListItemAlreadyInMyList(item: SavedListDraftItem) {
-    return activeShoppingListKeySet.has(normalizeItemKey(item.name, item.category));
-  }
-
-  function toggleSavedListViewItem(item: SavedListDraftItem) {
-    if (isSavedListItemAlreadyInMyList(item)) return;
-
-    setSelectedSavedListViewItemIds((prev) =>
-      prev.includes(item.id) ? prev.filter((entry) => entry !== item.id) : [...prev, item.id]
-    );
-  }
-
-  function applySelectedSavedListItemsToMyList() {
-    if (!viewingSavedList) return;
-
-    const selectedItems = viewingSavedList.items.filter(
-      (item) => selectedSavedListViewItemIds.includes(item.id) && !isSavedListItemAlreadyInMyList(item)
-    );
-
-    if (selectedItems.length === 0) {
-      setSavedListsMessage(lang === "en" ? "There are no new items to add." : "No hay artículos nuevos por agregar.");
-      return;
-    }
-
-    try {
-      selectedItems.forEach((item) => {
-        addQuickNeed({
-          name: item.name,
-          category: item.category,
-          unit: item.unit,
-          quantity: item.quantity,
-          store: item.store,
-        });
-      });
-
-      setSavedListsMessage(
-        lang === "en"
-          ? `${selectedItems.length} item${selectedItems.length === 1 ? "" : "s"} added to My List.`
-          : `${selectedItems.length} artículo${selectedItems.length === 1 ? "" : "s"} agregado${selectedItems.length === 1 ? "" : "s"} a Mi Lista.`
-      );
-
-      setSelectedSavedListViewItemIds((prev) =>
-        prev.filter((itemId) => !selectedItems.some((item) => item.id === itemId))
-      );
-      router.refresh();
-    } catch (e: unknown) {
-      setSavedListsMessage(`⚠ ${String((e as { message?: string })?.message || e)}`);
-    }
-  }
-
-  function beginNewSavedListFlow() {
-    const trimmedListName = savedListName.trim();
-
-    if (!trimmedListName) {
-      setSavedListsMessage(lang === "en" ? "Enter a name for the list." : "Escribe un nombre para la lista.");
-      return;
-    }
-
-    const confirmationText =
-      lang === "en"
-        ? `Start "${trimmedListName}" and begin adding items?`
-        : `¿Crear "${trimmedListName}" y empezar a llenarla?`;
-
-    if (typeof window !== "undefined" && !window.confirm(confirmationText)) return;
-
-    setSavedListsMessage("");
-    setIsNewSavedListConfirmed(true);
-    focusSearchInput();
+    return true;
   }
 
   function saveSavedListDraft() {
@@ -585,8 +476,7 @@ export default function NeedsPage() {
     }
 
     const now = new Date().toISOString();
-    const existing = savedLists.find((entry) => entry.id === editingSavedListId);
-
+    const existing = savedLists.find((entry) => entry.id === selectedSavedListId);
     const nextRecord: SavedListRecord = {
       id: isEditSavedListView && existing ? existing.id : buildLocalId("saved-list"),
       name: trimmedListName,
@@ -610,6 +500,54 @@ export default function NeedsPage() {
           : "Lista guardada creada."
     );
     router.push("/?view=saved-lists");
+  }
+
+  function isSavedListItemAlreadyInMyList(item: SavedListDraftItem) {
+    return activeShoppingListItemKeys.has(normalizeItemKey(item.name, item.category));
+  }
+
+  function toggleOpenedSavedListItem(itemId: string) {
+    const item = openedSavedList?.items.find((entry) => entry.id === itemId);
+    if (!item || isSavedListItemAlreadyInMyList(item)) return;
+
+    setSelectedOpenSavedListItemIds((prev) =>
+      prev.includes(itemId) ? prev.filter((entry) => entry !== itemId) : [...prev, itemId]
+    );
+    setSavedListsMessage("");
+  }
+
+  function addSelectedSavedListItemsToMyList() {
+    if (!openedSavedList) return;
+
+    const selectedItems = openedSavedList.items.filter(
+      (item) => selectedOpenSavedListItemIds.includes(item.id) && !isSavedListItemAlreadyInMyList(item)
+    );
+
+    if (selectedItems.length === 0) {
+      setSavedListsMessage(lang === "en" ? "Select at least one item." : "Selecciona al menos un artículo.");
+      return;
+    }
+
+    try {
+      selectedItems.forEach((item) => {
+        addQuickNeed({
+          name: item.name,
+          category: item.category,
+          unit: item.unit,
+          quantity: item.quantity,
+          store: item.store,
+        });
+      });
+
+      setSelectedOpenSavedListItemIds([]);
+      setSavedListsMessage(
+        lang === "en"
+          ? `${selectedItems.length} item${selectedItems.length === 1 ? "" : "s"} added to My List.`
+          : `${selectedItems.length} artículo${selectedItems.length === 1 ? "" : "s"} agregado${selectedItems.length === 1 ? "" : "s"} a Mi Lista.`
+      );
+    } catch (e: unknown) {
+      setSavedListsMessage(`⚠ ${String((e as { message?: string })?.message || e)}`);
+    }
   }
 
   function confirmDraft() {
@@ -639,9 +577,7 @@ export default function NeedsPage() {
       });
 
       setMessage(
-        `✅ ${draft.name} ${
-          lang === "en" ? "added to this saved list." : "agregado a esta lista guardada."
-        }`
+        `✅ ${draft.name} ${lang === "en" ? "added to this saved list." : "agregado a esta lista guardada."}`
       );
       closeDraft();
       return;
@@ -655,6 +591,225 @@ export default function NeedsPage() {
       setMessage(`⚠ ${String((e as { message?: string })?.message || e)}`);
     }
   }
+
+  const draftModal = draft ? (
+    <div style={modalOverlayStyle} onClick={closeDraft}>
+      <section style={modalCardStyle} onClick={(e) => e.stopPropagation()}>
+        <div style={{ fontSize: s(21), fontWeight: 900 }}>{draft.name}</div>
+        <div style={{ marginTop: 4, fontSize: s(13), color: MC_NAVY_MUTED }}>{addArticleModalHelp}</div>
+
+        <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
+          <div>
+            <div style={{ fontSize: s(12), fontWeight: 700, marginBottom: 5 }}>{t(lang, "category")}</div>
+            <select
+              value={draft.category}
+              onChange={(e) => updateDraftField("category", e.target.value)}
+              style={{
+                width: "100%",
+                padding: "12px 14px",
+                borderRadius: 14,
+                border: `1px solid ${MC_NAVY_LINE}`,
+                boxSizing: "border-box",
+                fontSize: s(15),
+                background: "#fff",
+              }}
+            >
+              {draftSelectOptions.categories.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <div style={{ fontSize: s(12), fontWeight: 700, marginBottom: 5 }}>{t(lang, "unit")}</div>
+            <select
+              value={draft.unit}
+              onChange={(e) => updateDraftField("unit", e.target.value)}
+              style={{
+                width: "100%",
+                padding: "12px 14px",
+                borderRadius: 14,
+                border: `1px solid ${MC_NAVY_LINE}`,
+                boxSizing: "border-box",
+                fontSize: s(15),
+                background: "#fff",
+              }}
+            >
+              {draftSelectOptions.units.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <div style={{ fontSize: s(12), fontWeight: 700, marginBottom: 5 }}>{t(lang, "quantity")}</div>
+            <input
+              value={draft.quantity}
+              inputMode="numeric"
+              onChange={(e) => updateDraftField("quantity", e.target.value)}
+              style={{
+                width: "100%",
+                padding: "12px 14px",
+                borderRadius: 14,
+                border: `1px solid ${MC_NAVY_LINE}`,
+                boxSizing: "border-box",
+                fontSize: s(15),
+              }}
+            />
+          </div>
+
+          <div>
+            <div style={{ fontSize: s(12), fontWeight: 700, marginBottom: 5 }}>{t(lang, "store")}</div>
+            <select
+              value={draft.store}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value === ADD_STORE_VALUE) {
+                  openAddStore();
+                  return;
+                }
+                closeAddStore();
+                updateDraftField("store", value);
+              }}
+              style={{
+                width: "100%",
+                padding: "12px 14px",
+                borderRadius: 14,
+                border: `1px solid ${MC_NAVY_LINE}`,
+                boxSizing: "border-box",
+                fontSize: s(15),
+                background: "#fff",
+              }}
+            >
+              {draftSelectOptions.stores.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+              <option value={ADD_STORE_VALUE}>{lang === "en" ? "Add" : "Agregar"}</option>
+            </select>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+          <button
+            type="button"
+            onClick={closeDraft}
+            style={{
+              flex: 1,
+              padding: "13px 14px",
+              borderRadius: 14,
+              border: `1px solid ${MC_NAVY_LINE}`,
+              background: "#fff",
+              fontWeight: 800,
+              fontSize: s(14),
+            }}
+          >
+            {t(lang, "back")}
+          </button>
+          <button
+            type="button"
+            onClick={confirmDraft}
+            style={{
+              flex: 1,
+              padding: "13px 14px",
+              borderRadius: 14,
+              border: `1px solid ${MC_NAVY}`,
+              background: MC_NAVY,
+              color: "#fff",
+              fontWeight: 900,
+              fontSize: s(14),
+            }}
+          >
+            {t(lang, "add")}
+          </button>
+        </div>
+
+        {addingStore ? (
+          <div
+            style={{
+              ...modalOverlayStyle,
+              zIndex: 140,
+              background: "rgba(17,24,39,0.22)",
+            }}
+            onClick={closeAddStore}
+          >
+            <section
+              style={{
+                ...modalCardStyle,
+                width: "min(420px, 100%)",
+                padding: 14,
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{ fontSize: s(20), fontWeight: 900 }}>
+                {lang === "en" ? "New store" : "Nueva tienda"}
+              </div>
+              <div style={{ marginTop: 4, fontSize: s(13), color: MC_NAVY_MUTED }}>
+                {lang === "en" ? "Add the store for this item." : "Agrega la tienda para este artículo."}
+              </div>
+
+              <input
+                autoFocus
+                value={newStoreName}
+                onChange={(e) => setNewStoreName(e.target.value)}
+                placeholder={lang === "en" ? "New store" : "Nueva tienda"}
+                style={{
+                  width: "100%",
+                  marginTop: 14,
+                  padding: "12px 14px",
+                  borderRadius: 12,
+                  border: `1px solid ${MC_NAVY_LINE}`,
+                  boxSizing: "border-box",
+                  fontSize: s(15),
+                  background: "#fff",
+                }}
+              />
+
+              <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+                <button
+                  type="button"
+                  onClick={closeAddStore}
+                  style={{
+                    flex: 1,
+                    padding: "12px 12px",
+                    borderRadius: 12,
+                    border: `1px solid ${MC_NAVY_LINE}`,
+                    background: "#fff",
+                    fontWeight: 800,
+                    fontSize: s(13),
+                  }}
+                >
+                  {t(lang, "back")}
+                </button>
+                <button
+                  type="button"
+                  onClick={saveNewStore}
+                  disabled={!newStoreName.trim()}
+                  style={{
+                    flex: 1,
+                    padding: "12px 12px",
+                    borderRadius: 12,
+                    border: `1px solid ${newStoreName.trim() ? MC_NAVY : MC_NAVY_LINE}`,
+                    background: newStoreName.trim() ? MC_NAVY : "#fff",
+                    color: newStoreName.trim() ? "#fff" : MC_NAVY_MUTED,
+                    fontWeight: 900,
+                    fontSize: s(13),
+                  }}
+                >
+                  {lang === "en" ? "Save" : "Guardar"}
+                </button>
+              </div>
+            </section>
+          </div>
+        ) : null}
+      </section>
+    </div>
+  ) : null;
 
   if (!hydrated) {
     return (
@@ -673,6 +828,7 @@ export default function NeedsPage() {
         ? "Create, edit and reuse your saved lists."
         : "Crea, edita y reutiliza tus listas guardadas.";
     const newListLabel = lang === "en" ? "New list" : "Nueva lista";
+    const openLabel = lang === "en" ? "Open" : "Abrir";
     const backToMyListLabel = lang === "en" ? "← Back to My List" : "← Regresar a Mi Lista";
     const backToSavedListsLabel = lang === "en" ? "← Back to My Lists" : "← Regresar a Mis Listas";
     const emptyTitle = lang === "en" ? "You do not have saved lists yet." : "Aún no tienes listas guardadas.";
@@ -684,18 +840,17 @@ export default function NeedsPage() {
     const draftTitle = lang === "en" ? "New list" : "Nueva lista";
     const listNameLabel = lang === "en" ? "List name" : "Nombre de la lista";
     const listNamePlaceholder = lang === "en" ? "e.g. Paella List" : "ej. Lista Paella";
-    const confirmListLabel = lang === "en" ? "Continue" : "Continuar";
     const saveListLabel = lang === "en" ? "Save list" : "Guardar lista";
     const savedItemsTitle = lang === "en" ? "List items" : "Artículos de la lista";
     const noDraftItemsLabel = lang === "en" ? "No items in this list yet." : "Aún no hay artículos en esta lista.";
     const editLabel = lang === "en" ? "Edit" : "Editar";
     const deleteLabel = lang === "en" ? "Delete" : "Borrar";
-    const openLabel = lang === "en" ? "Open" : "Abrir";
     const addSelectedLabel = lang === "en" ? "Add selected to My List" : "Agregar seleccionados a Mi Lista";
-    const useListSubtitle =
+    const openListNotFoundLabel = lang === "en" ? "Saved list not found." : "No se encontró la lista guardada.";
+    const openListHelpText =
       lang === "en"
-        ? "Review this saved list by category and mark what is still missing."
-        : "Revisa esta lista guardada por categoría y marca lo que todavía te hace falta.";
+        ? "Checked items are already in My List. Mark the missing ones you want to add."
+        : "Los artículos marcados ya están en Mi Lista. Marca los faltantes que quieras agregar.";
     const itemsCountLabel = (count: number) =>
       lang === "en" ? `${count} item${count === 1 ? "" : "s"}` : `${count} artículo${count === 1 ? "" : "s"}`;
 
@@ -729,13 +884,37 @@ export default function NeedsPage() {
                 }}
               >
                 <div style={{ fontSize: s(18), fontWeight: 900 }}>
-                  {isEditSavedListView ? editListTitle : isNewSavedListConfirmed ? savedListName.trim() || draftTitle : draftTitle}
+                  {isEditSavedListView ? editListTitle : draftTitle}
                 </div>
 
-                {isNewSavedListView && !isNewSavedListConfirmed ? (
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                  {isEditSavedListView ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (deleteSavedList(selectedSavedListId)) {
+                          router.push("/?view=saved-lists");
+                        }
+                      }}
+                      style={{
+                        padding: "10px 14px",
+                        borderRadius: 14,
+                        border: `1px solid ${MC_NAVY_LINE}`,
+                        background: "#fff",
+                        color: MC_NAVY,
+                        fontWeight: 800,
+                        fontSize: s(14),
+                        cursor: "pointer",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {deleteLabel}
+                    </button>
+                  ) : null}
+
                   <button
                     type="button"
-                    onClick={beginNewSavedListFlow}
+                    onClick={saveSavedListDraft}
                     style={{
                       padding: "10px 14px",
                       borderRadius: 14,
@@ -748,27 +927,9 @@ export default function NeedsPage() {
                       whiteSpace: "nowrap",
                     }}
                   >
-                    {confirmListLabel}
+                    {saveListLabel}
                   </button>
-                ) : (
-                <button
-                  type="button"
-                  onClick={saveSavedListDraft}
-                  style={{
-                    padding: "10px 14px",
-                    borderRadius: 14,
-                    border: `1px solid ${MC_NAVY}`,
-                    background: MC_NAVY,
-                    color: "#fff",
-                    fontWeight: 900,
-                    fontSize: s(14),
-                    cursor: "pointer",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {saveListLabel}
-                </button>
-                )}
+                </div>
               </div>
 
               <div style={{ marginTop: 14, display: "grid", gap: 8 }}>
@@ -795,24 +956,13 @@ export default function NeedsPage() {
               {savedListsMessage ? (
                 <div style={{ marginTop: 10, fontSize: s(14), color: MC_NAVY }}>{savedListsMessage}</div>
               ) : null}
-
-              {isNewSavedListView && !isNewSavedListConfirmed ? (
-                <div style={{ marginTop: 10, fontSize: s(14), color: MC_NAVY_MUTED }}>
-                  {lang === "en"
-                    ? "Confirm the list name to start adding items."
-                    : "Confirma el nombre de la lista para empezar a agregar artículos."}
-                </div>
-              ) : null}
             </section>
 
-            {isNewSavedListView && !isNewSavedListConfirmed ? null : (
-            <>
             <section style={{ ...cardStyle(), padding: 14 }}>
               <div style={{ display: "grid", gap: 12 }}>
                 <div style={{ fontSize: s(16), fontWeight: 700 }}>{t(lang, "item")}</div>
 
                 <input
-                  ref={searchInputRef}
                   value={name}
                   onChange={(e) => {
                     setName(e.target.value);
@@ -871,25 +1021,23 @@ export default function NeedsPage() {
                 ) : null}
 
                 {canOpenCustomDraft ? (
-                  <div style={{ display: "grid", gap: 10 }}>
-                    <button
-                      type="button"
-                      onClick={openCustomDraft}
-                      style={{
-                        width: "100%",
-                        padding: "14px 16px",
-                        borderRadius: 16,
-                        border: `1px solid ${MC_NAVY}`,
-                        background: MC_NAVY,
-                        color: "#fff",
-                        fontWeight: 900,
-                        fontSize: s(15),
-                        cursor: "pointer",
-                      }}
-                    >
-                      {addArticleLabel}
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={openCustomDraft}
+                    style={{
+                      width: "100%",
+                      padding: "14px 16px",
+                      borderRadius: 16,
+                      border: `1px solid ${MC_NAVY}`,
+                      background: MC_NAVY,
+                      color: "#fff",
+                      fontWeight: 900,
+                      fontSize: s(15),
+                      cursor: "pointer",
+                    }}
+                  >
+                    {addArticleLabel}
+                  </button>
                 ) : null}
 
                 {message ? <div style={{ fontSize: s(14), color: MC_NAVY }}>{message}</div> : null}
@@ -970,10 +1118,8 @@ export default function NeedsPage() {
                 </div>
               )}
             </section>
-            </>
-            )}
           </>
-        ) : isViewSavedListView && viewingSavedList ? (
+        ) : isOpenSavedListView ? (
           <>
             <section style={{ ...cardStyle(), padding: 14 }}>
               <Link
@@ -1000,175 +1146,146 @@ export default function NeedsPage() {
                   gap: 10,
                 }}
               >
-                <div>
-                  <div style={{ fontSize: s(18), fontWeight: 900, color: MC_NAVY }}>{viewingSavedList.name}</div>
-                  <div style={{ marginTop: 4, fontSize: s(13), color: MC_NAVY_MUTED }}>{useListSubtitle}</div>
+                <div style={{ fontSize: s(18), fontWeight: 900, color: MC_NAVY }}>
+                  {openedSavedList?.name ?? savedListsTitle}
                 </div>
 
-                <Link
-                  href={`/?view=saved-lists&saved-list-mode=edit&saved-list-id=${encodeURIComponent(viewingSavedList.id)}`}
-                  style={{
-                    padding: "10px 14px",
-                    borderRadius: 14,
-                    border: `1px solid ${MC_NAVY}`,
-                    background: "#fff",
-                    color: MC_NAVY,
-                    fontWeight: 900,
-                    fontSize: s(14),
-                    textDecoration: "none",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {editLabel}
-                </Link>
+                {openedSavedList ? (
+                  <Link
+                    href={`/?view=saved-lists&saved-list-mode=edit&saved-list-id=${encodeURIComponent(openedSavedList.id)}`}
+                    style={{
+                      padding: "10px 14px",
+                      borderRadius: 14,
+                      border: `1px solid ${MC_NAVY}`,
+                      background: "#fff",
+                      color: MC_NAVY,
+                      fontWeight: 800,
+                      fontSize: s(14),
+                      textDecoration: "none",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {editLabel}
+                  </Link>
+                ) : null}
               </div>
+
+              {openedSavedList ? (
+                <div style={{ marginTop: 8, fontSize: s(13), color: MC_NAVY_MUTED }}>
+                  {itemsCountLabel(openedSavedList.items.length)} · {openListHelpText}
+                </div>
+              ) : null}
 
               {savedListsMessage ? (
                 <div style={{ marginTop: 10, fontSize: s(14), color: MC_NAVY }}>{savedListsMessage}</div>
               ) : null}
             </section>
 
-            {viewingSavedListSection ? (
-              <section style={{ ...cardStyle(), padding: 14 }}>
-                <Link
-                  href={`/?view=saved-lists&saved-list-mode=view&saved-list-id=${encodeURIComponent(viewingSavedList.id)}`}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 6,
-                    color: MC_NAVY,
-                    fontSize: s(14),
-                    fontWeight: 800,
-                    textDecoration: "none",
-                  }}
-                >
-                  {lang === "en" ? "← Back to categories" : "← Regresar a categorías"}
-                </Link>
-
-                <div style={{ marginTop: 12, fontSize: s(16), fontWeight: 900, color: MC_NAVY }}>
-                  {categoryLabel(lang, viewingSavedListSection.category)}
-                </div>
-                <div style={{ marginTop: 4, fontSize: s(13), color: MC_NAVY_MUTED }}>
-                  {lang === "en"
-                    ? "Check what is already in My List and select what you still need."
-                    : "Revisa qué ya está en Mi Lista y selecciona lo que todavía te hace falta."}
-                </div>
-
-                <div
-                  style={{
-                    marginTop: 14,
-                    border: `1px solid ${MC_NAVY_SOFT}`,
-                    borderRadius: 18,
-                    overflow: "hidden",
-                    background: "#fff",
-                  }}
-                >
-                  {viewingSavedListSection.items.map((item, index) => {
-                    const alreadyInMyList = isSavedListItemAlreadyInMyList(item);
-                    const isChecked = alreadyInMyList || selectedSavedListViewItemIds.includes(item.id);
-
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => toggleSavedListViewItem(item)}
-                        style={{
-                          width: "100%",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          gap: 12,
-                          padding: "14px 16px",
-                          border: 0,
-                          borderBottom: index === viewingSavedListSection.items.length - 1 ? "none" : `1px solid ${MC_NAVY_SOFT}`,
-                          background: isChecked ? MC_NAVY_SOFT : "#fff",
-                          cursor: alreadyInMyList ? "default" : "pointer",
-                        }}
-                      >
-                        <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, flex: 1 }}>
-                          <div
-                            style={{
-                              width: 22,
-                              height: 22,
-                              borderRadius: 7,
-                              border: `2px solid ${isChecked ? "#4A90E2" : "#C9D3EE"}`,
-                              background: isChecked ? "#4A90E2" : "#fff",
-                              color: "#fff",
-                              display: "grid",
-                              placeItems: "center",
-                              fontSize: s(14),
-                              fontWeight: 900,
-                              flexShrink: 0,
-                            }}
-                          >
-                            {isChecked ? "✓" : ""}
-                          </div>
-
-                          <div style={{ minWidth: 0 }}>
-                            <div style={{ fontSize: s(17), fontWeight: 500, color: MC_NAVY }}>{item.name}</div>
-                            {alreadyInMyList ? (
-                              <div style={{ marginTop: 2, fontSize: s(12), color: MC_NAVY_MUTED }}>
-                                {lang === "en" ? "Already in My List" : "Ya está en Mi Lista"}
-                              </div>
-                            ) : null}
-                          </div>
-                        </div>
-
-                        <div style={{ fontSize: s(15), color: MC_NAVY_MUTED, whiteSpace: "nowrap", flexShrink: 0 }}>
-                          <QtyUnitText quantity={String(item.quantity)} unit={item.unit} />
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <button
-                  type="button"
-                  onClick={applySelectedSavedListItemsToMyList}
-                  style={{
-                    width: "100%",
-                    marginTop: 14,
-                    padding: "14px 16px",
-                    borderRadius: 16,
-                    border: `1px solid ${MC_NAVY}`,
-                    background: MC_NAVY,
-                    color: "#fff",
-                    fontWeight: 900,
-                    fontSize: s(15),
-                    cursor: "pointer",
-                  }}
-                >
-                  {addSelectedLabel}
-                </button>
+            {!openedSavedList ? (
+              <section style={{ ...cardStyle(), padding: 18 }}>
+                <div style={{ fontSize: s(15), color: MC_NAVY_MUTED }}>{openListNotFoundLabel}</div>
               </section>
             ) : (
-              <section style={{ ...cardStyle(), padding: 18 }}>
-                <div style={{ display: "grid", gap: 12 }}>
-                  {groupedViewingSavedListItems.map((section) => (
-                    <Link
-                      key={section.category}
-                      href={`/?view=saved-lists&saved-list-mode=view&saved-list-id=${encodeURIComponent(viewingSavedList.id)}&saved-list-category=${encodeURIComponent(section.category)}`}
-                      style={{
-                        border: `1px solid ${MC_NAVY_LINE}`,
-                        borderRadius: 18,
-                        padding: 16,
-                        background: "#fff",
-                        display: "grid",
-                        gap: 6,
-                        textDecoration: "none",
-                        color: MC_NAVY,
-                      }}
-                    >
-                      <div style={{ fontSize: s(18), fontWeight: 900 }}>
-                        {categoryLabel(lang, section.category)}
-                      </div>
-                      <div style={{ fontSize: s(14), color: MC_NAVY_MUTED }}>
-                        {itemsCountLabel(section.items.length)}
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              </section>
+              <>
+                <section style={{ ...cardStyle(), padding: 14 }}>
+                  {groupedOpenedSavedListItems.length === 0 ? (
+                    <div style={{ fontSize: s(14), color: MC_NAVY_MUTED }}>{noDraftItemsLabel}</div>
+                  ) : (
+                    <div style={{ display: "grid", gap: 14 }}>
+                      {groupedOpenedSavedListItems.map((section) => (
+                        <div key={categoryLabel(lang, section.category)} style={{ display: "grid", gap: 8 }}>
+                          <div
+                            style={{
+                              padding: "9px 12px",
+                              borderRadius: 12,
+                              border: `1px solid ${MC_NAVY_LINE}`,
+                              background: MC_NAVY_SOFT,
+                              color: MC_NAVY,
+                              fontSize: s(13),
+                              fontWeight: 900,
+                            }}
+                          >
+                            {categoryLabel(lang, section.category)}
+                          </div>
+
+                          <div
+                            style={{
+                              border: `1px solid ${MC_NAVY_SOFT}`,
+                              borderRadius: 16,
+                              overflow: "hidden",
+                              background: "#fff",
+                            }}
+                          >
+                            {section.items.map((item, index) => {
+                              const alreadyInMyList = isSavedListItemAlreadyInMyList(item);
+                              const isChecked = alreadyInMyList || selectedOpenSavedListItemIds.includes(item.id);
+
+                              return (
+                                <label
+                                  key={item.id}
+                                  style={{
+                                    display: "flex",
+                                    gap: 12,
+                                    alignItems: "center",
+                                    justifyContent: "space-between",
+                                    padding: "14px 12px",
+                                    borderBottom: index === section.items.length - 1 ? "none" : "1px solid #f3f4f6",
+                                    cursor: alreadyInMyList ? "default" : "pointer",
+                                  }}
+                                >
+                                  <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, flex: 1 }}>
+                                    <input
+                                      type="checkbox"
+                                      checked={isChecked}
+                                      disabled={alreadyInMyList}
+                                      onChange={() => toggleOpenedSavedListItem(item.id)}
+                                      style={{ width: 18, height: 18, accentColor: MC_NAVY }}
+                                    />
+
+                                    <div style={{ minWidth: 0 }}>
+                                      <div style={{ fontSize: s(18), fontWeight: 500 }}>{item.name}</div>
+                                      <div style={{ fontSize: s(13), color: MC_NAVY_MUTED }}>
+                                        <QtyUnitText quantity={String(item.quantity)} unit={item.unit} />
+                                        {item.store ? ` · ${item.store}` : ""}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {alreadyInMyList ? (
+                                    <div style={{ fontSize: s(12), color: MC_NAVY_MUTED, whiteSpace: "nowrap" }}>
+                                      {lang === "en" ? "Already in My List" : "Ya está en Mi Lista"}
+                                    </div>
+                                  ) : null}
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </section>
+
+                <section style={{ ...cardStyle(), padding: 14 }}>
+                  <button
+                    type="button"
+                    onClick={addSelectedSavedListItemsToMyList}
+                    style={{
+                      width: "100%",
+                      padding: "14px 16px",
+                      borderRadius: 16,
+                      border: `1px solid ${MC_NAVY}`,
+                      background: MC_NAVY,
+                      color: "#fff",
+                      fontWeight: 900,
+                      fontSize: s(15),
+                      cursor: "pointer",
+                    }}
+                  >
+                    {addSelectedLabel}
+                  </button>
+                </section>
+              </>
             )}
           </>
         ) : (
@@ -1232,89 +1349,50 @@ export default function NeedsPage() {
               ) : (
                 <div style={{ display: "grid", gap: 12 }}>
                   {savedLists.map((savedList) => (
-                    <div
+                    <Link
                       key={savedList.id}
+                      href={`/?view=saved-lists&saved-list-mode=open&saved-list-id=${encodeURIComponent(savedList.id)}`}
                       style={{
                         border: `1px solid ${MC_NAVY_LINE}`,
                         borderRadius: 18,
                         padding: 14,
                         background: "#fff",
-                        display: "grid",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
                         gap: 12,
+                        textDecoration: "none",
+                        color: MC_NAVY,
                       }}
                     >
-                      <div style={{ display: "grid", gap: 4 }}>
+                      <div style={{ minWidth: 0 }}>
                         <div style={{ fontSize: s(17), fontWeight: 900, color: MC_NAVY }}>{savedList.name}</div>
                         <div style={{ fontSize: s(13), color: MC_NAVY_MUTED }}>
                           {itemsCountLabel(savedList.items.length)}
                         </div>
                       </div>
 
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                        <Link
-                          href={`/?view=saved-lists&saved-list-mode=view&saved-list-id=${encodeURIComponent(savedList.id)}`}
-                          style={{
-                            flex: 1,
-                            minWidth: 110,
-                            padding: "12px 14px",
-                            borderRadius: 14,
-                            border: `1px solid ${MC_NAVY}`,
-                            background: MC_NAVY,
-                            color: "#fff",
-                            fontWeight: 800,
-                            fontSize: s(14),
-                            textDecoration: "none",
-                            textAlign: "center",
-                          }}
-                        >
-                          {openLabel}
-                        </Link>
-
-                        <Link
-                          href={`/?view=saved-lists&saved-list-mode=edit&saved-list-id=${encodeURIComponent(savedList.id)}`}
-                          style={{
-                            flex: 1,
-                            minWidth: 110,
-                            padding: "12px 14px",
-                            borderRadius: 14,
-                            border: `1px solid ${MC_NAVY}`,
-                            background: "#fff",
-                            color: MC_NAVY,
-                            fontWeight: 800,
-                            fontSize: s(14),
-                            textDecoration: "none",
-                            textAlign: "center",
-                          }}
-                        >
-                          {editLabel}
-                        </Link>
-
-                        <button
-                          type="button"
-                          onClick={() => deleteSavedList(savedList.id)}
-                          style={{
-                            flex: 1,
-                            minWidth: 110,
-                            padding: "12px 14px",
-                            borderRadius: 14,
-                            border: `1px solid ${MC_NAVY_LINE}`,
-                            background: "#fff",
-                            color: MC_NAVY,
-                            fontWeight: 800,
-                            fontSize: s(14),
-                            cursor: "pointer",
-                          }}
-                        >
-                          {deleteLabel}
-                        </button>
+                      <div
+                        style={{
+                          padding: "10px 12px",
+                          borderRadius: 12,
+                          border: `1px solid ${MC_NAVY_LINE}`,
+                          fontWeight: 800,
+                          fontSize: s(13),
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {openLabel}
                       </div>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               )}
             </section>
           </>
         )}
+
+        {draftModal}
       </AppShell>
     );
   }
@@ -1331,7 +1409,6 @@ export default function NeedsPage() {
           <div style={{ fontSize: s(16), fontWeight: 700 }}>{t(lang, "item")}</div>
 
           <input
-            ref={searchInputRef}
             value={name}
             onChange={(e) => {
               setName(e.target.value);
@@ -1390,25 +1467,23 @@ export default function NeedsPage() {
           ) : null}
 
           {canOpenCustomDraft ? (
-            <div style={{ display: "grid", gap: 10 }}>
-              <button
-                type="button"
-                onClick={openCustomDraft}
-                style={{
-                  width: "100%",
-                  padding: "14px 16px",
-                  borderRadius: 16,
-                  border: `1px solid ${MC_NAVY}`,
-                  background: MC_NAVY,
-                  color: "#fff",
-                  fontWeight: 900,
-                  fontSize: s(15),
-                  cursor: "pointer",
-                }}
-              >
-                {addArticleLabel}
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={openCustomDraft}
+              style={{
+                width: "100%",
+                padding: "14px 16px",
+                borderRadius: 16,
+                border: `1px solid ${MC_NAVY}`,
+                background: MC_NAVY,
+                color: "#fff",
+                fontWeight: 900,
+                fontSize: s(15),
+                cursor: "pointer",
+              }}
+            >
+              {addArticleLabel}
+            </button>
           ) : null}
 
           {message ? <div style={{ fontSize: s(14), color: MC_NAVY }}>{message}</div> : null}
@@ -1490,240 +1565,7 @@ export default function NeedsPage() {
         )}
       </section>
 
-      {draft ? (
-        <div style={modalOverlayStyle} onClick={closeDraft}>
-          <section style={modalCardStyle} onClick={(e) => e.stopPropagation()}>
-            <div style={{ fontSize: s(21), fontWeight: 900 }}>{draft.name}</div>
-            <div style={{ marginTop: 4, fontSize: s(13), color: MC_NAVY_MUTED }}>{addArticleModalHelp}</div>
-
-            <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
-              <div>
-                <div style={{ fontSize: s(12), fontWeight: 700, marginBottom: 5 }}>{t(lang, "category")}</div>
-                <select
-                  value={draft.category}
-                  onChange={(e) => updateDraftField("category", e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "12px 14px",
-                    borderRadius: 14,
-                    border: `1px solid ${MC_NAVY_LINE}`,
-                    boxSizing: "border-box",
-                    fontSize: s(15),
-                    background: "#fff",
-                  }}
-                >
-                  {draftSelectOptions.categories.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <div style={{ fontSize: s(12), fontWeight: 700, marginBottom: 5 }}>{t(lang, "unit")}</div>
-                <select
-                  value={draft.unit}
-                  onChange={(e) => updateDraftField("unit", e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "12px 14px",
-                    borderRadius: 14,
-                    border: `1px solid ${MC_NAVY_LINE}`,
-                    boxSizing: "border-box",
-                    fontSize: s(15),
-                    background: "#fff",
-                  }}
-                >
-                  {draftSelectOptions.units.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <div style={{ fontSize: s(12), fontWeight: 700, marginBottom: 5 }}>{t(lang, "quantity")}</div>
-                <input
-                  value={draft.quantity}
-                  inputMode="numeric"
-                  onChange={(e) => updateDraftField("quantity", e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "12px 14px",
-                    borderRadius: 14,
-                    border: `1px solid ${MC_NAVY_LINE}`,
-                    boxSizing: "border-box",
-                    fontSize: s(15),
-                  }}
-                />
-              </div>
-
-              <div>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 10,
-                    marginBottom: 5,
-                  }}
-                >
-                  <div style={{ fontSize: s(12), fontWeight: 700 }}>{t(lang, "store")}</div>
-
-                </div>
-
-                <select
-                  value={draft.store}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (value === ADD_STORE_VALUE) {
-                      openAddStore();
-                      return;
-                    }
-                    closeAddStore();
-                    updateDraftField("store", value);
-                  }}
-                  style={{
-                    width: "100%",
-                    padding: "12px 14px",
-                    borderRadius: 14,
-                    border: `1px solid ${MC_NAVY_LINE}`,
-                    boxSizing: "border-box",
-                    fontSize: s(15),
-                    background: "#fff",
-                  }}
-                >
-                  {draftSelectOptions.stores.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                  <option value={ADD_STORE_VALUE}>{lang === "en" ? "Add" : "Agregar"}</option>
-                </select>
-
-
-              </div>
-            </div>
-
-            <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-              <button
-                type="button"
-                onClick={closeDraft}
-                style={{
-                  flex: 1,
-                  padding: "13px 14px",
-                  borderRadius: 14,
-                  border: `1px solid ${MC_NAVY_LINE}`,
-                  background: "#fff",
-                  fontWeight: 800,
-                  fontSize: s(14),
-                }}
-              >
-                {t(lang, "back")}
-              </button>
-              <button
-                type="button"
-                onClick={confirmDraft}
-                style={{
-                  flex: 1,
-                  padding: "13px 14px",
-                  borderRadius: 14,
-                  border: `1px solid ${MC_NAVY}`,
-                  background: MC_NAVY,
-                  color: "#fff",
-                  fontWeight: 900,
-                  fontSize: s(14),
-                }}
-              >
-                {t(lang, "add")}
-              </button>
-            </div>
-
-            {addingStore ? (
-              <div
-                style={{
-                  ...modalOverlayStyle,
-                  zIndex: 140,
-                  background: "rgba(17,24,39,0.22)",
-                }}
-                onClick={closeAddStore}
-              >
-                <section
-                  style={{
-                    ...modalCardStyle,
-                    width: "min(420px, 100%)",
-                    padding: 14,
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div style={{ fontSize: s(20), fontWeight: 900 }}>
-                    {lang === "en" ? "New store" : "Nueva tienda"}
-                  </div>
-                  <div style={{ marginTop: 4, fontSize: s(13), color: MC_NAVY_MUTED }}>
-                    {lang === "en"
-                      ? "Add the store for this item."
-                      : "Agrega la tienda para este artículo."}
-                  </div>
-
-                  <input
-                    autoFocus
-                    value={newStoreName}
-                    onChange={(e) => setNewStoreName(e.target.value)}
-                    placeholder={lang === "en" ? "New store" : "Nueva tienda"}
-                    style={{
-                      width: "100%",
-                      marginTop: 14,
-                      padding: "12px 14px",
-                      borderRadius: 12,
-                      border: `1px solid ${MC_NAVY_LINE}`,
-                      boxSizing: "border-box",
-                      fontSize: s(15),
-                      background: "#fff",
-                    }}
-                  />
-
-                  <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-                    <button
-                      type="button"
-                      onClick={closeAddStore}
-                      style={{
-                        flex: 1,
-                        padding: "12px 12px",
-                        borderRadius: 12,
-                        border: `1px solid ${MC_NAVY_LINE}`,
-                        background: "#fff",
-                        fontWeight: 800,
-                        fontSize: s(13),
-                      }}
-                    >
-                      {t(lang, "back")}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={saveNewStore}
-                      disabled={!newStoreName.trim()}
-                      style={{
-                        flex: 1,
-                        padding: "12px 12px",
-                        borderRadius: 12,
-                        border: `1px solid ${newStoreName.trim() ? MC_NAVY : MC_NAVY_LINE}`,
-                        background: newStoreName.trim() ? MC_NAVY : "#fff",
-                        color: newStoreName.trim() ? "#fff" : MC_NAVY_MUTED,
-                        fontWeight: 900,
-                        fontSize: s(13),
-                      }}
-                    >
-                      {lang === "en" ? "Save" : "Guardar"}
-                    </button>
-                  </div>
-                </section>
-              </div>
-            ) : null}
-          </section>
-        </div>
-      ) : null}
+      {draftModal}
     </AppShell>
   );
 }
