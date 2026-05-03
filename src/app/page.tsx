@@ -858,7 +858,7 @@ export default function NeedsPage() {
       <AppShell title={savedListsTitle} darkHero subtitle={savedListsSubtitle}>
         {isSavedListEditorView ? (
           <>
-            <section style={{ ...cardStyle(), padding: 12 }}>
+            <section style={{ ...cardStyle(), padding: "14px 14px" }}>
               <Link
                 href="/?view=saved-lists"
                 style={{
@@ -876,14 +876,14 @@ export default function NeedsPage() {
 
               <div
                 style={{
-                  marginTop: 8,
+                  marginTop: 10,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
                   gap: 10,
                 }}
               >
-                <div style={{ fontSize: s(18), fontWeight: 900 }}>
+                <div style={{ fontSize: s(19), fontWeight: 900, lineHeight: 1.15 }}>
                   {isEditSavedListView ? editListTitle : draftTitle}
                 </div>
 
@@ -932,7 +932,7 @@ export default function NeedsPage() {
                 </div>
               </div>
 
-              <div style={{ marginTop: 14, display: "grid", gap: 8 }}>
+              <div style={{ marginTop: 16, display: "grid", gap: 8 }}>
                 <div style={{ fontSize: s(13), fontWeight: 700 }}>{listNameLabel}</div>
                 <input
                   value={savedListName}
@@ -1044,13 +1044,13 @@ export default function NeedsPage() {
               </div>
             </section>
 
-            <section style={{ ...cardStyle(), padding: 14 }}>
+            <section style={{ ...cardStyle(), padding: 14, paddingBottom: "calc(122px + env(safe-area-inset-bottom))" }}>
               <div style={{ fontSize: s(16), fontWeight: 800, marginBottom: 10 }}>{savedItemsTitle}</div>
 
               {groupedSavedListItemsDraft.length === 0 ? (
                 <div style={{ fontSize: s(14), color: MC_NAVY_MUTED }}>{noDraftItemsLabel}</div>
               ) : (
-                <div style={{ display: "grid", gap: 14 }}>
+                <div style={{ display: "grid", gap: 14, paddingBottom: 8 }}>
                   {groupedSavedListItemsDraft.map((section) => (
                     <div key={categoryLabel(lang, section.category)} style={{ display: "grid", gap: 8 }}>
                       <div
@@ -1121,7 +1121,7 @@ export default function NeedsPage() {
           </>
         ) : isOpenSavedListView ? (
           <>
-            <section style={{ ...cardStyle(), padding: "10px 12px", boxSizing: "border-box", overflow: "hidden" }}>
+            <section style={{ ...cardStyle(), padding: "14px 14px", boxSizing: "border-box", overflow: "hidden" }}>
               <div
                 style={{
                   display: "flex",
@@ -1130,7 +1130,7 @@ export default function NeedsPage() {
                   gap: 12,
                 }}
               >
-                <div style={{ display: "grid", gap: 4, minWidth: 0, flex: 1 }}>
+                <div style={{ display: "grid", gap: 7, minWidth: 0, flex: 1 }}>
                   <Link
                     href="/?view=saved-lists"
                     style={{
@@ -1147,7 +1147,7 @@ export default function NeedsPage() {
                     {backToSavedListsLabel}
                   </Link>
 
-                  <div style={{ fontSize: s(18), fontWeight: 900, color: MC_NAVY, lineHeight: 1.1 }}>
+                  <div style={{ fontSize: s(19), fontWeight: 900, color: MC_NAVY, lineHeight: 1.15 }}>
                     {openedSavedList?.name ?? savedListsTitle}
                   </div>
 
@@ -1159,7 +1159,7 @@ export default function NeedsPage() {
                         whiteSpace: "nowrap",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
-                        lineHeight: 1.2,
+                        lineHeight: 1.3,
                       }}
                     >
                       {openListHelpText}
@@ -1199,11 +1199,11 @@ export default function NeedsPage() {
               </section>
             ) : (
               <>
-                <section style={{ ...cardStyle(), padding: 14, width: "100%", boxSizing: "border-box", overflow: "hidden" }}>
+                <section style={{ ...cardStyle(), padding: 14, paddingBottom: "calc(26px + env(safe-area-inset-bottom))", width: "100%", boxSizing: "border-box", overflow: "hidden" }}>
                   {groupedOpenedSavedListItems.length === 0 ? (
                     <div style={{ fontSize: s(14), color: MC_NAVY_MUTED }}>{noDraftItemsLabel}</div>
                   ) : (
-                    <div style={{ display: "grid", gap: 14, paddingBottom: 6 }}>
+                    <div style={{ display: "grid", gap: 14, paddingBottom: 18 }}>
                       {groupedOpenedSavedListItems.map((section) => (
                         <div key={categoryLabel(lang, section.category)} style={{ display: "grid", gap: 8 }}>
                           <div
@@ -1297,7 +1297,7 @@ export default function NeedsPage() {
                     ...cardStyle(),
                     padding: 12,
                     position: "sticky",
-                    bottom: "calc(84px + env(safe-area-inset-bottom))",
+                    bottom: "calc(92px + env(safe-area-inset-bottom))",
                     zIndex: 8,
                     width: "100%",
                     boxSizing: "border-box",
@@ -1327,7 +1327,7 @@ export default function NeedsPage() {
           </>
         ) : (
           <>
-            <section style={{ ...cardStyle(), padding: "10px 12px", boxSizing: "border-box", overflow: "hidden" }}>
+            <section style={{ ...cardStyle(), padding: "14px 14px", boxSizing: "border-box", overflow: "hidden" }}>
               <div
                 style={{
                   display: "flex",
@@ -1336,7 +1336,7 @@ export default function NeedsPage() {
                   gap: 12,
                 }}
               >
-                <div style={{ display: "grid", gap: 4, minWidth: 0, flex: 1 }}>
+                <div style={{ display: "grid", gap: 7, minWidth: 0, flex: 1 }}>
                   <Link
                     href="/"
                     style={{
@@ -1353,7 +1353,7 @@ export default function NeedsPage() {
                     {backToMyListLabel}
                   </Link>
 
-                  <div style={{ fontSize: s(16), fontWeight: 800, lineHeight: 1.1 }}>{savedListsTitle}</div>
+                  <div style={{ fontSize: s(17), fontWeight: 800, lineHeight: 1.15 }}>{savedListsTitle}</div>
                 </div>
 
                 <Link
@@ -1370,6 +1370,9 @@ export default function NeedsPage() {
                     whiteSpace: "nowrap",
                     flexShrink: 0,
                     alignSelf: "center",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    minHeight: 44,
                   }}
                 >
                   {newListLabel}
@@ -1517,13 +1520,13 @@ export default function NeedsPage() {
         </div>
       </section>
 
-      <section style={{ ...cardStyle(), padding: 14 }}>
+      <section style={{ ...cardStyle(), padding: 14, paddingBottom: "calc(122px + env(safe-area-inset-bottom))" }}>
         <div style={{ fontSize: s(16), fontWeight: 800, marginBottom: 10 }}>{t(lang, "cartSection")}</div>
 
         {groupedActiveShoppingListItems.length === 0 ? (
           <div style={{ fontSize: s(14), color: MC_NAVY_MUTED }}>{t(lang, "noItemsYet")}</div>
         ) : (
-          <div style={{ display: "grid", gap: 14 }}>
+          <div style={{ display: "grid", gap: 14, paddingBottom: 8 }}>
             {groupedActiveShoppingListItems.map((section) => (
               <div key={categoryLabel(lang, section.category)} style={{ display: "grid", gap: 8 }}>
                 <div
