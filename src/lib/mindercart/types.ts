@@ -37,6 +37,7 @@ export type ActiveShoppingListItem = {
   checked: boolean;
   sourceTypes: string[];
   sourceRefs: string[];
+  sourceListName?: string;
   createdAt: number;
 };
 

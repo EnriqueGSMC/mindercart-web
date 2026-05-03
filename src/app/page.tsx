@@ -536,6 +536,7 @@ export default function NeedsPage() {
           unit: item.unit,
           quantity: item.quantity,
           store: item.store,
+          sourceListName: openedSavedList.name,
         });
       });
 
@@ -858,7 +859,7 @@ export default function NeedsPage() {
       <AppShell title={savedListsTitle} darkHero subtitle={savedListsSubtitle}>
         {isSavedListEditorView ? (
           <>
-            <section style={{ ...cardStyle(), padding: 14 }}>
+            <section style={{ ...cardStyle(), padding: 12 }}>
               <Link
                 href="/?view=saved-lists"
                 style={{
@@ -876,7 +877,7 @@ export default function NeedsPage() {
 
               <div
                 style={{
-                  marginTop: 12,
+                  marginTop: 8,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
@@ -1121,7 +1122,7 @@ export default function NeedsPage() {
           </>
         ) : isOpenSavedListView ? (
           <>
-            <section style={{ ...cardStyle(), padding: 14 }}>
+            <section style={{ ...cardStyle(), padding: 12 }}>
               <Link
                 href="/?view=saved-lists"
                 style={{
@@ -1139,7 +1140,7 @@ export default function NeedsPage() {
 
               <div
                 style={{
-                  marginTop: 12,
+                  marginTop: 8,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
@@ -1171,8 +1172,17 @@ export default function NeedsPage() {
               </div>
 
               {openedSavedList ? (
-                <div style={{ marginTop: 8, fontSize: s(13), color: MC_NAVY_MUTED }}>
-                  {itemsCountLabel(openedSavedList.items.length)} · {openListHelpText}
+                <div
+                  style={{
+                    marginTop: 6,
+                    fontSize: s(13),
+                    color: MC_NAVY_MUTED,
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {openListHelpText}
                 </div>
               ) : null}
 
@@ -1266,7 +1276,7 @@ export default function NeedsPage() {
                   )}
                 </section>
 
-                <section style={{ ...cardStyle(), padding: 14 }}>
+                <section style={{ ...cardStyle(), padding: "12px 12px 96px" }}>
                   <button
                     type="button"
                     onClick={addSelectedSavedListItemsToMyList}
@@ -1290,7 +1300,7 @@ export default function NeedsPage() {
           </>
         ) : (
           <>
-            <section style={{ ...cardStyle(), padding: 14 }}>
+            <section style={{ ...cardStyle(), padding: 12 }}>
               <Link
                 href="/"
                 style={{
@@ -1308,7 +1318,7 @@ export default function NeedsPage() {
 
               <div
                 style={{
-                  marginTop: 12,
+                  marginTop: 8,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
@@ -1533,7 +1543,16 @@ export default function NeedsPage() {
                         borderBottom: index === section.items.length - 1 ? "none" : "1px solid #f3f4f6",
                       }}
                     >
-                      <div style={{ minWidth: 0, flex: 1, fontSize: s(18), fontWeight: 500 }}>{item.name}</div>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ fontSize: s(18), fontWeight: 500 }}>
+                          {item.name}
+                          {item.sourceListName ? (
+                            <span style={{ fontSize: s(14), fontWeight: 400, color: MC_NAVY_MUTED }}>
+                              {" "}({item.sourceListName})
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
 
                       <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
                         <div style={{ fontSize: s(15), color: MC_NAVY_MUTED }}>

@@ -668,6 +668,7 @@ export function addQuickNeed(input: {
   unit: string;
   quantity: string;
   store: string;
+  sourceListName?: string;
 }) {
   const state = readState();
   const name = safe(input.name);
@@ -694,6 +695,7 @@ export function addQuickNeed(input: {
               category,
               quantity: numericSum(item.quantity, quantity),
               sourceTypes: Array.from(new Set([...item.sourceTypes, "quick_add"])),
+              sourceListName: safe(input.sourceListName) || safe((item as { sourceListName?: string }).sourceListName),
             }
           : item
       )
@@ -709,6 +711,7 @@ export function addQuickNeed(input: {
           checked: false,
           sourceTypes: ["quick_add"],
           sourceRefs: [],
+          sourceListName: safe(input.sourceListName),
           createdAt: now(),
         },
         ...state.activeShoppingListItems,
