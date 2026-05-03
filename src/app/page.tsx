@@ -829,7 +829,6 @@ export default function NeedsPage() {
         ? "Create, edit and reuse your saved lists."
         : "Crea, edita y reutiliza tus listas guardadas.";
     const newListLabel = lang === "en" ? "New list" : "Nueva lista";
-    const openLabel = lang === "en" ? "Open" : "Abrir";
     const backToMyListLabel = lang === "en" ? "← Back to My List" : "← Regresar a Mi Lista";
     const backToSavedListsLabel = lang === "en" ? "← Back to My Lists" : "← Regresar a Mis Listas";
     const emptyTitle = lang === "en" ? "You do not have saved lists yet." : "Aún no tienes listas guardadas.";
@@ -1122,33 +1121,50 @@ export default function NeedsPage() {
           </>
         ) : isOpenSavedListView ? (
           <>
-            <section style={{ ...cardStyle(), padding: 12 }}>
-              <Link
-                href="/?view=saved-lists"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                  color: MC_NAVY,
-                  fontSize: s(14),
-                  fontWeight: 800,
-                  textDecoration: "none",
-                }}
-              >
-                {backToSavedListsLabel}
-              </Link>
-
+            <section style={{ ...cardStyle(), padding: "10px 12px", boxSizing: "border-box", overflow: "hidden" }}>
               <div
                 style={{
-                  marginTop: 8,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
-                  gap: 10,
+                  gap: 12,
                 }}
               >
-                <div style={{ fontSize: s(18), fontWeight: 900, color: MC_NAVY }}>
-                  {openedSavedList?.name ?? savedListsTitle}
+                <div style={{ display: "grid", gap: 4, minWidth: 0, flex: 1 }}>
+                  <Link
+                    href="/?view=saved-lists"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      color: MC_NAVY,
+                      fontSize: s(14),
+                      fontWeight: 800,
+                      textDecoration: "none",
+                      lineHeight: 1.15,
+                    }}
+                  >
+                    {backToSavedListsLabel}
+                  </Link>
+
+                  <div style={{ fontSize: s(18), fontWeight: 900, color: MC_NAVY, lineHeight: 1.1 }}>
+                    {openedSavedList?.name ?? savedListsTitle}
+                  </div>
+
+                  {openedSavedList ? (
+                    <div
+                      style={{
+                        fontSize: s(13),
+                        color: MC_NAVY_MUTED,
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        lineHeight: 1.2,
+                      }}
+                    >
+                      {openListHelpText}
+                    </div>
+                  ) : null}
                 </div>
 
                 {openedSavedList ? (
@@ -1164,6 +1180,7 @@ export default function NeedsPage() {
                       fontSize: s(14),
                       textDecoration: "none",
                       whiteSpace: "nowrap",
+                      flexShrink: 0,
                     }}
                   >
                     {editLabel}
@@ -1171,23 +1188,8 @@ export default function NeedsPage() {
                 ) : null}
               </div>
 
-              {openedSavedList ? (
-                <div
-                  style={{
-                    marginTop: 6,
-                    fontSize: s(13),
-                    color: MC_NAVY_MUTED,
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                  }}
-                >
-                  {openListHelpText}
-                </div>
-              ) : null}
-
               {savedListsMessage ? (
-                <div style={{ marginTop: 10, fontSize: s(14), color: MC_NAVY }}>{savedListsMessage}</div>
+                <div style={{ marginTop: 8, fontSize: s(14), color: MC_NAVY }}>{savedListsMessage}</div>
               ) : null}
             </section>
 
@@ -1197,11 +1199,11 @@ export default function NeedsPage() {
               </section>
             ) : (
               <>
-                <section style={{ ...cardStyle(), padding: 14 }}>
+                <section style={{ ...cardStyle(), padding: 14, width: "100%", boxSizing: "border-box", overflow: "hidden" }}>
                   {groupedOpenedSavedListItems.length === 0 ? (
                     <div style={{ fontSize: s(14), color: MC_NAVY_MUTED }}>{noDraftItemsLabel}</div>
                   ) : (
-                    <div style={{ display: "grid", gap: 14 }}>
+                    <div style={{ display: "grid", gap: 14, paddingBottom: 6 }}>
                       {groupedOpenedSavedListItems.map((section) => (
                         <div key={categoryLabel(lang, section.category)} style={{ display: "grid", gap: 8 }}>
                           <div
@@ -1241,9 +1243,12 @@ export default function NeedsPage() {
                                     padding: "14px 12px",
                                     borderBottom: index === section.items.length - 1 ? "none" : "1px solid #f3f4f6",
                                     cursor: alreadyInMyList ? "default" : "pointer",
+                                    width: "100%",
+                                    boxSizing: "border-box",
+                                    overflow: "hidden",
                                   }}
                                 >
-                                  <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, flex: 1 }}>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, flex: 1, overflow: "hidden" }}>
                                     <input
                                       type="checkbox"
                                       checked={isChecked}
@@ -1253,7 +1258,9 @@ export default function NeedsPage() {
                                     />
 
                                     <div style={{ minWidth: 0 }}>
-                                      <div style={{ fontSize: s(18), fontWeight: 500 }}>{item.name}</div>
+                                      <div style={{ fontSize: s(18), fontWeight: 500, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
+                                        {item.name}
+                                      </div>
                                       <div style={{ fontSize: s(13), color: MC_NAVY_MUTED }}>
                                         <QtyUnitText quantity={String(item.quantity)} unit={item.unit} />
                                         {item.store ? ` · ${item.store}` : ""}
@@ -1262,7 +1269,16 @@ export default function NeedsPage() {
                                   </div>
 
                                   {alreadyInMyList ? (
-                                    <div style={{ fontSize: s(12), color: MC_NAVY_MUTED, whiteSpace: "nowrap" }}>
+                                    <div
+                                      style={{
+                                        fontSize: s(11),
+                                        color: MC_NAVY_MUTED,
+                                        textAlign: "right",
+                                        lineHeight: 1.15,
+                                        maxWidth: 72,
+                                        flexShrink: 0,
+                                      }}
+                                    >
                                       {lang === "en" ? "Already in My List" : "Ya está en Mi Lista"}
                                     </div>
                                   ) : null}
@@ -1276,7 +1292,18 @@ export default function NeedsPage() {
                   )}
                 </section>
 
-                <section style={{ ...cardStyle(), padding: "12px 12px 96px" }}>
+                <section
+                  style={{
+                    ...cardStyle(),
+                    padding: 12,
+                    position: "sticky",
+                    bottom: "calc(84px + env(safe-area-inset-bottom))",
+                    zIndex: 8,
+                    width: "100%",
+                    boxSizing: "border-box",
+                    marginTop: 12,
+                  }}
+                >
                   <button
                     type="button"
                     onClick={addSelectedSavedListItemsToMyList}
@@ -1300,32 +1327,34 @@ export default function NeedsPage() {
           </>
         ) : (
           <>
-            <section style={{ ...cardStyle(), padding: 12 }}>
-              <Link
-                href="/"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                  color: MC_NAVY,
-                  fontSize: s(14),
-                  fontWeight: 800,
-                  textDecoration: "none",
-                }}
-              >
-                {backToMyListLabel}
-              </Link>
-
+            <section style={{ ...cardStyle(), padding: "10px 12px", boxSizing: "border-box", overflow: "hidden" }}>
               <div
                 style={{
-                  marginTop: 8,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
-                  gap: 10,
+                  gap: 12,
                 }}
               >
-                <div style={{ fontSize: s(16), fontWeight: 800 }}>{savedListsTitle}</div>
+                <div style={{ display: "grid", gap: 4, minWidth: 0, flex: 1 }}>
+                  <Link
+                    href="/"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      color: MC_NAVY,
+                      fontSize: s(14),
+                      fontWeight: 800,
+                      textDecoration: "none",
+                      lineHeight: 1.15,
+                    }}
+                  >
+                    {backToMyListLabel}
+                  </Link>
+
+                  <div style={{ fontSize: s(16), fontWeight: 800, lineHeight: 1.1 }}>{savedListsTitle}</div>
+                </div>
 
                 <Link
                   href="/?view=saved-lists&saved-list-mode=new"
@@ -1339,6 +1368,8 @@ export default function NeedsPage() {
                     fontSize: s(14),
                     textDecoration: "none",
                     whiteSpace: "nowrap",
+                    flexShrink: 0,
+                    alignSelf: "center",
                   }}
                 >
                   {newListLabel}
@@ -1346,7 +1377,7 @@ export default function NeedsPage() {
               </div>
 
               {savedListsMessage ? (
-                <div style={{ marginTop: 10, fontSize: s(14), color: MC_NAVY }}>{savedListsMessage}</div>
+                <div style={{ marginTop: 8, fontSize: s(14), color: MC_NAVY }}>{savedListsMessage}</div>
               ) : null}
             </section>
 
@@ -1367,12 +1398,11 @@ export default function NeedsPage() {
                         borderRadius: 18,
                         padding: 14,
                         background: "#fff",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        gap: 12,
+                        display: "block",
                         textDecoration: "none",
                         color: MC_NAVY,
+                        width: "100%",
+                        boxSizing: "border-box",
                       }}
                     >
                       <div style={{ minWidth: 0 }}>
@@ -1380,19 +1410,6 @@ export default function NeedsPage() {
                         <div style={{ fontSize: s(13), color: MC_NAVY_MUTED }}>
                           {itemsCountLabel(savedList.items.length)}
                         </div>
-                      </div>
-
-                      <div
-                        style={{
-                          padding: "10px 12px",
-                          borderRadius: 12,
-                          border: `1px solid ${MC_NAVY_LINE}`,
-                          fontWeight: 800,
-                          fontSize: s(13),
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {openLabel}
                       </div>
                     </Link>
                   ))}
