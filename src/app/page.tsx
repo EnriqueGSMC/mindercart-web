@@ -849,8 +849,8 @@ export default function NeedsPage() {
     const openListNotFoundLabel = lang === "en" ? "Saved list not found." : "No se encontró la lista guardada.";
     const openListHelpText =
       lang === "en"
-        ? "Checked items are already in My List. Mark the missing ones you want to add."
-        : "Los artículos marcados ya están en Mi Lista. Marca los faltantes que quieras agregar.";
+        ? "Mark the missing items you want to add to My List."
+        : "Marca los artículos faltantes que quieras agregar.";
     const itemsCountLabel = (count: number) =>
       lang === "en" ? `${count} item${count === 1 ? "" : "s"}` : `${count} artículo${count === 1 ? "" : "s"}`;
 
@@ -1156,10 +1156,8 @@ export default function NeedsPage() {
                       style={{
                         fontSize: s(13),
                         color: MC_NAVY_MUTED,
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        lineHeight: 1.3,
+                        lineHeight: 1.35,
+                        maxWidth: "100%",
                       }}
                     >
                       {openListHelpText}
@@ -1379,9 +1377,6 @@ export default function NeedsPage() {
                 </Link>
               </div>
 
-              {savedListsMessage ? (
-                <div style={{ marginTop: 8, fontSize: s(14), color: MC_NAVY }}>{savedListsMessage}</div>
-              ) : null}
             </section>
 
             <section style={{ ...cardStyle(), padding: 18 }}>
