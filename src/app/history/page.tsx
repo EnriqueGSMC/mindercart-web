@@ -19,6 +19,21 @@ function makeActiveKey(input: { itemKey?: string; name: string; unit: string; st
   return [normalize(input.itemKey || input.name), normalize(input.unit), normalize(input.store)].join("|");
 }
 
+function formatDateOnly(value: string | number | Date, lang: "es" | "en") {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return new Intl.DateTimeFormat(lang === "en" ? "en-US" : "es-MX", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  }).format(date);
+}
+
+function getSourceListName(item: Record<string, unknown>) {
+  const raw = item.sourceListName ?? item.savedListName ?? item.originListName ?? item.listName;
+  return typeof raw === "string" && raw.trim() ? raw.trim() : "";
+}
+
 export default function HistoryPage() {
   const { shoppingHistory, activeShoppingListItems, settings, hydrated } = useMinderCartState();
   const lang = settings.language;
@@ -37,6 +52,9 @@ export default function HistoryPage() {
             addSelected: "Add selected to My List",
             alreadyInList: "Already in My List",
             addedSummary: (count: number) => `${count} item${count === 1 ? "" : "s"} added to My List`,
+            backToHistory: "← Back to History",
+            purchaseLabel: "Purchase",
+            instruction: "Select the items you want to add.",
           }
         : {
             loading: "Cargando...",
@@ -44,6 +62,9 @@ export default function HistoryPage() {
             addSelected: "Agregar seleccionados a Mi Lista",
             alreadyInList: "Ya está en Mi Lista",
             addedSummary: (count: number) => `${count} artículo${count === 1 ? "" : "s"} agregado${count === 1 ? "" : "s"} a Mi Lista`,
+            backToHistory: "← Regresar a Historial",
+            purchaseLabel: "Compra",
+            instruction: "Marca los artículos que quieras agregar.",
           },
     [lang]
   );
@@ -165,17 +186,49 @@ export default function HistoryPage() {
                   }}
                 >
                   <span>
-                    {formatDateTime(row.closedAt, lang)} · {row.store} · {row.items.length} {t(lang, "itemsLabel")}
+                    {formatDateOnly(row.closedAt, lang)} · {row.store} · {row.items.length} {t(lang, "itemsLabel")}
                   </span>
                   <span style={{ color: "#0f4c81", fontSize: s(13), flexShrink: 0 }}>{expanded ? "−" : "+"}</span>
                 </button>
 
                 {expanded ? (
-                  <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
-                    <div style={{ display: "grid", gap: 10 }}>
+                  <div style={{ marginTop: 12, display: "grid", gap: 12 }}>
+                    <div
+                      style={{
+                        borderBottom: "1px solid #e5e7eb",
+                        paddingBottom: 10,
+                        display: "grid",
+                        gap: 4,
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => toggleExpanded(row.id)}
+                        style={{
+                          border: 0,
+                          background: "transparent",
+                          padding: 0,
+                          margin: 0,
+                          textAlign: "left",
+                          color: "#0f4c81",
+                          fontWeight: 800,
+                          fontSize: s(13),
+                          cursor: "pointer",
+                        }}
+                      >
+                        {copy.backToHistory}
+                      </button>
+                      <div style={{ fontSize: s(18), fontWeight: 900, lineHeight: 1.2, color: "#111827" }}>
+                        {copy.purchaseLabel} · {formatDateOnly(row.closedAt, lang)}
+                      </div>
+                      <div style={{ fontSize: s(13), color: "#6b7280", lineHeight: 1.2 }}>{copy.instruction}</div>
+                    </div>
+
+                    <div style={{ display: "grid", gap: 8 }}>
                       {row.items.map((item) => {
                         const checked = Boolean(selectedByEntry[row.id]?.[item.id]);
                         const alreadyInMyList = activeKeySet.has(makeActiveKey(item));
+                        const sourceListName = getSourceListName(item as unknown as Record<string, unknown>);
 
                         return (
                           <label
@@ -183,10 +236,10 @@ export default function HistoryPage() {
                             style={{
                               border: "1px solid #f0f0f0",
                               borderRadius: 16,
-                              padding: 12,
+                              padding: "10px 12px",
                               display: "flex",
                               alignItems: "center",
-                              gap: 12,
+                              gap: 10,
                               cursor: "pointer",
                             }}
                           >
@@ -196,26 +249,52 @@ export default function HistoryPage() {
                               onChange={() => toggleSelected(row.id, item.id)}
                               style={{ width: 20, height: 20, margin: 0, flexShrink: 0 }}
                             />
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: s(17), fontWeight: 500, lineHeight: 1.2 }}>{item.name}</div>
+                            <div
+                              style={{
+                                flex: 1,
+                                minWidth: 0,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                gap: 10,
+                              }}
+                            >
                               <div
                                 style={{
-                                  marginTop: 4,
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "space-between",
-                                  gap: 10,
-                                  flexWrap: "wrap",
+                                  minWidth: 0,
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                  fontSize: s(16),
+                                  fontWeight: 500,
+                                  lineHeight: 1.2,
+                                  color: alreadyInMyList ? "#0f766e" : "#111827",
                                 }}
                               >
-                                <div style={{ fontSize: s(15), color: "#6b7280" }}>
-                                  <QtyUnitText quantity={item.quantity} unit={item.unit} />
-                                </div>
-                                {alreadyInMyList ? (
-                                  <div style={{ fontSize: s(12), color: "#0f766e", fontWeight: 800 }}>
-                                    {copy.alreadyInList}
-                                  </div>
+                                {item.name}
+                                {sourceListName ? (
+                                  <span
+                                    style={{
+                                      marginLeft: 4,
+                                      fontSize: s(12),
+                                      fontWeight: 500,
+                                      color: "#6b7280",
+                                    }}
+                                  >
+                                    ({sourceListName})
+                                  </span>
                                 ) : null}
+                              </div>
+                              <div
+                                style={{
+                                  flexShrink: 0,
+                                  fontSize: s(14),
+                                  color: alreadyInMyList ? "#0f766e" : "#6b7280",
+                                  fontWeight: alreadyInMyList ? 800 : 500,
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                <QtyUnitText quantity={item.quantity} unit={item.unit} />
                               </div>
                             </div>
                           </label>
