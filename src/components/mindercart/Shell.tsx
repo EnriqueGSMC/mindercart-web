@@ -379,12 +379,6 @@ export function AppShell(props: {
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
-            {props.secondaryAction ? (
-              <Link href={props.secondaryAction.href} style={actionButtonStyle()}>
-                {props.secondaryAction.label}
-              </Link>
-            ) : null}
-
             {showCart ? (
               <Link href="/general-list" style={cartIconStyle()} aria-label="Cart">
                 <CartIcon />
@@ -424,29 +418,46 @@ export function AppShell(props: {
         >
           <div
             style={{
-              fontSize: s(21),
-              lineHeight: 1.08,
-              fontWeight: 900,
-              letterSpacing: "-0.02em",
-              color: "#fff",
-              textAlign: "left",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
             }}
           >
-            {title}
-          </div>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div
+                style={{
+                  fontSize: s(21),
+                  lineHeight: 1.08,
+                  fontWeight: 900,
+                  letterSpacing: "-0.02em",
+                  color: "#fff",
+                  textAlign: "left",
+                }}
+              >
+                {title}
+              </div>
 
-          {props.subtitle ? (
-            <div
-              style={{
-                marginTop: 4,
-                fontSize: s(14),
-                color: "rgba(255,255,255,0.92)",
-                textAlign: "left",
-              }}
-            >
-              {props.subtitle}
+              {props.subtitle ? (
+                <div
+                  style={{
+                    marginTop: 4,
+                    fontSize: s(14),
+                    color: "rgba(255,255,255,0.92)",
+                    textAlign: "left",
+                  }}
+                >
+                  {props.subtitle}
+                </div>
+              ) : null}
             </div>
-          ) : null}
+
+            {props.secondaryAction ? (
+              <Link href={props.secondaryAction.href} style={actionButtonStyle()}>
+                {props.secondaryAction.label}
+              </Link>
+            ) : null}
+          </div>
         </div>
       </header>
 
