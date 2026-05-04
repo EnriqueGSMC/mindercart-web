@@ -144,6 +144,7 @@ function BottomNavigation() {
           padding: 6px 6px 8px;
           color: rgba(255, 255, 255, 0.72);
           transition: color .15s ease, transform .15s ease;
+          overflow: visible;
         }
 
         .mc-bottom-nav__item::before {
@@ -157,6 +158,7 @@ function BottomNavigation() {
           border-radius: 999px;
           background: #ffffff;
           opacity: 0;
+          z-index: 2;
           transition: width .15s ease, opacity .15s ease;
         }
 
@@ -174,6 +176,8 @@ function BottomNavigation() {
         }
 
         .mc-bottom-nav__inner {
+          position: relative;
+          z-index: 1;
           display: grid;
           justify-items: center;
           align-content: start;
@@ -182,28 +186,50 @@ function BottomNavigation() {
         }
 
         .mc-bottom-nav__icon {
+          position: relative;
           display: flex;
           align-items: center;
           justify-content: center;
           color: currentColor;
           min-height: 27px;
+          min-width: 30px;
         }
 
         .mc-bottom-nav__icon--cart {
-          gap: 4px;
+          min-width: 34px;
         }
 
         .mc-bottom-nav__cart-count {
-          display: none;
-          font-size: 13px;
+          position: absolute;
+          top: -4px;
+          right: -8px;
+          min-width: 16px;
+          height: 16px;
+          padding: 0 4px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 999px;
+          background: rgba(255, 255, 255, 0.18);
+          border: 1px solid rgba(255, 255, 255, 0.26);
+          font-size: 10px;
           line-height: 1;
           font-weight: 800;
-          color: currentColor;
-          transform: translateY(-1px);
+          color: #ffffff;
+          opacity: 0;
+          transform: scale(.92);
+          transition: opacity .15s ease, transform .15s ease;
+          pointer-events: none;
         }
 
         .mc-bottom-nav__cart-count.has-count {
-          display: inline-block;
+          opacity: 1;
+          transform: scale(1);
+        }
+
+        .mc-bottom-nav__item.is-active .mc-bottom-nav__cart-count {
+          background: rgba(255, 255, 255, 0.24);
+          border-color: rgba(255, 255, 255, 0.38);
         }
 
         .mc-bottom-nav__label {
@@ -236,7 +262,11 @@ function BottomNavigation() {
             transform: translateY(-2px);
           }
           .mc-bottom-nav__cart-count {
-            font-size: 12px;
+            top: -3px;
+            right: -7px;
+            min-width: 15px;
+            height: 15px;
+            font-size: 9px;
           }
           .mc-bottom-nav__label {
             font-size: 10px;
@@ -286,6 +316,8 @@ function BottomNavigation() {
             (function () {
               var STORAGE_KEY = "mindercart_state_v15";
               var CHANGE_EVENT = "mindercart:changed";
+              var scheduled = false;
+              var observer = null;
 
               function getLanguage() {
                 try {
@@ -293,8 +325,22 @@ function BottomNavigation() {
                   if (!raw) return "es";
                   var parsed = JSON.parse(raw);
                   return parsed && parsed.settings && parsed.settings.language === "en" ? "en" : "es";
-                } catch {
+                } catch (error) {
                   return "es";
+                }
+              }
+
+              function getMyListCount() {
+                try {
+                  var raw = window.localStorage.getItem(STORAGE_KEY);
+                  if (!raw) return 0;
+                  var parsed = JSON.parse(raw);
+                  var items = parsed && Array.isArray(parsed.activeShoppingListItems)
+                    ? parsed.activeShoppingListItems
+                    : [];
+                  return items.length;
+                } catch (error) {
+                  return 0;
                 }
               }
 
@@ -304,32 +350,17 @@ function BottomNavigation() {
                 items.forEach(function (node) {
                   var labelNode = node.querySelector(".mc-bottom-nav__label");
                   if (!labelNode) return;
-                  var nextLabel =
-                    lang === "en"
-                      ? node.getAttribute("data-label-en")
-                      : node.getAttribute("data-label-es");
+                  var nextLabel = lang === "en"
+                    ? node.getAttribute("data-label-en")
+                    : node.getAttribute("data-label-es");
                   if (nextLabel) {
                     labelNode.textContent = nextLabel;
                   }
                 });
               }
 
-              function getCartCount() {
-                try {
-                  var raw = window.localStorage.getItem(STORAGE_KEY);
-                  if (!raw) return 0;
-                  var parsed = JSON.parse(raw);
-                  var items = parsed && Array.isArray(parsed.activeShoppingListItems)
-                    ? parsed.activeShoppingListItems
-                    : [];
-                  return items.length;
-                } catch {
-                  return 0;
-                }
-              }
-
               function syncFooterCartCount() {
-                var count = getCartCount();
+                var count = getMyListCount();
                 var countNode = document.querySelector("[data-cart-count]");
                 if (!countNode) return;
                 countNode.textContent = String(count);
@@ -348,23 +379,62 @@ function BottomNavigation() {
                   var active = matches.some(function (value) {
                     return value === "/" ? path === "/" : path === value || path.indexOf(value + "/") === 0;
                   });
+                  node.classList.toggle("is-active", active);
                   if (active) {
-                    node.classList.add("is-active");
+                    node.setAttribute("aria-current", "page");
                   } else {
-                    node.classList.remove("is-active");
+                    node.removeAttribute("aria-current");
                   }
                 });
               }
 
-              function syncFooter() {
+              function syncFooterNow() {
+                scheduled = false;
                 syncFooterLanguage();
                 syncFooterCartCount();
                 syncActivePath();
               }
 
-              syncFooter();
-              window.addEventListener("storage", syncFooter);
-              window.addEventListener(CHANGE_EVENT, syncFooter);
+              function scheduleSync() {
+                if (scheduled) return;
+                scheduled = true;
+                window.requestAnimationFrame(syncFooterNow);
+              }
+
+              function installObserver() {
+                if (observer) return;
+                observer = new MutationObserver(function () {
+                  scheduleSync();
+                });
+                observer.observe(document.body, {
+                  childList: true,
+                  subtree: true,
+                  attributes: true,
+                  attributeFilter: ["class"]
+                });
+              }
+
+              scheduleSync();
+              setTimeout(scheduleSync, 0);
+              setTimeout(scheduleSync, 120);
+              setTimeout(scheduleSync, 360);
+              installObserver();
+
+              window.addEventListener("storage", scheduleSync);
+              window.addEventListener(CHANGE_EVENT, scheduleSync);
+              window.addEventListener("popstate", scheduleSync);
+              window.addEventListener("hashchange", scheduleSync);
+              window.addEventListener("pageshow", scheduleSync);
+              document.addEventListener("visibilitychange", scheduleSync);
+
+              document.addEventListener("click", function (event) {
+                var target = event.target;
+                if (!target || !target.closest) return;
+                if (target.closest(".mc-bottom-nav__item")) {
+                  setTimeout(scheduleSync, 0);
+                  setTimeout(scheduleSync, 120);
+                }
+              }, true);
             })();
           `,
         }}
