@@ -39,6 +39,7 @@ export default function HistoryPage() {
   const lang = settings.language;
   const s = (px: number) => scalePx(settings.fontScale, px);
   const [expandedId, setExpandedId] = React.useState<string | null>(null);
+  const [repurchaseModeByEntry, setRepurchaseModeByEntry] = React.useState<Record<string, boolean>>({});
   const [selectedByEntry, setSelectedByEntry] = React.useState<Record<string, Record<string, boolean>>>({});
   const [statusByEntry, setStatusByEntry] = React.useState<Record<string, string>>({});
   const [busyEntryId, setBusyEntryId] = React.useState<string | null>(null);
@@ -50,27 +51,29 @@ export default function HistoryPage() {
             loading: "Loading...",
             selectedSuffix: "selected",
             addSelected: "Add selected to My List",
-            reuseAll: "Reuse full purchase",
+            reuseAll: "Rebuy full purchase",
+            buyAgain: "Buy again",
             alreadyInList: "Already in My List",
             addedSummary: (count: number) => `${count} item${count === 1 ? "" : "s"} added to My List`,
             reusedAllSummary: (count: number) => `${count} item${count === 1 ? "" : "s"} added from this purchase`,
             nothingNewToAdd: "Everything is already in My List",
             backToHistory: "← Back to History",
             purchaseLabel: "Purchase",
-            instruction: "Select the items you want to add.",
+            instruction: "Mark the items you want to buy again",
           }
         : {
             loading: "Cargando...",
             selectedSuffix: "seleccionados",
             addSelected: "Agregar seleccionados a Mi Lista",
-            reuseAll: "Reutilizar compra completa",
+            reuseAll: "Realizar compra completa",
+            buyAgain: "Comprar de nuevo",
             alreadyInList: "Ya está en Mi Lista",
             addedSummary: (count: number) => `${count} artículo${count === 1 ? "" : "s"} agregado${count === 1 ? "" : "s"} a Mi Lista`,
             reusedAllSummary: (count: number) => `${count} artículo${count === 1 ? "" : "s"} agregado${count === 1 ? "" : "s"} desde esta compra`,
             nothingNewToAdd: "Todo ya está en Mi Lista",
             backToHistory: "← Regresar a Historial",
             purchaseLabel: "Compra",
-            instruction: "Marca los artículos que quieras agregar.",
+            instruction: "Marca los artículos que quieras volver a comprar",
           },
     [lang]
   );
@@ -81,7 +84,18 @@ export default function HistoryPage() {
   );
 
   const toggleExpanded = (entryId: string) => {
-    setExpandedId((current) => (current === entryId ? null : entryId));
+    setExpandedId((current) => {
+      const next = current === entryId ? null : entryId;
+      if (next === null) {
+        setRepurchaseModeByEntry((prev) => ({ ...prev, [entryId]: false }));
+      }
+      return next;
+    });
+    setStatusByEntry((current) => ({ ...current, [entryId]: "" }));
+  };
+
+  const enterRepurchaseMode = (entryId: string) => {
+    setRepurchaseModeByEntry((current) => ({ ...current, [entryId]: true }));
     setStatusByEntry((current) => ({ ...current, [entryId]: "" }));
   };
 
@@ -130,20 +144,13 @@ export default function HistoryPage() {
     if (!entry) return;
 
     const itemsToAdd = getUniqueItemsToAdd(entryId, mode);
-    if (mode === "selected" && itemsToAdd.length === 0) {
+    if (itemsToAdd.length === 0) {
       setStatusByEntry((current) => ({
         ...current,
         [entryId]: copy.nothingNewToAdd,
       }));
       setExpandedId(null);
-      return;
-    }
-    if (mode === "all" && itemsToAdd.length === 0) {
-      setStatusByEntry((current) => ({
-        ...current,
-        [entryId]: copy.nothingNewToAdd,
-      }));
-      setExpandedId(null);
+      setRepurchaseModeByEntry((current) => ({ ...current, [entryId]: false }));
       return;
     }
 
@@ -170,17 +177,10 @@ export default function HistoryPage() {
           mode === "all" ? copy.reusedAllSummary(itemsToAdd.length) : copy.addedSummary(itemsToAdd.length),
       }));
       setExpandedId(null);
+      setRepurchaseModeByEntry((current) => ({ ...current, [entryId]: false }));
     } finally {
       setBusyEntryId(null);
     }
-  };
-
-  const addSelectedToMyList = async (entryId: string) => {
-    await addItemsFromEntry(entryId, "selected");
-  };
-
-  const reuseFullPurchase = async (entryId: string) => {
-    await addItemsFromEntry(entryId, "all");
   };
 
   if (!hydrated) {
@@ -215,6 +215,7 @@ export default function HistoryPage() {
         <div style={{ display: "grid", gap: 12 }}>
           {shoppingHistory.map((row) => {
             const expanded = expandedId === row.id;
+            const repurchaseMode = Boolean(repurchaseModeByEntry[row.id]);
             const selectedCount = selectedCountFor(row.id);
 
             return (
@@ -252,7 +253,7 @@ export default function HistoryPage() {
                 ) : null}
 
                 {expanded ? (
-                  <div style={{ display: "grid", gap: 12, paddingBottom: 112 }}>
+                  <div style={{ display: "grid", gap: 12, paddingBottom: 120 }}>
                     <div
                       style={{
                         borderBottom: "1px solid #e5e7eb",
@@ -281,36 +282,28 @@ export default function HistoryPage() {
                       <div style={{ fontSize: s(18), fontWeight: 900, lineHeight: 1.2, color: "#111827" }}>
                         {copy.purchaseLabel} · {formatDateOnly(row.closedAt, lang)}
                       </div>
-                      <div style={{ fontSize: s(13), color: "#6b7280", lineHeight: 1.2 }}>{copy.instruction}</div>
+                      {repurchaseMode ? (
+                        <div style={{ fontSize: s(13), color: "#6b7280", lineHeight: 1.2 }}>{copy.instruction}</div>
+                      ) : null}
                     </div>
 
                     <div style={{ display: "grid", gap: 8 }}>
                       {row.items.map((item) => {
                         const alreadyInMyList = activeKeySet.has(makeActiveKey(item));
-                        const checked = alreadyInMyList || Boolean(selectedByEntry[row.id]?.[item.id]);
+                        const checked = repurchaseMode && (alreadyInMyList || Boolean(selectedByEntry[row.id]?.[item.id]));
                         const sourceListName = getSourceListName(item as unknown as Record<string, unknown>);
 
-                        return (
-                          <label
-                            key={item.id}
-                            style={{
-                              border: checked ? "1px solid #dbe7fb" : "1px solid #f0f0f0",
-                              background: checked ? "#eef5ff" : "#fff",
-                              borderRadius: 16,
-                              padding: "10px 12px",
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 10,
-                              cursor: alreadyInMyList ? "default" : "pointer",
-                            }}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              disabled={alreadyInMyList}
-                              onChange={() => toggleSelected(row.id, item.id)}
-                              style={{ width: 20, height: 20, margin: 0, flexShrink: 0, accentColor: "#5aa8ff" }}
-                            />
+                        const rowContent = (
+                          <>
+                            {repurchaseMode ? (
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                disabled={alreadyInMyList}
+                                onChange={() => toggleSelected(row.id, item.id)}
+                                style={{ width: 20, height: 20, margin: 0, flexShrink: 0, accentColor: "#5aa8ff" }}
+                              />
+                            ) : null}
                             <div
                               style={{
                                 flex: 1,
@@ -330,7 +323,7 @@ export default function HistoryPage() {
                                   fontSize: s(16),
                                   fontWeight: 500,
                                   lineHeight: 1.2,
-                                  color: alreadyInMyList ? "#0f766e" : "#111827",
+                                  color: alreadyInMyList && repurchaseMode ? "#0f766e" : "#111827",
                                 }}
                               >
                                 {item.name}
@@ -351,86 +344,142 @@ export default function HistoryPage() {
                                 style={{
                                   flexShrink: 0,
                                   fontSize: s(14),
-                                  color: alreadyInMyList ? "#0f766e" : "#6b7280",
-                                  fontWeight: alreadyInMyList ? 800 : 500,
+                                  color: alreadyInMyList && repurchaseMode ? "#0f766e" : "#6b7280",
+                                  fontWeight: alreadyInMyList && repurchaseMode ? 800 : 500,
                                   whiteSpace: "nowrap",
                                 }}
                               >
                                 <QtyUnitText quantity={item.quantity} unit={item.unit} />
                               </div>
                             </div>
+                          </>
+                        );
+
+                        const sharedStyle: React.CSSProperties = {
+                          border: checked ? "1px solid #dbe7fb" : "1px solid #f0f0f0",
+                          background: checked ? "#eef5ff" : "#fff",
+                          borderRadius: 16,
+                          padding: "10px 12px",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 10,
+                        };
+
+                        return repurchaseMode ? (
+                          <label
+                            key={item.id}
+                            style={{
+                              ...sharedStyle,
+                              cursor: alreadyInMyList ? "default" : "pointer",
+                            }}
+                          >
+                            {rowContent}
                           </label>
+                        ) : (
+                          <div key={item.id} style={sharedStyle}>
+                            {rowContent}
+                          </div>
                         );
                       })}
                     </div>
 
-                    <div
-                      style={{
-                        position: "sticky",
-                        bottom: 84,
-                        zIndex: 2,
-                        background: "#fff",
-                        borderTop: "1px solid #eef2f7",
-                        paddingTop: 10,
-                        display: "grid",
-                        gap: 10,
-                      }}
-                    >
+                    {repurchaseMode ? (
                       <div
                         style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          gap: 12,
-                          flexWrap: "wrap",
+                          position: "sticky",
+                          bottom: 84,
+                          zIndex: 2,
+                          background: "#fff",
+                          borderTop: "1px solid #eef2f7",
+                          paddingTop: 10,
+                          display: "grid",
+                          gap: 10,
                         }}
                       >
-                        <div style={{ fontSize: s(13), color: "#6b7280" }}>
-                          {selectedCount} {copy.selectedSuffix}
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            gap: 12,
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          <div style={{ fontSize: s(13), color: "#6b7280" }}>
+                            {selectedCount} {copy.selectedSuffix}
+                          </div>
+                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                            <button
+                              type="button"
+                              onClick={() => addItemsFromEntry(row.id, "all")}
+                              disabled={busyEntryId === row.id}
+                              style={{
+                                border: "1px solid #0f4c81",
+                                borderRadius: 999,
+                                padding: "10px 16px",
+                                background: "#fff",
+                                color: "#0f4c81",
+                                fontWeight: 900,
+                                cursor: busyEntryId === row.id ? "not-allowed" : "pointer",
+                              }}
+                            >
+                              {copy.reuseAll}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => addItemsFromEntry(row.id, "selected")}
+                              disabled={selectedCount === 0 || busyEntryId === row.id}
+                              style={{
+                                border: 0,
+                                borderRadius: 999,
+                                padding: "10px 16px",
+                                background: selectedCount === 0 || busyEntryId === row.id ? "#cbd5e1" : "#0f4c81",
+                                color: "#fff",
+                                fontWeight: 900,
+                                cursor:
+                                  selectedCount === 0 || busyEntryId === row.id ? "not-allowed" : "pointer",
+                              }}
+                            >
+                              {copy.addSelected}
+                            </button>
+                          </div>
                         </div>
-                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                          <button
-                            type="button"
-                            onClick={() => reuseFullPurchase(row.id)}
-                            disabled={busyEntryId === row.id}
-                            style={{
-                              border: "1px solid #0f4c81",
-                              borderRadius: 999,
-                              padding: "10px 16px",
-                              background: "#fff",
-                              color: "#0f4c81",
-                              fontWeight: 900,
-                              cursor: busyEntryId === row.id ? "not-allowed" : "pointer",
-                            }}
-                          >
-                            {copy.reuseAll}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => addSelectedToMyList(row.id)}
-                            disabled={selectedCount === 0 || busyEntryId === row.id}
-                            style={{
-                              border: 0,
-                              borderRadius: 999,
-                              padding: "10px 16px",
-                              background: selectedCount === 0 || busyEntryId === row.id ? "#cbd5e1" : "#0f4c81",
-                              color: "#fff",
-                              fontWeight: 900,
-                              cursor:
-                                selectedCount === 0 || busyEntryId === row.id ? "not-allowed" : "pointer",
-                            }}
-                          >
-                            {copy.addSelected}
-                          </button>
-                        </div>
-                      </div>
 
-                      {statusByEntry[row.id] ? (
-                        <div style={{ fontSize: s(13), color: "#0f766e", fontWeight: 800 }}>
-                          {statusByEntry[row.id]}
-                        </div>
-                      ) : null}
-                    </div>
+                        {statusByEntry[row.id] ? (
+                          <div style={{ fontSize: s(13), color: "#0f766e", fontWeight: 800 }}>
+                            {statusByEntry[row.id]}
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <div
+                        style={{
+                          position: "sticky",
+                          bottom: 84,
+                          zIndex: 2,
+                          background: "#fff",
+                          borderTop: "1px solid #eef2f7",
+                          paddingTop: 10,
+                        }}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => enterRepurchaseMode(row.id)}
+                          style={{
+                            width: "100%",
+                            border: "1px solid #0f4c81",
+                            borderRadius: 999,
+                            padding: "10px 16px",
+                            background: "#fff",
+                            color: "#0f4c81",
+                            fontWeight: 900,
+                            cursor: "pointer",
+                          }}
+                        >
+                          {copy.buyAgain}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ) : null}
               </section>
