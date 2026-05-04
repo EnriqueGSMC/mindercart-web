@@ -194,16 +194,21 @@ function BottomNavigation() {
         }
 
         .mc-bottom-nav__cart-count {
-          display: none;
+          display: inline-block;
+          min-width: 10px;
           font-size: 13px;
           line-height: 1;
           font-weight: 800;
           color: currentColor;
           transform: translateY(-1px);
+          opacity: 0;
+          visibility: hidden;
+          transition: opacity .12s ease;
         }
 
         .mc-bottom-nav__cart-count.has-count {
-          display: inline-block;
+          opacity: 1;
+          visibility: visible;
         }
 
         .mc-bottom-nav__label {
@@ -362,9 +367,55 @@ function BottomNavigation() {
                 syncActivePath();
               }
 
-              syncFooter();
-              window.addEventListener("storage", syncFooter);
-              window.addEventListener(CHANGE_EVENT, syncFooter);
+              function scheduleSyncFooter() {
+                syncFooter();
+                if (typeof window.requestAnimationFrame === "function") {
+                  window.requestAnimationFrame(syncFooter);
+                  window.requestAnimationFrame(function () {
+                    window.requestAnimationFrame(syncFooter);
+                  });
+                }
+                window.setTimeout(syncFooter, 0);
+                window.setTimeout(syncFooter, 60);
+                window.setTimeout(syncFooter, 180);
+                window.setTimeout(syncFooter, 420);
+              }
+
+              var originalPushState = window.history && window.history.pushState;
+              if (originalPushState) {
+                window.history.pushState = function () {
+                  var result = originalPushState.apply(this, arguments);
+                  scheduleSyncFooter();
+                  return result;
+                };
+              }
+
+              var originalReplaceState = window.history && window.history.replaceState;
+              if (originalReplaceState) {
+                window.history.replaceState = function () {
+                  var result = originalReplaceState.apply(this, arguments);
+                  scheduleSyncFooter();
+                  return result;
+                };
+              }
+
+              if (typeof MutationObserver !== "undefined") {
+                var observer = new MutationObserver(function () {
+                  scheduleSyncFooter();
+                });
+                observer.observe(document.documentElement, {
+                  childList: true,
+                  subtree: true,
+                });
+              }
+
+              scheduleSyncFooter();
+              document.addEventListener("DOMContentLoaded", scheduleSyncFooter);
+              window.addEventListener("load", scheduleSyncFooter);
+              window.addEventListener("pageshow", scheduleSyncFooter);
+              window.addEventListener("popstate", scheduleSyncFooter);
+              window.addEventListener("storage", scheduleSyncFooter);
+              window.addEventListener(CHANGE_EVENT, scheduleSyncFooter);
             })();
           `,
         }}
