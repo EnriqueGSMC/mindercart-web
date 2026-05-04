@@ -50,8 +50,11 @@ export default function HistoryPage() {
             loading: "Loading...",
             selectedSuffix: "selected",
             addSelected: "Add selected to My List",
+            reuseAll: "Reuse full purchase",
             alreadyInList: "Already in My List",
             addedSummary: (count: number) => `${count} item${count === 1 ? "" : "s"} added to My List`,
+            reusedAllSummary: (count: number) => `${count} item${count === 1 ? "" : "s"} added from this purchase`,
+            nothingNewToAdd: "Everything is already in My List",
             backToHistory: "← Back to History",
             purchaseLabel: "Purchase",
             instruction: "Select the items you want to add.",
@@ -60,8 +63,11 @@ export default function HistoryPage() {
             loading: "Cargando...",
             selectedSuffix: "seleccionados",
             addSelected: "Agregar seleccionados a Mi Lista",
+            reuseAll: "Reutilizar compra completa",
             alreadyInList: "Ya está en Mi Lista",
             addedSummary: (count: number) => `${count} artículo${count === 1 ? "" : "s"} agregado${count === 1 ? "" : "s"} a Mi Lista`,
+            reusedAllSummary: (count: number) => `${count} artículo${count === 1 ? "" : "s"} agregado${count === 1 ? "" : "s"} desde esta compra`,
+            nothingNewToAdd: "Todo ya está en Mi Lista",
             backToHistory: "← Regresar a Historial",
             purchaseLabel: "Compra",
             instruction: "Marca los artículos que quieras agregar.",
@@ -92,23 +98,59 @@ export default function HistoryPage() {
   const selectedCountFor = (entryId: string) =>
     Object.values(selectedByEntry[entryId] || {}).filter(Boolean).length;
 
-  const addSelectedToMyList = async (entryId: string) => {
+  const getUniqueItemsToAdd = React.useCallback(
+    (entryId: string, mode: "selected" | "all") => {
+      const entry = shoppingHistory.find((row) => row.id === entryId);
+      if (!entry) return [];
+
+      const selectedIds =
+        mode === "selected"
+          ? new Set(
+              Object.entries(selectedByEntry[entryId] || {})
+                .filter(([, checked]) => checked)
+                .map(([itemId]) => itemId)
+            )
+          : null;
+
+      const seen = new Set<string>();
+      return entry.items.filter((item) => {
+        if (selectedIds && !selectedIds.has(item.id)) return false;
+        const key = makeActiveKey(item);
+        if (activeKeySet.has(key)) return false;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    },
+    [activeKeySet, selectedByEntry, shoppingHistory]
+  );
+
+  const addItemsFromEntry = async (entryId: string, mode: "selected" | "all") => {
     const entry = shoppingHistory.find((row) => row.id === entryId);
     if (!entry) return;
 
-    const selectedIds = Object.entries(selectedByEntry[entryId] || {})
-      .filter(([, checked]) => checked)
-      .map(([itemId]) => itemId);
-
-    if (selectedIds.length === 0) return;
-
-    const selectedItems = entry.items.filter((item) => selectedIds.includes(item.id));
-    if (selectedItems.length === 0) return;
+    const itemsToAdd = getUniqueItemsToAdd(entryId, mode);
+    if (mode === "selected" && itemsToAdd.length === 0) {
+      setStatusByEntry((current) => ({
+        ...current,
+        [entryId]: copy.nothingNewToAdd,
+      }));
+      setExpandedId(null);
+      return;
+    }
+    if (mode === "all" && itemsToAdd.length === 0) {
+      setStatusByEntry((current) => ({
+        ...current,
+        [entryId]: copy.nothingNewToAdd,
+      }));
+      setExpandedId(null);
+      return;
+    }
 
     setBusyEntryId(entryId);
 
     try {
-      selectedItems.forEach((item) => {
+      itemsToAdd.forEach((item) => {
         addQuickNeed({
           name: item.name,
           category: item.category,
@@ -124,11 +166,21 @@ export default function HistoryPage() {
       }));
       setStatusByEntry((current) => ({
         ...current,
-        [entryId]: copy.addedSummary(selectedItems.length),
+        [entryId]:
+          mode === "all" ? copy.reusedAllSummary(itemsToAdd.length) : copy.addedSummary(itemsToAdd.length),
       }));
+      setExpandedId(null);
     } finally {
       setBusyEntryId(null);
     }
+  };
+
+  const addSelectedToMyList = async (entryId: string) => {
+    await addItemsFromEntry(entryId, "selected");
+  };
+
+  const reuseFullPurchase = async (entryId: string) => {
+    await addItemsFromEntry(entryId, "all");
   };
 
   if (!hydrated) {
@@ -191,6 +243,12 @@ export default function HistoryPage() {
                   <span style={{ color: "#0f4c81", fontSize: s(13), flexShrink: 0 }}>{expanded ? "−" : "+"}</span>
                 </button>
 
+                {!expanded && statusByEntry[row.id] ? (
+                  <div style={{ marginTop: 8, fontSize: s(13), color: "#0f766e", fontWeight: 800 }}>
+                    {statusByEntry[row.id]}
+                  </div>
+                ) : null}
+
                 {expanded ? (
                   <div style={{ marginTop: 12, display: "grid", gap: 12 }}>
                     <div
@@ -226,8 +284,8 @@ export default function HistoryPage() {
 
                     <div style={{ display: "grid", gap: 8 }}>
                       {row.items.map((item) => {
-                        const checked = Boolean(selectedByEntry[row.id]?.[item.id]);
                         const alreadyInMyList = activeKeySet.has(makeActiveKey(item));
+                        const checked = alreadyInMyList || Boolean(selectedByEntry[row.id]?.[item.id]);
                         const sourceListName = getSourceListName(item as unknown as Record<string, unknown>);
 
                         return (
@@ -240,12 +298,13 @@ export default function HistoryPage() {
                               display: "flex",
                               alignItems: "center",
                               gap: 10,
-                              cursor: "pointer",
+                              cursor: alreadyInMyList ? "default" : "pointer",
                             }}
                           >
                             <input
                               type="checkbox"
                               checked={checked}
+                              disabled={alreadyInMyList}
                               onChange={() => toggleSelected(row.id, item.id)}
                               style={{ width: 20, height: 20, margin: 0, flexShrink: 0 }}
                             />
@@ -315,23 +374,41 @@ export default function HistoryPage() {
                       <div style={{ fontSize: s(13), color: "#6b7280" }}>
                         {selectedCount} {copy.selectedSuffix}
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => addSelectedToMyList(row.id)}
-                        disabled={selectedCount === 0 || busyEntryId === row.id}
-                        style={{
-                          border: 0,
-                          borderRadius: 999,
-                          padding: "10px 16px",
-                          background: selectedCount === 0 || busyEntryId === row.id ? "#cbd5e1" : "#0f4c81",
-                          color: "#fff",
-                          fontWeight: 900,
-                          cursor:
-                            selectedCount === 0 || busyEntryId === row.id ? "not-allowed" : "pointer",
-                        }}
-                      >
-                        {copy.addSelected}
-                      </button>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                        <button
+                          type="button"
+                          onClick={() => reuseFullPurchase(row.id)}
+                          disabled={busyEntryId === row.id}
+                          style={{
+                            border: "1px solid #0f4c81",
+                            borderRadius: 999,
+                            padding: "10px 16px",
+                            background: "#fff",
+                            color: "#0f4c81",
+                            fontWeight: 900,
+                            cursor: busyEntryId === row.id ? "not-allowed" : "pointer",
+                          }}
+                        >
+                          {copy.reuseAll}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => addSelectedToMyList(row.id)}
+                          disabled={selectedCount === 0 || busyEntryId === row.id}
+                          style={{
+                            border: 0,
+                            borderRadius: 999,
+                            padding: "10px 16px",
+                            background: selectedCount === 0 || busyEntryId === row.id ? "#cbd5e1" : "#0f4c81",
+                            color: "#fff",
+                            fontWeight: 900,
+                            cursor:
+                              selectedCount === 0 || busyEntryId === row.id ? "not-allowed" : "pointer",
+                          }}
+                        >
+                          {copy.addSelected}
+                        </button>
+                      </div>
                     </div>
 
                     {statusByEntry[row.id] ? (
