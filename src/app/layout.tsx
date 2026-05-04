@@ -201,18 +201,18 @@ function BottomNavigation() {
 
         .mc-bottom-nav__cart-count {
           position: absolute;
-          top: -4px;
-          right: -8px;
-          min-width: 16px;
-          height: 16px;
-          padding: 0 4px;
+          top: -5px;
+          right: -9px;
+          min-width: 19px;
+          height: 19px;
+          padding: 0 5px;
           display: inline-flex;
           align-items: center;
           justify-content: center;
           border-radius: 999px;
           background: rgba(255, 255, 255, 0.18);
           border: 1px solid rgba(255, 255, 255, 0.26);
-          font-size: 10px;
+          font-size: 12px;
           line-height: 1;
           font-weight: 800;
           color: #ffffff;
@@ -262,11 +262,12 @@ function BottomNavigation() {
             transform: translateY(-2px);
           }
           .mc-bottom-nav__cart-count {
-            top: -3px;
-            right: -7px;
-            min-width: 15px;
-            height: 15px;
-            font-size: 9px;
+            top: -4px;
+            right: -8px;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 5px;
+            font-size: 11px;
           }
           .mc-bottom-nav__label {
             font-size: 10px;
