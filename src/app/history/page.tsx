@@ -219,29 +219,31 @@ export default function HistoryPage() {
 
             return (
               <section key={row.id} style={{ ...cardStyle(), padding: 14 }}>
-                <button
-                  type="button"
-                  onClick={() => toggleExpanded(row.id)}
-                  style={{
-                    width: "100%",
-                    textAlign: "left",
-                    padding: 0,
-                    border: 0,
-                    background: "transparent",
-                    cursor: "pointer",
-                    fontWeight: 900,
-                    fontSize: s(15),
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 10,
-                  }}
-                >
-                  <span>
-                    {formatDateOnly(row.closedAt, lang)} · {row.store} · {row.items.length} {t(lang, "itemsLabel")}
-                  </span>
-                  <span style={{ color: "#0f4c81", fontSize: s(13), flexShrink: 0 }}>{expanded ? "−" : "+"}</span>
-                </button>
+                {!expanded ? (
+                  <button
+                    type="button"
+                    onClick={() => toggleExpanded(row.id)}
+                    style={{
+                      width: "100%",
+                      textAlign: "left",
+                      padding: 0,
+                      border: 0,
+                      background: "transparent",
+                      cursor: "pointer",
+                      fontWeight: 900,
+                      fontSize: s(15),
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 10,
+                    }}
+                  >
+                    <span>
+                      {formatDateOnly(row.closedAt, lang)} · {row.store} · {row.items.length} {t(lang, "itemsLabel")}
+                    </span>
+                    <span style={{ color: "#0f4c81", fontSize: s(13), flexShrink: 0 }}>+</span>
+                  </button>
+                ) : null}
 
                 {!expanded && statusByEntry[row.id] ? (
                   <div style={{ marginTop: 8, fontSize: s(13), color: "#0f766e", fontWeight: 800 }}>
@@ -250,7 +252,7 @@ export default function HistoryPage() {
                 ) : null}
 
                 {expanded ? (
-                  <div style={{ marginTop: 12, display: "grid", gap: 12 }}>
+                  <div style={{ display: "grid", gap: 12, paddingBottom: 112 }}>
                     <div
                       style={{
                         borderBottom: "1px solid #e5e7eb",
@@ -292,7 +294,8 @@ export default function HistoryPage() {
                           <label
                             key={item.id}
                             style={{
-                              border: "1px solid #f0f0f0",
+                              border: checked ? "1px solid #dbe7fb" : "1px solid #f0f0f0",
+                              background: checked ? "#eef5ff" : "#fff",
                               borderRadius: 16,
                               padding: "10px 12px",
                               display: "flex",
@@ -306,7 +309,7 @@ export default function HistoryPage() {
                               checked={checked}
                               disabled={alreadyInMyList}
                               onChange={() => toggleSelected(row.id, item.id)}
-                              style={{ width: 20, height: 20, margin: 0, flexShrink: 0 }}
+                              style={{ width: 20, height: 20, margin: 0, flexShrink: 0, accentColor: "#5aa8ff" }}
                             />
                             <div
                               style={{
@@ -363,59 +366,71 @@ export default function HistoryPage() {
 
                     <div
                       style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        gap: 12,
-                        flexWrap: "wrap",
-                        paddingTop: 6,
+                        position: "sticky",
+                        bottom: 84,
+                        zIndex: 2,
+                        background: "#fff",
+                        borderTop: "1px solid #eef2f7",
+                        paddingTop: 10,
+                        display: "grid",
+                        gap: 10,
                       }}
                     >
-                      <div style={{ fontSize: s(13), color: "#6b7280" }}>
-                        {selectedCount} {copy.selectedSuffix}
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: 12,
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <div style={{ fontSize: s(13), color: "#6b7280" }}>
+                          {selectedCount} {copy.selectedSuffix}
+                        </div>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                          <button
+                            type="button"
+                            onClick={() => reuseFullPurchase(row.id)}
+                            disabled={busyEntryId === row.id}
+                            style={{
+                              border: "1px solid #0f4c81",
+                              borderRadius: 999,
+                              padding: "10px 16px",
+                              background: "#fff",
+                              color: "#0f4c81",
+                              fontWeight: 900,
+                              cursor: busyEntryId === row.id ? "not-allowed" : "pointer",
+                            }}
+                          >
+                            {copy.reuseAll}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => addSelectedToMyList(row.id)}
+                            disabled={selectedCount === 0 || busyEntryId === row.id}
+                            style={{
+                              border: 0,
+                              borderRadius: 999,
+                              padding: "10px 16px",
+                              background: selectedCount === 0 || busyEntryId === row.id ? "#cbd5e1" : "#0f4c81",
+                              color: "#fff",
+                              fontWeight: 900,
+                              cursor:
+                                selectedCount === 0 || busyEntryId === row.id ? "not-allowed" : "pointer",
+                            }}
+                          >
+                            {copy.addSelected}
+                          </button>
+                        </div>
                       </div>
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                        <button
-                          type="button"
-                          onClick={() => reuseFullPurchase(row.id)}
-                          disabled={busyEntryId === row.id}
-                          style={{
-                            border: "1px solid #0f4c81",
-                            borderRadius: 999,
-                            padding: "10px 16px",
-                            background: "#fff",
-                            color: "#0f4c81",
-                            fontWeight: 900,
-                            cursor: busyEntryId === row.id ? "not-allowed" : "pointer",
-                          }}
-                        >
-                          {copy.reuseAll}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => addSelectedToMyList(row.id)}
-                          disabled={selectedCount === 0 || busyEntryId === row.id}
-                          style={{
-                            border: 0,
-                            borderRadius: 999,
-                            padding: "10px 16px",
-                            background: selectedCount === 0 || busyEntryId === row.id ? "#cbd5e1" : "#0f4c81",
-                            color: "#fff",
-                            fontWeight: 900,
-                            cursor:
-                              selectedCount === 0 || busyEntryId === row.id ? "not-allowed" : "pointer",
-                          }}
-                        >
-                          {copy.addSelected}
-                        </button>
-                      </div>
-                    </div>
 
-                    {statusByEntry[row.id] ? (
-                      <div style={{ fontSize: s(13), color: "#0f766e", fontWeight: 800 }}>
-                        {statusByEntry[row.id]}
-                      </div>
-                    ) : null}
+                      {statusByEntry[row.id] ? (
+                        <div style={{ fontSize: s(13), color: "#0f766e", fontWeight: 800 }}>
+                          {statusByEntry[row.id]}
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
                 ) : null}
               </section>
