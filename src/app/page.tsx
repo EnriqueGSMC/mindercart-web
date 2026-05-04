@@ -1478,7 +1478,7 @@ export default function NeedsPage() {
     >
       <section style={{ ...cardStyle(), padding: 14 }}>
         <div style={{ display: "grid", gap: 12 }}>
-          <div style={{ fontSize: s(16), fontWeight: 700 }}>{t(lang, "item")}</div>
+          <div style={{ fontSize: s(16), fontWeight: 700 }}>{lang === "en" ? "I need" : "Necesito"}</div>
 
           <input
             value={name}
