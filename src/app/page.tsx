@@ -481,6 +481,10 @@ export default function NeedsPage() {
 
     if (typeof window !== "undefined" && !window.confirm(confirmationText)) return false;
 
+    activeShoppingListItems
+      .filter((item) => item.sourceListName === target.name)
+      .forEach((item) => removeActiveItem(item.id));
+
     persistSavedLists(savedLists.filter((entry) => entry.id !== savedListId));
     setSavedListsMessage(lang === "en" ? "Saved list deleted." : "Lista guardada eliminada.");
     return true;
@@ -962,12 +966,9 @@ export default function NeedsPage() {
                   ref={savedListNameInputRef}
                   value={savedListName}
                   readOnly={isEditSavedListView && !savedListNameEditUnlocked}
-                  onClick={() => {
-                    confirmSavedListNameEdit();
-                  }}
-                  onFocus={(event) => {
+                  onMouseDown={(event) => {
                     if (isEditSavedListView && !savedListNameEditUnlocked) {
-                      event.currentTarget.blur();
+                      event.preventDefault();
                       confirmSavedListNameEdit();
                     }
                   }}
@@ -1369,7 +1370,16 @@ export default function NeedsPage() {
                   gap: 12,
                 }}
               >
-                <div style={{ display: "grid", gap: 5, minWidth: 0, flex: 1 }}>
+                <div
+                  style={{
+                    display: "grid",
+                    gap: 8,
+                    minWidth: 0,
+                    flex: 1,
+                    paddingTop: 1,
+                    paddingBottom: 1,
+                  }}
+                >
                   <Link
                     href="/"
                     style={{
@@ -1380,13 +1390,15 @@ export default function NeedsPage() {
                       fontSize: s(14),
                       fontWeight: 800,
                       textDecoration: "none",
-                      lineHeight: 1.15,
+                      lineHeight: 1.1,
                     }}
                   >
                     {backToMyListLabel}
                   </Link>
 
-                  <div style={{ fontSize: s(17), fontWeight: 800, lineHeight: 1.15 }}>{savedListsTitle}</div>
+                  <div style={{ fontSize: s(17), fontWeight: 800, lineHeight: 1.18, paddingTop: 1 }}>
+                    {savedListsTitle}
+                  </div>
                 </div>
 
                 <Link
