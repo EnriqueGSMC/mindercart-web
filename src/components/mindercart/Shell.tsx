@@ -268,14 +268,13 @@ export function AppShell(props: {
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { activeShoppingListItems, settings } = useMinderCartState();
+  const { settings } = useMinderCartState();
   const [menuOpen, setMenuOpen] = React.useState(false);
 
   React.useEffect(() => {
     setMenuOpen(searchParams.get("menu") === "1");
   }, [searchParams]);
 
-  const cartCount = activeShoppingListItems.length;
   const showCart = props.showCart !== false;
   const s = (px: number) => scalePx(settings?.fontScale, px);
   const lang = settings.language;
@@ -379,25 +378,6 @@ export function AppShell(props: {
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
-            {showCart ? (
-              <Link href="/general-list" style={cartIconStyle()} aria-label="Cart">
-                <CartIcon />
-                {cartCount > 0 ? (
-                  <span
-                    style={{
-                      color: "#fff",
-                      fontSize: s(13),
-                      fontWeight: 800,
-                      lineHeight: 1,
-                      marginLeft: -1,
-                    }}
-                  >
-                    {cartCount}
-                  </span>
-                ) : null}
-              </Link>
-            ) : null}
-
             <button
               type="button"
               onClick={() => setMenuOpen((v) => !v)}

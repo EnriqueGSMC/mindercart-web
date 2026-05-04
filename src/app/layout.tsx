@@ -29,6 +29,23 @@ const iconStyle = {
   strokeLinejoin: "round" as const,
 };
 
+function CartFooterIcon() {
+  return (
+    <svg width="27" height="27" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M3 5h1.4l1.7 8.2a1 1 0 0 0 1 .8h8.7a1 1 0 0 0 1-.8L18.2 8H7.2"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="9.5" cy="18.5" r="1.4" fill="currentColor" />
+      <circle cx="16.5" cy="18.5" r="1.4" fill="currentColor" />
+    </svg>
+  );
+}
+
+
 const navItems: NavItem[] = [
   {
     href: "/",
@@ -51,14 +68,7 @@ const navItems: NavItem[] = [
     labelEs: "Carrito",
     labelEn: "Cart",
     match: ["/general-list", "/shopping-list"],
-    icon: (
-      <svg viewBox="0 0 24 24" aria-hidden="true" style={iconStyle}>
-        <circle cx="10" cy="18.5" r="1.25" />
-        <circle cx="17" cy="18.5" r="1.25" />
-        <path d="M3.75 5h2l1.9 8h9l2-6.5H7.25" />
-        <path d="M8.5 16h8" />
-      </svg>
-    ),
+    icon: <CartFooterIcon />,
   },
   {
     href: "/in-store",
@@ -176,6 +186,24 @@ function BottomNavigation() {
           align-items: center;
           justify-content: center;
           color: currentColor;
+          min-height: 27px;
+        }
+
+        .mc-bottom-nav__icon--cart {
+          gap: 4px;
+        }
+
+        .mc-bottom-nav__cart-count {
+          display: none;
+          font-size: 13px;
+          line-height: 1;
+          font-weight: 800;
+          color: currentColor;
+          transform: translateY(-1px);
+        }
+
+        .mc-bottom-nav__cart-count.has-count {
+          display: inline-block;
         }
 
         .mc-bottom-nav__label {
@@ -207,6 +235,9 @@ function BottomNavigation() {
             gap: 3px;
             transform: translateY(-2px);
           }
+          .mc-bottom-nav__cart-count {
+            font-size: 12px;
+          }
           .mc-bottom-nav__label {
             font-size: 10px;
           }
@@ -215,22 +246,37 @@ function BottomNavigation() {
 
       <nav className="mc-bottom-nav" aria-label="Navegación principal">
         <div className="mc-bottom-nav__grid">
-          {navItems.map((item) => (
-            <a
-              key={item.href}
-              href={item.href}
-              className="mc-bottom-nav__item"
-              data-nav-href={item.href}
-              data-nav-match={item.match.join("|")}
-              data-label-es={item.labelEs}
-              data-label-en={item.labelEn}
-            >
-              <span className="mc-bottom-nav__inner">
-                <span className="mc-bottom-nav__icon">{item.icon}</span>
-                <span className="mc-bottom-nav__label">{item.labelEs}</span>
-              </span>
-            </a>
-          ))}
+          {navItems.map((item) => {
+            const isCartItem = item.href === "/general-list";
+
+            return (
+              <a
+                key={item.href}
+                href={item.href}
+                className="mc-bottom-nav__item"
+                data-nav-href={item.href}
+                data-nav-match={item.match.join("|")}
+                data-label-es={item.labelEs}
+                data-label-en={item.labelEn}
+              >
+                <span className="mc-bottom-nav__inner">
+                  <span
+                    className={
+                      isCartItem ? "mc-bottom-nav__icon mc-bottom-nav__icon--cart" : "mc-bottom-nav__icon"
+                    }
+                  >
+                    {item.icon}
+                    {isCartItem ? (
+                      <span className="mc-bottom-nav__cart-count" data-cart-count aria-hidden="true">
+                        0
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="mc-bottom-nav__label">{item.labelEs}</span>
+                </span>
+              </a>
+            );
+          })}
         </div>
       </nav>
 
@@ -268,6 +314,32 @@ function BottomNavigation() {
                 });
               }
 
+              function getCartCount() {
+                try {
+                  var raw = window.localStorage.getItem(STORAGE_KEY);
+                  if (!raw) return 0;
+                  var parsed = JSON.parse(raw);
+                  var items = parsed && Array.isArray(parsed.activeShoppingListItems)
+                    ? parsed.activeShoppingListItems
+                    : [];
+                  return items.length;
+                } catch {
+                  return 0;
+                }
+              }
+
+              function syncFooterCartCount() {
+                var count = getCartCount();
+                var countNode = document.querySelector("[data-cart-count]");
+                if (!countNode) return;
+                countNode.textContent = String(count);
+                if (count > 0) {
+                  countNode.classList.add("has-count");
+                } else {
+                  countNode.classList.remove("has-count");
+                }
+              }
+
               function syncActivePath() {
                 var path = window.location.pathname || "/";
                 var items = document.querySelectorAll("[data-nav-match]");
@@ -286,6 +358,7 @@ function BottomNavigation() {
 
               function syncFooter() {
                 syncFooterLanguage();
+                syncFooterCartCount();
                 syncActivePath();
               }
 
