@@ -340,6 +340,7 @@ export default function NeedsPage() {
   const [savedListsMessage, setSavedListsMessage] = React.useState("");
   const [selectedOpenSavedListItemIds, setSelectedOpenSavedListItemIds] = React.useState<string[]>([]);
   const [savedListNameEditUnlocked, setSavedListNameEditUnlocked] = React.useState(false);
+  const [editingSavedListDraftItemId, setEditingSavedListDraftItemId] = React.useState<string | null>(null);
   const savedListNameInputRef = React.useRef<HTMLInputElement | null>(null);
 
   React.useEffect(() => {
@@ -524,6 +525,7 @@ export default function NeedsPage() {
 
   function closeDraft() {
     setDraft(null);
+    setEditingSavedListDraftItemId(null);
     setAddingStore(false);
     setNewStoreName("");
     resetInput();
@@ -542,6 +544,7 @@ export default function NeedsPage() {
   function applySuggestion(suggestion: Suggestion) {
     setName(suggestion.name);
     setSuggestions([]);
+    setEditingSavedListDraftItemId(null);
     openDraft({
       name: suggestion.name,
       category: normalizeCategory(suggestion.category),
@@ -554,6 +557,7 @@ export default function NeedsPage() {
   function openCustomDraft() {
     if (!canOpenCustomDraft) return;
     setSuggestions([]);
+    setEditingSavedListDraftItemId(null);
     openDraft({
       name: trimmedName,
       category: FALLBACK_CATEGORY,
@@ -565,6 +569,20 @@ export default function NeedsPage() {
 
   function updateDraftField(field: keyof DraftItem, value: string) {
     setDraft((prev) => (prev ? { ...prev, [field]: value } : prev));
+  }
+
+  function openSavedListDraftItemForEdit(item: SavedListDraftItem) {
+    setEditingSavedListDraftItemId(item.id);
+    setSuggestions([]);
+    openDraft({
+      name: item.name,
+      category: normalizeCategory(item.category),
+      unit: normalizeUnit(item.unit),
+      quantity: item.quantity || "1",
+      store: item.store || settings.preferredStore || "HEB",
+    });
+    setMessage("");
+    setSavedListsMessage("");
   }
 
   function openAddStore() {
@@ -710,7 +728,10 @@ export default function NeedsPage() {
       const normalizedKey = normalizeItemKey(draft.name, draft.category);
 
       setSavedListItemsDraft((prev) => {
-        const existingIndex = prev.findIndex((item) => normalizeItemKey(item.name, item.category) === normalizedKey);
+        const existingIndex = editingSavedListDraftItemId
+          ? prev.findIndex((item) => item.id === editingSavedListDraftItemId)
+          : prev.findIndex((item) => normalizeItemKey(item.name, item.category) === normalizedKey);
+
         const nextItem: SavedListDraftItem = {
           id: existingIndex >= 0 ? prev[existingIndex].id : buildLocalId("saved-list-item"),
           name: draft.name.trim(),
@@ -730,7 +751,13 @@ export default function NeedsPage() {
       });
 
       setMessage(
-        `✅ ${draft.name} ${lang === "en" ? "added to this saved list." : "agregado a esta lista guardada."}`
+        `✅ ${draft.name} ${lang === "en"
+          ? editingSavedListDraftItemId
+            ? "updated in this saved list."
+            : "added to this saved list."
+          : editingSavedListDraftItemId
+            ? "actualizado en esta lista guardada."
+            : "agregado a esta lista guardada."}`
       );
       closeDraft();
       return;
@@ -878,7 +905,11 @@ export default function NeedsPage() {
               fontSize: s(14),
             }}
           >
-            {t(lang, "add")}
+            {isSavedListEditorView && editingSavedListDraftItemId
+              ? lang === "en"
+                ? "Save changes"
+                : "Guardar cambios"
+              : t(lang, "add")}
           </button>
         </div>
 
@@ -1238,6 +1269,15 @@ export default function NeedsPage() {
                         {section.items.map((item, index) => (
                           <div
                             key={item.id}
+                            onClick={() => openSavedListDraftItemForEdit(item)}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter" || event.key === " ") {
+                                event.preventDefault();
+                                openSavedListDraftItemForEdit(item);
+                              }
+                            }}
                             style={{
                               display: "flex",
                               gap: 10,
@@ -1245,6 +1285,7 @@ export default function NeedsPage() {
                               justifyContent: "space-between",
                               padding: "14px 12px",
                               borderBottom: index === section.items.length - 1 ? "none" : "1px solid #f3f4f6",
+                              cursor: "pointer",
                             }}
                           >
                             <div style={{ minWidth: 0, flex: 1, fontSize: s(18), fontWeight: 500 }}>{item.name}</div>
@@ -1256,7 +1297,10 @@ export default function NeedsPage() {
 
                               <button
                                 type="button"
-                                onClick={() => removeSavedListDraftItem(item.id)}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  removeSavedListDraftItem(item.id);
+                                }}
                                 style={{
                                   padding: "8px 12px",
                                   borderRadius: 12,
