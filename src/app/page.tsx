@@ -379,10 +379,24 @@ export default function NeedsPage() {
     [savedListItemsDraft]
   );
 
-  const activeShoppingListItemKeys = React.useMemo(
-    () => new Set(activeShoppingListItems.map((item) => normalizeItemKey(item.name, item.category))),
-    [activeShoppingListItems]
-  );
+  const activeShoppingListItemsBySourceList = React.useMemo(() => {
+    const grouped = new Map<string, Set<string>>();
+
+    activeShoppingListItems.forEach((item) => {
+      const sourceListName = String(item.sourceListName ?? "").trim();
+      if (!sourceListName) return;
+
+      const normalizedKey = normalizeItemKey(item.name, item.category);
+      const bucket = grouped.get(sourceListName);
+      if (bucket) {
+        bucket.add(normalizedKey);
+      } else {
+        grouped.set(sourceListName, new Set([normalizedKey]));
+      }
+    });
+
+    return grouped;
+  }, [activeShoppingListItems]);
 
   const openedSavedList = React.useMemo(
     () => savedLists.find((entry) => entry.id === selectedSavedListId) ?? null,
@@ -530,13 +544,18 @@ export default function NeedsPage() {
     router.push("/?view=saved-lists");
   }
 
-  function isSavedListItemAlreadyInMyList(item: SavedListDraftItem) {
-    return activeShoppingListItemKeys.has(normalizeItemKey(item.name, item.category));
+  function isSavedListItemAlreadyInCurrentSavedList(item: SavedListDraftItem) {
+    if (!openedSavedList) return false;
+
+    const sourceListItems = activeShoppingListItemsBySourceList.get(openedSavedList.name);
+    if (!sourceListItems) return false;
+
+    return sourceListItems.has(normalizeItemKey(item.name, item.category));
   }
 
   function toggleOpenedSavedListItem(itemId: string) {
     const item = openedSavedList?.items.find((entry) => entry.id === itemId);
-    if (!item || isSavedListItemAlreadyInMyList(item)) return;
+    if (!item || isSavedListItemAlreadyInCurrentSavedList(item)) return;
 
     setSelectedOpenSavedListItemIds((prev) =>
       prev.includes(itemId) ? prev.filter((entry) => entry !== itemId) : [...prev, itemId]
@@ -548,7 +567,7 @@ export default function NeedsPage() {
     if (!openedSavedList) return;
 
     const selectedItems = openedSavedList.items.filter(
-      (item) => selectedOpenSavedListItemIds.includes(item.id) && !isSavedListItemAlreadyInMyList(item)
+      (item) => selectedOpenSavedListItemIds.includes(item.id) && !isSavedListItemAlreadyInCurrentSavedList(item)
     );
 
     if (selectedItems.length === 0) {
@@ -1263,7 +1282,7 @@ export default function NeedsPage() {
                             }}
                           >
                             {section.items.map((item, index) => {
-                              const alreadyInMyList = isSavedListItemAlreadyInMyList(item);
+                              const alreadyInMyList = isSavedListItemAlreadyInCurrentSavedList(item);
                               const isChecked = alreadyInMyList || selectedOpenSavedListItemIds.includes(item.id);
 
                               return (
