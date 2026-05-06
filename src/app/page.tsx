@@ -12,7 +12,6 @@ import {
   buildSuggestions,
   readState,
   removeActiveItem,
-  writeState,
 } from "@/lib/mindercart/storage";
 import { useMinderCartState } from "@/lib/mindercart/hooks";
 import type { Suggestion } from "@/lib/mindercart/types";
@@ -43,8 +42,18 @@ type SavedListRecord = {
   items: SavedListDraftItem[];
 };
 
+type SavedListEditorDraftRecord = {
+  mode: "new" | "edit";
+  listId: string;
+  name: string;
+  items: SavedListDraftItem[];
+  nameEditUnlocked: boolean;
+  updatedAt: string;
+};
+
 const ADD_STORE_VALUE = "__ADD_STORE__";
 const SAVED_LISTS_STORAGE_KEY = "mindercart.savedLists.v1";
+const SAVED_LIST_EDITOR_DRAFT_STORAGE_KEY = "mindercart.savedListEditorDraft.v1";
 
 const MC_NAVY = "#12245E";
 const MC_NAVY_SOFT = "#EEF3FF";
@@ -66,7 +75,7 @@ const modalOverlayStyle: React.CSSProperties = {
 };
 
 const modalCardStyle: React.CSSProperties = {
-  width: "min(520px, calc(100vw - 24px))",
+  width: "min(520px, 100%)",
   maxHeight: "calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 28px)",
   overflowY: "auto",
   WebkitOverflowScrolling: "touch",
@@ -237,80 +246,61 @@ function writeSavedListsToBrowser(savedLists: SavedListRecord[]) {
   window.localStorage.setItem(SAVED_LISTS_STORAGE_KEY, JSON.stringify(savedLists));
 }
 
+function readSavedListEditorDraftFromBrowser() {
+  if (typeof window === "undefined") return null as SavedListEditorDraftRecord | null;
 
-function syncSavedListItemsToMyList(previousList: SavedListRecord | undefined, nextList: SavedListRecord) {
-  const previousListName = String(previousList?.name ?? "").trim();
-  const nextListName = String(nextList.name ?? "").trim();
-  if (!nextListName) return;
+  try {
+    const raw = window.localStorage.getItem(SAVED_LIST_EDITOR_DRAFT_STORAGE_KEY);
+    if (!raw) return null as SavedListEditorDraftRecord | null;
 
-  const previousItemsById = new Map((previousList?.items ?? []).map((item) => [item.id, item]));
-  const previousItemsByKey = new Map(
-    (previousList?.items ?? []).map((item) => [normalizeItemKey(item.name, item.category), item])
-  );
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null as SavedListEditorDraftRecord | null;
 
-  const nextItemsById = new Map(nextList.items.map((item) => [item.id, item]));
+    const record = parsed as Partial<SavedListEditorDraftRecord> & { items?: unknown };
+    const mode = record.mode === "edit" ? "edit" : record.mode === "new" ? "new" : null;
+    if (!mode) return null as SavedListEditorDraftRecord | null;
 
-  const state = readState();
-  let changed = false;
+    const items = Array.isArray(record.items)
+      ? record.items
+          .map((item) => {
+            if (!item || typeof item !== "object") return null;
+            const row = item as Partial<SavedListDraftItem>;
+            const itemName = String(row.name ?? "").trim();
+            if (!itemName) return null;
 
-  const activeShoppingListItems = state.activeShoppingListItems.map((item) => {
-    const currentSourceListName = String((item.sourceListName ?? "")).trim();
-    const belongsToCurrentSavedList =
-      currentSourceListName === previousListName || (!previousListName && currentSourceListName === nextListName);
+            return {
+              id: String(row.id ?? buildLocalId("saved-list-item")),
+              name: itemName,
+              category: normalizeCategory(String(row.category ?? FALLBACK_CATEGORY)),
+              unit: normalizeUnit(String(row.unit ?? "pza")),
+              quantity: String(row.quantity ?? "1").trim() || "1",
+              store: String(row.store ?? "HEB").trim() || "HEB",
+            } satisfies SavedListDraftItem;
+          })
+          .filter((item): item is SavedListDraftItem => item !== null)
+      : [];
 
-    if (!belongsToCurrentSavedList) return item;
+    return {
+      mode,
+      listId: String(record.listId ?? "").trim(),
+      name: String(record.name ?? ""),
+      items,
+      nameEditUnlocked: Boolean(record.nameEditUnlocked),
+      updatedAt: String(record.updatedAt ?? new Date().toISOString()),
+    } satisfies SavedListEditorDraftRecord;
+  } catch {
+    return null as SavedListEditorDraftRecord | null;
+  }
+}
 
-    const previousMatch =
-      previousItemsByKey.get(normalizeItemKey(item.name, item.category)) ??
-      [...previousItemsById.values()].find((entry) => entry.name.trim() === item.name.trim());
+function writeSavedListEditorDraftToBrowser(draft: SavedListEditorDraftRecord) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(SAVED_LIST_EDITOR_DRAFT_STORAGE_KEY, JSON.stringify(draft));
+}
 
-    const nextMatch = previousMatch
-      ? nextItemsById.get(previousMatch.id) ??
-        nextList.items.find((entry) => normalizeItemKey(entry.name, entry.category) === normalizeItemKey(previousMatch.name, previousMatch.category))
-      : null;
-
-    if (!nextMatch) {
-      if (currentSourceListName === nextListName) return item;
-      changed = true;
-      return {
-        ...item,
-        sourceListName: nextListName,
-      };
-    }
-
-    const normalizedNextCategory = normalizeCategory(nextMatch.category);
-    const normalizedNextUnit = normalizeUnit(nextMatch.unit);
-    const nextQuantity = String(nextMatch.quantity ?? "1").trim() || "1";
-    const nextStore = String(nextMatch.store ?? "").trim() || item.store;
-
-    const nextItem = {
-      ...item,
-      category: normalizedNextCategory,
-      unit: normalizedNextUnit,
-      quantity: nextQuantity,
-      store: nextStore,
-      sourceListName: nextListName,
-    };
-
-    if (
-      item.category !== nextItem.category ||
-      item.unit !== nextItem.unit ||
-      item.quantity !== nextItem.quantity ||
-      item.store !== nextItem.store ||
-      currentSourceListName !== nextItem.sourceListName
-    ) {
-      changed = true;
-    }
-
-    return nextItem;
-  });
-
-  if (!changed) return;
-
-  writeState({
-    ...state,
-    activeShoppingListItems,
-  });
+function clearSavedListEditorDraftFromBrowser() {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(SAVED_LIST_EDITOR_DRAFT_STORAGE_KEY);
 }
 
 export default function NeedsPage() {
@@ -339,7 +329,6 @@ export default function NeedsPage() {
   const [message, setMessage] = React.useState("");
   const [suggestions, setSuggestions] = React.useState<Suggestion[]>([]);
   const [draft, setDraft] = React.useState<DraftItem | null>(null);
-  const [editingSavedListDraftItemId, setEditingSavedListDraftItemId] = React.useState<string | null>(null);
   const [customStores, setCustomStores] = React.useState<string[]>([]);
   const [addingStore, setAddingStore] = React.useState(false);
   const [newStoreName, setNewStoreName] = React.useState("");
@@ -351,6 +340,7 @@ export default function NeedsPage() {
   const [savedListsMessage, setSavedListsMessage] = React.useState("");
   const [selectedOpenSavedListItemIds, setSelectedOpenSavedListItemIds] = React.useState<string[]>([]);
   const [savedListNameEditUnlocked, setSavedListNameEditUnlocked] = React.useState(false);
+  const [editingSavedListDraftItemId, setEditingSavedListDraftItemId] = React.useState<string | null>(null);
   const savedListNameInputRef = React.useRef<HTMLInputElement | null>(null);
 
   React.useEffect(() => {
@@ -369,6 +359,24 @@ export default function NeedsPage() {
 
     setMessage("");
     closeDraft();
+
+    const savedListEditorDraft = readSavedListEditorDraftFromBrowser();
+    const shouldRestoreSavedListEditorDraft =
+      savedListEditorDraft &&
+      ((isNewSavedListView && savedListEditorDraft.mode === "new") ||
+        (isEditSavedListView &&
+          savedListEditorDraft.mode === "edit" &&
+          savedListEditorDraft.listId === selectedSavedListId));
+
+    if (shouldRestoreSavedListEditorDraft) {
+      setSavedListName(savedListEditorDraft.name);
+      setSavedListItemsDraft(savedListEditorDraft.items.map((item) => ({ ...item })));
+      setSavedListNameEditUnlocked(savedListEditorDraft.nameEditUnlocked || isNewSavedListView);
+      setSavedListsMessage(
+        lang === "en" ? "Recovered your list in progress." : "Recuperamos tu lista en progreso."
+      );
+      return;
+    }
 
     if (isNewSavedListView) {
       setSavedListName("");
@@ -390,7 +398,45 @@ export default function NeedsPage() {
     setSavedListName(existing.name);
     setSavedListItemsDraft(existing.items.map((item) => ({ ...item })));
     setSavedListsMessage("");
-  }, [isSavedListEditorView, isNewSavedListView, savedListsLoaded, savedLists, selectedSavedListId, lang]);
+  }, [
+    isSavedListEditorView,
+    isNewSavedListView,
+    isEditSavedListView,
+    savedListsLoaded,
+    savedLists,
+    selectedSavedListId,
+    lang,
+  ]);
+
+  React.useEffect(() => {
+    if (!hydrated || !savedListsLoaded || !isSavedListEditorView) return;
+
+    const hasSavedListEditorProgress =
+      savedListName.trim().length > 0 || savedListItemsDraft.length > 0;
+
+    if (!hasSavedListEditorProgress) {
+      clearSavedListEditorDraftFromBrowser();
+      return;
+    }
+
+    writeSavedListEditorDraftToBrowser({
+      mode: isEditSavedListView ? "edit" : "new",
+      listId: isEditSavedListView ? selectedSavedListId : "",
+      name: savedListName,
+      items: savedListItemsDraft.map((item) => ({ ...item })),
+      nameEditUnlocked: savedListNameEditUnlocked,
+      updatedAt: new Date().toISOString(),
+    });
+  }, [
+    hydrated,
+    savedListsLoaded,
+    isSavedListEditorView,
+    isEditSavedListView,
+    selectedSavedListId,
+    savedListName,
+    savedListItemsDraft,
+    savedListNameEditUnlocked,
+  ]);
 
 
   const confirmSavedListNameEdit = React.useCallback(() => {
@@ -498,6 +544,7 @@ export default function NeedsPage() {
   function applySuggestion(suggestion: Suggestion) {
     setName(suggestion.name);
     setSuggestions([]);
+    setEditingSavedListDraftItemId(null);
     openDraft({
       name: suggestion.name,
       category: normalizeCategory(suggestion.category),
@@ -510,6 +557,7 @@ export default function NeedsPage() {
   function openCustomDraft() {
     if (!canOpenCustomDraft) return;
     setSuggestions([]);
+    setEditingSavedListDraftItemId(null);
     openDraft({
       name: trimmedName,
       category: FALLBACK_CATEGORY,
@@ -519,21 +567,22 @@ export default function NeedsPage() {
     });
   }
 
-  function openSavedListDraftItemEditor(item: SavedListDraftItem) {
-    setSuggestions([]);
-    setName(item.name);
+  function updateDraftField(field: keyof DraftItem, value: string) {
+    setDraft((prev) => (prev ? { ...prev, [field]: value } : prev));
+  }
+
+  function openSavedListDraftItemForEdit(item: SavedListDraftItem) {
     setEditingSavedListDraftItemId(item.id);
+    setSuggestions([]);
     openDraft({
       name: item.name,
       category: normalizeCategory(item.category),
       unit: normalizeUnit(item.unit),
-      quantity: String(item.quantity || "1"),
+      quantity: item.quantity || "1",
       store: item.store || settings.preferredStore || "HEB",
     });
-  }
-
-  function updateDraftField(field: keyof DraftItem, value: string) {
-    setDraft((prev) => (prev ? { ...prev, [field]: value } : prev));
+    setMessage("");
+    setSavedListsMessage("");
   }
 
   function openAddStore() {
@@ -610,7 +659,7 @@ export default function NeedsPage() {
       : [nextRecord, ...savedLists];
 
     persistSavedLists(next);
-    syncSavedListItemsToMyList(existing, nextRecord);
+    clearSavedListEditorDraftFromBrowser();
     setSavedListsMessage(
       lang === "en"
         ? isEditSavedListView
@@ -677,20 +726,14 @@ export default function NeedsPage() {
 
     if (isSavedListEditorView) {
       const normalizedKey = normalizeItemKey(draft.name, draft.category);
-      const isEditingSavedListItem = Boolean(editingSavedListDraftItemId);
 
       setSavedListItemsDraft((prev) => {
-        const insertionIndex = editingSavedListDraftItemId
+        const existingIndex = editingSavedListDraftItemId
           ? prev.findIndex((item) => item.id === editingSavedListDraftItemId)
           : prev.findIndex((item) => normalizeItemKey(item.name, item.category) === normalizedKey);
 
-        const reusedId =
-          (editingSavedListDraftItemId && prev.find((item) => item.id === editingSavedListDraftItemId)?.id) ||
-          prev.find((item) => normalizeItemKey(item.name, item.category) === normalizedKey)?.id ||
-          buildLocalId("saved-list-item");
-
         const nextItem: SavedListDraftItem = {
-          id: reusedId,
+          id: existingIndex >= 0 ? prev[existingIndex].id : buildLocalId("saved-list-item"),
           name: draft.name.trim(),
           category: normalizeCategory(draft.category),
           unit: normalizeUnit(draft.unit),
@@ -698,26 +741,23 @@ export default function NeedsPage() {
           store: draft.store || settings.preferredStore || "HEB",
         };
 
-        const nextBase = prev.filter(
-          (item) =>
-            item.id !== editingSavedListDraftItemId &&
-            normalizeItemKey(item.name, item.category) !== normalizedKey
-        );
+        if (existingIndex >= 0) {
+          const next = [...prev];
+          next[existingIndex] = nextItem;
+          return next;
+        }
 
-        const safeIndex = insertionIndex >= 0 ? Math.min(insertionIndex, nextBase.length) : nextBase.length;
-        return [...nextBase.slice(0, safeIndex), nextItem, ...nextBase.slice(safeIndex)];
+        return [...prev, nextItem];
       });
 
       setMessage(
-        `✅ ${draft.name} ${
-          lang === "en"
-            ? isEditingSavedListItem
-              ? "updated in this saved list."
-              : "added to this saved list."
-            : isEditingSavedListItem
-              ? "actualizado en esta lista guardada."
-              : "agregado a esta lista guardada."
-        }`
+        `✅ ${draft.name} ${lang === "en"
+          ? editingSavedListDraftItemId
+            ? "updated in this saved list."
+            : "added to this saved list."
+          : editingSavedListDraftItemId
+            ? "actualizado en esta lista guardada."
+            : "agregado a esta lista guardada."}`
       );
       closeDraft();
       return;
@@ -732,25 +772,11 @@ export default function NeedsPage() {
     }
   }
 
-  const draftModalHelpText =
-    isSavedListEditorView && editingSavedListDraftItemId
-      ? lang === "en"
-        ? "Review this item and save your changes."
-        : "Revisa este artículo y guarda tus cambios."
-      : addArticleModalHelp;
-
-  const draftModalConfirmLabel =
-    isSavedListEditorView && editingSavedListDraftItemId
-      ? lang === "en"
-        ? "Save changes"
-        : "Guardar cambios"
-      : t(lang, "add");
-
   const draftModal = draft ? (
     <div style={modalOverlayStyle} onClick={closeDraft}>
       <section style={modalCardStyle} onClick={(e) => e.stopPropagation()}>
         <div style={{ fontSize: s(21), fontWeight: 900 }}>{draft.name}</div>
-        <div style={{ marginTop: 4, fontSize: s(13), color: MC_NAVY_MUTED }}>{draftModalHelpText}</div>
+        <div style={{ marginTop: 4, fontSize: s(13), color: MC_NAVY_MUTED }}>{addArticleModalHelp}</div>
 
         <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
           <div>
@@ -879,7 +905,11 @@ export default function NeedsPage() {
               fontSize: s(14),
             }}
           >
-            {draftModalConfirmLabel}
+            {isSavedListEditorView && editingSavedListDraftItemId
+              ? lang === "en"
+                ? "Save changes"
+                : "Guardar cambios"
+              : t(lang, "add")}
           </button>
         </div>
 
@@ -1239,6 +1269,15 @@ export default function NeedsPage() {
                         {section.items.map((item, index) => (
                           <div
                             key={item.id}
+                            onClick={() => openSavedListDraftItemForEdit(item)}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter" || event.key === " ") {
+                                event.preventDefault();
+                                openSavedListDraftItemForEdit(item);
+                              }
+                            }}
                             style={{
                               display: "flex",
                               gap: 10,
@@ -1246,49 +1285,35 @@ export default function NeedsPage() {
                               justifyContent: "space-between",
                               padding: "14px 12px",
                               borderBottom: index === section.items.length - 1 ? "none" : "1px solid #f3f4f6",
+                              cursor: "pointer",
                             }}
                           >
-                            <button
-                              type="button"
-                              onClick={() => openSavedListDraftItemEditor(item)}
-                              style={{
-                                minWidth: 0,
-                                flex: 1,
-                                border: 0,
-                                padding: 0,
-                                margin: 0,
-                                background: "transparent",
-                                cursor: "pointer",
-                                textAlign: "left",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "space-between",
-                                gap: 10,
-                              }}
-                            >
-                              <div style={{ minWidth: 0, flex: 1, fontSize: s(18), fontWeight: 500 }}>{item.name}</div>
+                            <div style={{ minWidth: 0, flex: 1, fontSize: s(18), fontWeight: 500 }}>{item.name}</div>
 
-                              <div style={{ fontSize: s(15), color: MC_NAVY_MUTED, flexShrink: 0 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                              <div style={{ fontSize: s(15), color: MC_NAVY_MUTED }}>
                                 <QtyUnitText quantity={String(item.quantity)} unit={item.unit} />
                               </div>
-                            </button>
 
-                            <button
-                              type="button"
-                              onClick={() => removeSavedListDraftItem(item.id)}
-                              style={{
-                                padding: "8px 12px",
-                                borderRadius: 12,
-                                border: `1px solid ${MC_NAVY_LINE}`,
-                                background: "#fff",
-                                fontWeight: 700,
-                                whiteSpace: "nowrap",
-                                fontSize: s(14),
-                                flexShrink: 0,
-                              }}
-                            >
-                              {t(lang, "remove")}
-                            </button>
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  removeSavedListDraftItem(item.id);
+                                }}
+                                style={{
+                                  padding: "8px 12px",
+                                  borderRadius: 12,
+                                  border: `1px solid ${MC_NAVY_LINE}`,
+                                  background: "#fff",
+                                  fontWeight: 700,
+                                  whiteSpace: "nowrap",
+                                  fontSize: s(14),
+                                }}
+                              >
+                                {t(lang, "remove")}
+                              </button>
+                            </div>
                           </div>
                         ))}
                       </div>
