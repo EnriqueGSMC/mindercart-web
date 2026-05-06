@@ -12,6 +12,7 @@ import {
   buildSuggestions,
   readState,
   removeActiveItem,
+  writeState,
 } from "@/lib/mindercart/storage";
 import { useMinderCartState } from "@/lib/mindercart/hooks";
 import type { Suggestion } from "@/lib/mindercart/types";
@@ -234,6 +235,82 @@ function readSavedListsFromBrowser() {
 function writeSavedListsToBrowser(savedLists: SavedListRecord[]) {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(SAVED_LISTS_STORAGE_KEY, JSON.stringify(savedLists));
+}
+
+
+function syncSavedListItemsToMyList(previousList: SavedListRecord | undefined, nextList: SavedListRecord) {
+  const previousListName = String(previousList?.name ?? "").trim();
+  const nextListName = String(nextList.name ?? "").trim();
+  if (!nextListName) return;
+
+  const previousItemsById = new Map((previousList?.items ?? []).map((item) => [item.id, item]));
+  const previousItemsByKey = new Map(
+    (previousList?.items ?? []).map((item) => [normalizeItemKey(item.name, item.category), item])
+  );
+
+  const nextItemsById = new Map(nextList.items.map((item) => [item.id, item]));
+
+  const state = readState();
+  let changed = false;
+
+  const activeShoppingListItems = state.activeShoppingListItems.map((item) => {
+    const currentSourceListName = String((item.sourceListName ?? "")).trim();
+    const belongsToCurrentSavedList =
+      currentSourceListName === previousListName || (!previousListName && currentSourceListName === nextListName);
+
+    if (!belongsToCurrentSavedList) return item;
+
+    const previousMatch =
+      previousItemsByKey.get(normalizeItemKey(item.name, item.category)) ??
+      [...previousItemsById.values()].find((entry) => entry.name.trim() === item.name.trim());
+
+    const nextMatch = previousMatch
+      ? nextItemsById.get(previousMatch.id) ??
+        nextList.items.find((entry) => normalizeItemKey(entry.name, entry.category) === normalizeItemKey(previousMatch.name, previousMatch.category))
+      : null;
+
+    if (!nextMatch) {
+      if (currentSourceListName === nextListName) return item;
+      changed = true;
+      return {
+        ...item,
+        sourceListName: nextListName,
+      };
+    }
+
+    const normalizedNextCategory = normalizeCategory(nextMatch.category);
+    const normalizedNextUnit = normalizeUnit(nextMatch.unit);
+    const nextQuantity = String(nextMatch.quantity ?? "1").trim() || "1";
+    const nextStore = String(nextMatch.store ?? "").trim() || item.store;
+
+    const nextItem = {
+      ...item,
+      category: normalizedNextCategory,
+      unit: normalizedNextUnit,
+      quantity: nextQuantity,
+      store: nextStore,
+      sourceListName: nextListName,
+    };
+
+    if (
+      item.category !== nextItem.category ||
+      item.unit !== nextItem.unit ||
+      item.quantity !== nextItem.quantity ||
+      item.store !== nextItem.store ||
+      currentSourceListName !== nextItem.sourceListName
+    ) {
+      changed = true;
+    }
+
+    return nextItem;
+  });
+
+  if (!changed) return;
+
+  writeState({
+    ...state,
+    activeShoppingListItems,
+  });
 }
 
 export default function NeedsPage() {
@@ -533,6 +610,7 @@ export default function NeedsPage() {
       : [nextRecord, ...savedLists];
 
     persistSavedLists(next);
+    syncSavedListItemsToMyList(existing, nextRecord);
     setSavedListsMessage(
       lang === "en"
         ? isEditSavedListView
