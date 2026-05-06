@@ -7,6 +7,7 @@ import { categoryLabel, t } from "@/lib/mindercart/i18n";
 import {
   addGeneralSelections,
   addQuickNeed,
+  deactivateGeneralListItem,
   itemKey,
   removeActiveItem,
 } from "@/lib/mindercart/storage";
@@ -14,7 +15,8 @@ import { useMinderCartState } from "@/lib/mindercart/hooks";
 import type { ActiveShoppingListItem, GeneralListItem, ItemMaster } from "@/lib/mindercart/types";
 
 const MODAL_TOP_OFFSET = "calc(env(safe-area-inset-top) + 148px)";
-const MODAL_BOTTOM_OFFSET = "calc(env(safe-area-inset-bottom) + 84px)";
+const CATEGORY_MODAL_FOOTER_INSET = 104;
+const MODAL_BOTTOM_OFFSET = `calc(env(safe-area-inset-bottom) + ${CATEGORY_MODAL_FOOTER_INSET + 32}px)`;
 const CHECKED_ROW_BG = "#EAF1FF";
 const CHECKED_ROW_BORDER = "#C9D8FF";
 
@@ -105,6 +107,12 @@ function getSourceListName(item: unknown) {
   return String(value ?? "").trim();
 }
 
+
+function isRowActive(item: unknown) {
+  if (!item || typeof item !== "object" || !("active" in item)) return true;
+  return (item as { active?: boolean | null }).active !== false;
+}
+
 function normalizeCategory(value: string | null | undefined) {
   const category = String(value ?? "").trim();
   return CATEGORY_ORDER.includes(category as (typeof CATEGORY_ORDER)[number]) ? category : "Otro / Temporal";
@@ -174,7 +182,7 @@ export default function CartPage() {
   );
 
   const plainGeneralListItems = React.useMemo(
-    () => generalListItems.filter((item: GeneralListItem) => !getSourceListName(item)),
+    () => generalListItems.filter((item: GeneralListItem) => isRowActive(item) && !getSourceListName(item)),
     [generalListItems]
   );
 
@@ -316,6 +324,11 @@ export default function CartPage() {
     if (activeId) {
       removeActiveItem(activeId);
     }
+
+    const generalListId = generalListIdByCatalogKey.get(key);
+    if (generalListId) {
+      deactivateGeneralListItem(generalListId);
+    }
   }
 
   if (!hydrated) {
@@ -350,7 +363,7 @@ export default function CartPage() {
       darkHero
       subtitle={t(lang, "cartSubtitle")}
       showCart={false}
-      footerInset={selectedCategoryGroup ? 48 : 0}
+      footerInset={selectedCategoryGroup ? CATEGORY_MODAL_FOOTER_INSET : 0}
       footerActions={footerActions}
     >
       <section style={{ ...cardStyle(), padding: 14 }}>
@@ -501,6 +514,7 @@ export default function CartPage() {
                 display: "grid",
                 gap: 10,
                 maxHeight: "min(52vh, 100%)",
+                paddingBottom: 12,
               }}
             >
               {selectedCategoryGroup.items.map((item) => {

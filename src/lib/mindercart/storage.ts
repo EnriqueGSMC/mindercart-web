@@ -814,6 +814,24 @@ export function removeActiveItem(id: string) {
   return next;
 }
 
+export function deactivateGeneralListItem(id: string) {
+  const state = readState();
+  const next: MinderCartState = {
+    ...state,
+    generalListItems: state.generalListItems.map((item) =>
+      item.id === id
+        ? {
+            ...item,
+            active: false,
+            lastUsedAt: now(),
+          }
+        : item
+    ),
+  };
+  writeState(next);
+  return next;
+}
+
 export function deleteActiveItemEverywhere(id: string) {
   const state = readState();
   const target = state.activeShoppingListItems.find((item) => item.id === id);
