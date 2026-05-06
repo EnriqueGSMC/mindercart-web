@@ -150,6 +150,26 @@ function getDisplayItemName(item: Pick<DisplayListItem, "name" | "sourceListName
   return sourceListName ? `${item.name} (${sourceListName})` : item.name;
 }
 
+function renderDisplayItemName(item: Pick<DisplayListItem, "name" | "sourceListName">, baseFontSize: number) {
+  const sourceListName = String(item.sourceListName ?? "").trim();
+  if (!sourceListName) return item.name;
+
+  return (
+    <>
+      <span>{item.name}</span>{" "}
+      <span
+        style={{
+          fontSize: Math.max(baseFontSize - 3, 12),
+          fontWeight: 400,
+          color: MC_NAVY_MUTED,
+        }}
+      >
+        ({sourceListName})
+      </span>
+    </>
+  );
+}
+
 function deleteItemEverywhere(id: string) {
   const state = readState();
   const target = state.activeShoppingListItems.find((item) => item.id === id);
@@ -696,7 +716,9 @@ export default function ShoppingPage() {
           <div style={circleBadgeStyle(options.badgeActive, s(options.badgeFontSize))}>
             {options.badgeLabel}
           </div>
-          <div style={{ flex: 1, minWidth: 0, fontSize: s(17), fontWeight: 500 }}>{getDisplayItemName(item)}</div>
+          <div style={{ flex: 1, minWidth: 0, fontSize: s(17), fontWeight: 500 }}>
+            {renderDisplayItemName(item, s(17))}
+          </div>
           <div style={{ fontSize: s(15), color: MC_NAVY_MUTED, flexShrink: 0, whiteSpace: "nowrap" }}>
             <QtyUnitText quantity={String(item.quantity)} unit={item.unit} />
           </div>
