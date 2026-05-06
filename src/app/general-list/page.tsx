@@ -15,6 +15,7 @@ import type { ActiveShoppingListItem, GeneralListItem, ItemMaster } from "@/lib/
 
 const MODAL_TOP_OFFSET = "calc(env(safe-area-inset-top) + 148px)";
 const MODAL_BOTTOM_OFFSET = "calc(env(safe-area-inset-bottom) + 84px)";
+const CATEGORY_FOOTER_INSET = 112;
 const CHECKED_ROW_BG = "#EAF1FF";
 const CHECKED_ROW_BORDER = "#C9D8FF";
 
@@ -333,7 +334,7 @@ export default function CartPage() {
       darkHero
       subtitle={t(lang, "cartSubtitle")}
       showCart={false}
-      footerInset={selectedCategoryGroup ? 48 : 0}
+      footerInset={selectedCategoryGroup ? CATEGORY_FOOTER_INSET : 0}
       footerActions={footerActions}
     >
       <section style={{ ...cardStyle(), padding: 14 }}>
