@@ -7,7 +7,6 @@ import { categoryLabel, t } from "@/lib/mindercart/i18n";
 import {
   addGeneralSelections,
   addQuickNeed,
-  deactivateGeneralListItem,
   itemKey,
   removeActiveItem,
 } from "@/lib/mindercart/storage";
@@ -15,8 +14,7 @@ import { useMinderCartState } from "@/lib/mindercart/hooks";
 import type { ActiveShoppingListItem, GeneralListItem, ItemMaster } from "@/lib/mindercart/types";
 
 const MODAL_TOP_OFFSET = "calc(env(safe-area-inset-top) + 148px)";
-const CATEGORY_MODAL_FOOTER_INSET = 104;
-const MODAL_BOTTOM_OFFSET = `calc(env(safe-area-inset-bottom) + ${CATEGORY_MODAL_FOOTER_INSET + 32}px)`;
+const MODAL_BOTTOM_OFFSET = "calc(env(safe-area-inset-bottom) + 84px)";
 const CHECKED_ROW_BG = "#EAF1FF";
 const CHECKED_ROW_BORDER = "#C9D8FF";
 
@@ -100,13 +98,11 @@ function preferredStoreFor(item: Pick<ItemMaster, "defaultStore">, preferredStor
   return item.defaultStore || preferredStore || "HEB";
 }
 
-
 function getSourceListName(item: unknown) {
   if (!item || typeof item !== "object" || !("sourceListName" in item)) return "";
   const value = (item as { sourceListName?: string | null }).sourceListName;
   return String(value ?? "").trim();
 }
-
 
 function isRowActive(item: unknown) {
   if (!item || typeof item !== "object" || !("active" in item)) return true;
@@ -191,30 +187,10 @@ export default function CartPage() {
     [activePlainShoppingListItems]
   );
 
-  const activeSourceCatalogKeySet = React.useMemo(
-    () =>
-      new Set(
-        activeShoppingListItems
-          .filter((item: ActiveShoppingListItem) => Boolean(getSourceListName(item)))
-          .map((item: ActiveShoppingListItem) => catalogKey(item))
-      ),
-    [activeShoppingListItems]
+  const checkedCatalogKeySet = React.useMemo(
+    () => new Set(activeCatalogKeySet),
+    [activeCatalogKeySet]
   );
-
-  const myListCatalogKeySet = React.useMemo(
-    () => new Set(plainGeneralListItems.map((item: GeneralListItem) => catalogKey(item))),
-    [plainGeneralListItems]
-  );
-
-  const checkedCatalogKeySet = React.useMemo(() => {
-    const next = new Set([...activeCatalogKeySet, ...myListCatalogKeySet]);
-
-    activeSourceCatalogKeySet.forEach((key) => {
-      if (!activeCatalogKeySet.has(key)) next.delete(key);
-    });
-
-    return next;
-  }, [activeCatalogKeySet, activeSourceCatalogKeySet, myListCatalogKeySet]);
 
   const activeCategoryGroups = React.useMemo<ActiveCategoryGroup[]>(
     () => groupActiveItemsByCategory(activeShoppingListItems),
@@ -303,11 +279,10 @@ export default function CartPage() {
   function onToggleCategoryItem(item: CatalogCategoryItem, isChecked: boolean) {
     const key = catalogKey(item);
     const activeId = activeIdByCatalogKey.get(key);
-    const hasSourceOnlyActive = activeSourceCatalogKeySet.has(key) && !activeCatalogKeySet.has(key);
 
     if (isChecked) {
       const generalListId = generalListIdByCatalogKey.get(key);
-      if (generalListId && !hasSourceOnlyActive) {
+      if (generalListId) {
         addGeneralSelections([generalListId]);
       } else {
         addQuickNeed({
@@ -323,11 +298,6 @@ export default function CartPage() {
 
     if (activeId) {
       removeActiveItem(activeId);
-    }
-
-    const generalListId = generalListIdByCatalogKey.get(key);
-    if (generalListId) {
-      deactivateGeneralListItem(generalListId);
     }
   }
 
@@ -363,7 +333,7 @@ export default function CartPage() {
       darkHero
       subtitle={t(lang, "cartSubtitle")}
       showCart={false}
-      footerInset={selectedCategoryGroup ? CATEGORY_MODAL_FOOTER_INSET : 0}
+      footerInset={selectedCategoryGroup ? 48 : 0}
       footerActions={footerActions}
     >
       <section style={{ ...cardStyle(), padding: 14 }}>
@@ -514,7 +484,6 @@ export default function CartPage() {
                 display: "grid",
                 gap: 10,
                 maxHeight: "min(52vh, 100%)",
-                paddingBottom: 12,
               }}
             >
               {selectedCategoryGroup.items.map((item) => {
