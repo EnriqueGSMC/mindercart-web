@@ -183,15 +183,30 @@ export default function CartPage() {
     [activePlainShoppingListItems]
   );
 
+  const activeSourceCatalogKeySet = React.useMemo(
+    () =>
+      new Set(
+        activeShoppingListItems
+          .filter((item: ActiveShoppingListItem) => Boolean(getSourceListName(item)))
+          .map((item: ActiveShoppingListItem) => catalogKey(item))
+      ),
+    [activeShoppingListItems]
+  );
+
   const myListCatalogKeySet = React.useMemo(
     () => new Set(plainGeneralListItems.map((item: GeneralListItem) => catalogKey(item))),
     [plainGeneralListItems]
   );
 
-  const checkedCatalogKeySet = React.useMemo(
-    () => new Set([...activeCatalogKeySet, ...myListCatalogKeySet]),
-    [activeCatalogKeySet, myListCatalogKeySet]
-  );
+  const checkedCatalogKeySet = React.useMemo(() => {
+    const next = new Set([...activeCatalogKeySet, ...myListCatalogKeySet]);
+
+    activeSourceCatalogKeySet.forEach((key) => {
+      if (!activeCatalogKeySet.has(key)) next.delete(key);
+    });
+
+    return next;
+  }, [activeCatalogKeySet, activeSourceCatalogKeySet, myListCatalogKeySet]);
 
   const activeCategoryGroups = React.useMemo<ActiveCategoryGroup[]>(
     () => groupActiveItemsByCategory(activeShoppingListItems),
@@ -280,10 +295,11 @@ export default function CartPage() {
   function onToggleCategoryItem(item: CatalogCategoryItem, isChecked: boolean) {
     const key = catalogKey(item);
     const activeId = activeIdByCatalogKey.get(key);
+    const hasSourceOnlyActive = activeSourceCatalogKeySet.has(key) && !activeCatalogKeySet.has(key);
 
     if (isChecked) {
       const generalListId = generalListIdByCatalogKey.get(key);
-      if (generalListId) {
+      if (generalListId && !hasSourceOnlyActive) {
         addGeneralSelections([generalListId]);
       } else {
         addQuickNeed({
