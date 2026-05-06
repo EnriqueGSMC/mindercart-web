@@ -567,7 +567,7 @@ function numericSum(a: string, b: string) {
   return safe(b) || safe(a) || "1";
 }
 
-export function itemKey(item: { itemKey?: string; name: string; unit: string; store: string }) {
+export function itemKey(item: { itemKey?: string; name: string; unit: string; store?: string }) {
   return `${safe(item.itemKey) || normalize(item.name)}__${normalize(item.unit)}__${normalize(item.store)}`;
 }
 
@@ -662,6 +662,38 @@ function upsertGeneralListItem(
   ];
 }
 
+
+function sourceListNameOf(value: unknown) {
+  if (!value || typeof value !== "object" || !("sourceListName" in value)) return "";
+  return safe((value as { sourceListName?: string | null }).sourceListName);
+}
+
+function findMatchingActiveItemByContext<
+  T extends {
+    id: string;
+    itemKey?: string;
+    name: string;
+    unit: string;
+    store?: string;
+    sourceListName?: string | null;
+  }
+>(items: T[], key: string, sourceListName?: string) {
+  const incomingSourceListName = safe(sourceListName);
+
+  return items.find((item) => {
+    if (itemKey(item) !== key) return false;
+
+    const currentSourceListName = sourceListNameOf(item);
+
+    if (incomingSourceListName) {
+      return currentSourceListName === incomingSourceListName;
+    }
+
+    return !currentSourceListName;
+  });
+}
+
+
 export function addQuickNeed(input: {
   name: string;
   category: string;
@@ -684,7 +716,7 @@ export function addQuickNeed(input: {
   if (!name) throw new Error("Artículo requerido");
 
   const key = itemKey({ itemKey: trackedItemKey, name, unit, store });
-  const existing = state.activeShoppingListItems.find((item) => itemKey(item) === key);
+  const existing = findMatchingActiveItemByContext(state.activeShoppingListItems, key, input.sourceListName);
 
   const activeShoppingListItems = existing
     ? state.activeShoppingListItems.map((item) =>
@@ -743,7 +775,7 @@ export function addGeneralSelections(ids: string[]) {
 
   for (const item of selected) {
     const key = itemKey(item);
-    const existing = activeShoppingListItems.find((row) => itemKey(row) === key);
+    const existing = findMatchingActiveItemByContext(activeShoppingListItems, key);
 
     if (existing) {
       activeShoppingListItems = activeShoppingListItems.map((row) =>
