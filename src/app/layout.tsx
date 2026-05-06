@@ -136,6 +136,7 @@ function BottomNavigation() {
         .mc-bottom-nav__item {
           position: relative;
           min-height: 62px;
+          width: 100%;
           border-radius: 14px;
           display: flex;
           align-items: center;
@@ -143,6 +144,12 @@ function BottomNavigation() {
           text-align: center;
           padding: 6px 6px 8px;
           color: rgba(255, 255, 255, 0.72);
+          text-decoration: none;
+          -webkit-tap-highlight-color: transparent;
+          -webkit-touch-callout: none;
+          touch-action: manipulation;
+          user-select: none;
+          -webkit-user-select: none;
           transition: color .15s ease, transform .15s ease;
           overflow: visible;
         }
@@ -179,10 +186,12 @@ function BottomNavigation() {
           position: relative;
           z-index: 1;
           display: grid;
+          width: 100%;
           justify-items: center;
           align-content: start;
           gap: 4px;
           transform: translateY(-1px);
+          pointer-events: none;
         }
 
         .mc-bottom-nav__icon {
@@ -193,6 +202,7 @@ function BottomNavigation() {
           color: currentColor;
           min-height: 27px;
           min-width: 30px;
+          pointer-events: none;
         }
 
         .mc-bottom-nav__icon--cart {
@@ -239,6 +249,11 @@ function BottomNavigation() {
           letter-spacing: -0.01em;
           color: currentColor;
           white-space: nowrap;
+          pointer-events: none;
+        }
+
+        .mc-bottom-nav__item svg {
+          pointer-events: none;
         }
 
         .mc-app-frame {
