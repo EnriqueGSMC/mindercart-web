@@ -51,6 +51,7 @@ type DisplayListItem = {
   quantity: string | number;
   unit: string;
   category?: string;
+  sourceListName?: string | null;
 };
 
 const OFFICIAL_CATEGORIES = [
@@ -142,6 +143,31 @@ function normalizeValue(value: unknown) {
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function getDisplayItemName(item: Pick<DisplayListItem, "name" | "sourceListName">) {
+  const sourceListName = String(item.sourceListName ?? "").trim();
+  return sourceListName ? `${item.name} (${sourceListName})` : item.name;
+}
+
+function renderDisplayItemName(item: Pick<DisplayListItem, "name" | "sourceListName">, baseFontSize: number) {
+  const sourceListName = String(item.sourceListName ?? "").trim();
+  if (!sourceListName) return item.name;
+
+  return (
+    <>
+      <span>{item.name}</span>{" "}
+      <span
+        style={{
+          fontSize: Math.max(baseFontSize - 3, 12),
+          fontWeight: 400,
+          color: MC_NAVY_MUTED,
+        }}
+      >
+        ({sourceListName})
+      </span>
+    </>
+  );
 }
 
 function deleteItemEverywhere(id: string) {
@@ -690,7 +716,9 @@ export default function ShoppingPage() {
           <div style={circleBadgeStyle(options.badgeActive, s(options.badgeFontSize))}>
             {options.badgeLabel}
           </div>
-          <div style={{ flex: 1, minWidth: 0, fontSize: s(17), fontWeight: 500 }}>{item.name}</div>
+          <div style={{ flex: 1, minWidth: 0, fontSize: s(17), fontWeight: 500 }}>
+            {renderDisplayItemName(item, s(17))}
+          </div>
           <div style={{ fontSize: s(15), color: MC_NAVY_MUTED, flexShrink: 0, whiteSpace: "nowrap" }}>
             <QtyUnitText quantity={String(item.quantity)} unit={item.unit} />
           </div>
@@ -698,7 +726,7 @@ export default function ShoppingPage() {
 
         <button
           type="button"
-          onClick={() => setRemoveAction({ id: item.id, name: item.name })}
+          onClick={() => setRemoveAction({ id: item.id, name: getDisplayItemName(item) })}
           style={sideActionButtonStyle(s(14))}
         >
           {lang === "en" ? "Remove" : "Quitar"}

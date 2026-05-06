@@ -12,6 +12,7 @@ import {
   buildSuggestions,
   readState,
   removeActiveItem,
+  writeState,
 } from "@/lib/mindercart/storage";
 import { useMinderCartState } from "@/lib/mindercart/hooks";
 import type { Suggestion } from "@/lib/mindercart/types";
@@ -65,7 +66,7 @@ const modalOverlayStyle: React.CSSProperties = {
 };
 
 const modalCardStyle: React.CSSProperties = {
-  width: "min(520px, 100%)",
+  width: "min(520px, calc(100vw - 24px))",
   maxHeight: "calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 28px)",
   overflowY: "auto",
   WebkitOverflowScrolling: "touch",
@@ -236,6 +237,82 @@ function writeSavedListsToBrowser(savedLists: SavedListRecord[]) {
   window.localStorage.setItem(SAVED_LISTS_STORAGE_KEY, JSON.stringify(savedLists));
 }
 
+
+function syncSavedListItemsToMyList(previousList: SavedListRecord | undefined, nextList: SavedListRecord) {
+  const previousListName = String(previousList?.name ?? "").trim();
+  const nextListName = String(nextList.name ?? "").trim();
+  if (!nextListName) return;
+
+  const previousItemsById = new Map((previousList?.items ?? []).map((item) => [item.id, item]));
+  const previousItemsByKey = new Map(
+    (previousList?.items ?? []).map((item) => [normalizeItemKey(item.name, item.category), item])
+  );
+
+  const nextItemsById = new Map(nextList.items.map((item) => [item.id, item]));
+
+  const state = readState();
+  let changed = false;
+
+  const activeShoppingListItems = state.activeShoppingListItems.map((item) => {
+    const currentSourceListName = String((item.sourceListName ?? "")).trim();
+    const belongsToCurrentSavedList =
+      currentSourceListName === previousListName || (!previousListName && currentSourceListName === nextListName);
+
+    if (!belongsToCurrentSavedList) return item;
+
+    const previousMatch =
+      previousItemsByKey.get(normalizeItemKey(item.name, item.category)) ??
+      [...previousItemsById.values()].find((entry) => entry.name.trim() === item.name.trim());
+
+    const nextMatch = previousMatch
+      ? nextItemsById.get(previousMatch.id) ??
+        nextList.items.find((entry) => normalizeItemKey(entry.name, entry.category) === normalizeItemKey(previousMatch.name, previousMatch.category))
+      : null;
+
+    if (!nextMatch) {
+      if (currentSourceListName === nextListName) return item;
+      changed = true;
+      return {
+        ...item,
+        sourceListName: nextListName,
+      };
+    }
+
+    const normalizedNextCategory = normalizeCategory(nextMatch.category);
+    const normalizedNextUnit = normalizeUnit(nextMatch.unit);
+    const nextQuantity = String(nextMatch.quantity ?? "1").trim() || "1";
+    const nextStore = String(nextMatch.store ?? "").trim() || item.store;
+
+    const nextItem = {
+      ...item,
+      category: normalizedNextCategory,
+      unit: normalizedNextUnit,
+      quantity: nextQuantity,
+      store: nextStore,
+      sourceListName: nextListName,
+    };
+
+    if (
+      item.category !== nextItem.category ||
+      item.unit !== nextItem.unit ||
+      item.quantity !== nextItem.quantity ||
+      item.store !== nextItem.store ||
+      currentSourceListName !== nextItem.sourceListName
+    ) {
+      changed = true;
+    }
+
+    return nextItem;
+  });
+
+  if (!changed) return;
+
+  writeState({
+    ...state,
+    activeShoppingListItems,
+  });
+}
+
 export default function NeedsPage() {
   const { activeShoppingListItems, settings, hydrated } = useMinderCartState();
   const router = useRouter();
@@ -262,6 +339,7 @@ export default function NeedsPage() {
   const [message, setMessage] = React.useState("");
   const [suggestions, setSuggestions] = React.useState<Suggestion[]>([]);
   const [draft, setDraft] = React.useState<DraftItem | null>(null);
+  const [editingSavedListDraftItemId, setEditingSavedListDraftItemId] = React.useState<string | null>(null);
   const [customStores, setCustomStores] = React.useState<string[]>([]);
   const [addingStore, setAddingStore] = React.useState(false);
   const [newStoreName, setNewStoreName] = React.useState("");
@@ -401,6 +479,7 @@ export default function NeedsPage() {
 
   function closeDraft() {
     setDraft(null);
+    setEditingSavedListDraftItemId(null);
     setAddingStore(false);
     setNewStoreName("");
     resetInput();
@@ -437,6 +516,19 @@ export default function NeedsPage() {
       unit: "pza",
       quantity: "1",
       store: settings.preferredStore || "HEB",
+    });
+  }
+
+  function openSavedListDraftItemEditor(item: SavedListDraftItem) {
+    setSuggestions([]);
+    setName(item.name);
+    setEditingSavedListDraftItemId(item.id);
+    openDraft({
+      name: item.name,
+      category: normalizeCategory(item.category),
+      unit: normalizeUnit(item.unit),
+      quantity: String(item.quantity || "1"),
+      store: item.store || settings.preferredStore || "HEB",
     });
   }
 
@@ -518,6 +610,7 @@ export default function NeedsPage() {
       : [nextRecord, ...savedLists];
 
     persistSavedLists(next);
+    syncSavedListItemsToMyList(existing, nextRecord);
     setSavedListsMessage(
       lang === "en"
         ? isEditSavedListView
@@ -584,11 +677,20 @@ export default function NeedsPage() {
 
     if (isSavedListEditorView) {
       const normalizedKey = normalizeItemKey(draft.name, draft.category);
+      const isEditingSavedListItem = Boolean(editingSavedListDraftItemId);
 
       setSavedListItemsDraft((prev) => {
-        const existingIndex = prev.findIndex((item) => normalizeItemKey(item.name, item.category) === normalizedKey);
+        const insertionIndex = editingSavedListDraftItemId
+          ? prev.findIndex((item) => item.id === editingSavedListDraftItemId)
+          : prev.findIndex((item) => normalizeItemKey(item.name, item.category) === normalizedKey);
+
+        const reusedId =
+          (editingSavedListDraftItemId && prev.find((item) => item.id === editingSavedListDraftItemId)?.id) ||
+          prev.find((item) => normalizeItemKey(item.name, item.category) === normalizedKey)?.id ||
+          buildLocalId("saved-list-item");
+
         const nextItem: SavedListDraftItem = {
-          id: existingIndex >= 0 ? prev[existingIndex].id : buildLocalId("saved-list-item"),
+          id: reusedId,
           name: draft.name.trim(),
           category: normalizeCategory(draft.category),
           unit: normalizeUnit(draft.unit),
@@ -596,17 +698,26 @@ export default function NeedsPage() {
           store: draft.store || settings.preferredStore || "HEB",
         };
 
-        if (existingIndex >= 0) {
-          const next = [...prev];
-          next[existingIndex] = nextItem;
-          return next;
-        }
+        const nextBase = prev.filter(
+          (item) =>
+            item.id !== editingSavedListDraftItemId &&
+            normalizeItemKey(item.name, item.category) !== normalizedKey
+        );
 
-        return [...prev, nextItem];
+        const safeIndex = insertionIndex >= 0 ? Math.min(insertionIndex, nextBase.length) : nextBase.length;
+        return [...nextBase.slice(0, safeIndex), nextItem, ...nextBase.slice(safeIndex)];
       });
 
       setMessage(
-        `✅ ${draft.name} ${lang === "en" ? "added to this saved list." : "agregado a esta lista guardada."}`
+        `✅ ${draft.name} ${
+          lang === "en"
+            ? isEditingSavedListItem
+              ? "updated in this saved list."
+              : "added to this saved list."
+            : isEditingSavedListItem
+              ? "actualizado en esta lista guardada."
+              : "agregado a esta lista guardada."
+        }`
       );
       closeDraft();
       return;
@@ -621,11 +732,25 @@ export default function NeedsPage() {
     }
   }
 
+  const draftModalHelpText =
+    isSavedListEditorView && editingSavedListDraftItemId
+      ? lang === "en"
+        ? "Review this item and save your changes."
+        : "Revisa este artículo y guarda tus cambios."
+      : addArticleModalHelp;
+
+  const draftModalConfirmLabel =
+    isSavedListEditorView && editingSavedListDraftItemId
+      ? lang === "en"
+        ? "Save changes"
+        : "Guardar cambios"
+      : t(lang, "add");
+
   const draftModal = draft ? (
     <div style={modalOverlayStyle} onClick={closeDraft}>
       <section style={modalCardStyle} onClick={(e) => e.stopPropagation()}>
         <div style={{ fontSize: s(21), fontWeight: 900 }}>{draft.name}</div>
-        <div style={{ marginTop: 4, fontSize: s(13), color: MC_NAVY_MUTED }}>{addArticleModalHelp}</div>
+        <div style={{ marginTop: 4, fontSize: s(13), color: MC_NAVY_MUTED }}>{draftModalHelpText}</div>
 
         <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
           <div>
@@ -754,7 +879,7 @@ export default function NeedsPage() {
               fontSize: s(14),
             }}
           >
-            {t(lang, "add")}
+            {draftModalConfirmLabel}
           </button>
         </div>
 
@@ -1123,29 +1248,47 @@ export default function NeedsPage() {
                               borderBottom: index === section.items.length - 1 ? "none" : "1px solid #f3f4f6",
                             }}
                           >
-                            <div style={{ minWidth: 0, flex: 1, fontSize: s(18), fontWeight: 500 }}>{item.name}</div>
+                            <button
+                              type="button"
+                              onClick={() => openSavedListDraftItemEditor(item)}
+                              style={{
+                                minWidth: 0,
+                                flex: 1,
+                                border: 0,
+                                padding: 0,
+                                margin: 0,
+                                background: "transparent",
+                                cursor: "pointer",
+                                textAlign: "left",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                gap: 10,
+                              }}
+                            >
+                              <div style={{ minWidth: 0, flex: 1, fontSize: s(18), fontWeight: 500 }}>{item.name}</div>
 
-                            <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-                              <div style={{ fontSize: s(15), color: MC_NAVY_MUTED }}>
+                              <div style={{ fontSize: s(15), color: MC_NAVY_MUTED, flexShrink: 0 }}>
                                 <QtyUnitText quantity={String(item.quantity)} unit={item.unit} />
                               </div>
+                            </button>
 
-                              <button
-                                type="button"
-                                onClick={() => removeSavedListDraftItem(item.id)}
-                                style={{
-                                  padding: "8px 12px",
-                                  borderRadius: 12,
-                                  border: `1px solid ${MC_NAVY_LINE}`,
-                                  background: "#fff",
-                                  fontWeight: 700,
-                                  whiteSpace: "nowrap",
-                                  fontSize: s(14),
-                                }}
-                              >
-                                {t(lang, "remove")}
-                              </button>
-                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeSavedListDraftItem(item.id)}
+                              style={{
+                                padding: "8px 12px",
+                                borderRadius: 12,
+                                border: `1px solid ${MC_NAVY_LINE}`,
+                                background: "#fff",
+                                fontWeight: 700,
+                                whiteSpace: "nowrap",
+                                fontSize: s(14),
+                                flexShrink: 0,
+                              }}
+                            >
+                              {t(lang, "remove")}
+                            </button>
                           </div>
                         ))}
                       </div>

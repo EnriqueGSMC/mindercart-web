@@ -15,6 +15,7 @@ import type { ActiveShoppingListItem, GeneralListItem, ItemMaster } from "@/lib/
 
 const MODAL_TOP_OFFSET = "calc(env(safe-area-inset-top) + 148px)";
 const MODAL_BOTTOM_OFFSET = "calc(env(safe-area-inset-bottom) + 84px)";
+const CATEGORY_FOOTER_INSET = 112;
 const CHECKED_ROW_BG = "#EAF1FF";
 const CHECKED_ROW_BORDER = "#C9D8FF";
 
@@ -98,6 +99,17 @@ function preferredStoreFor(item: Pick<ItemMaster, "defaultStore">, preferredStor
   return item.defaultStore || preferredStore || "HEB";
 }
 
+function getSourceListName(item: unknown) {
+  if (!item || typeof item !== "object" || !("sourceListName" in item)) return "";
+  const value = (item as { sourceListName?: string | null }).sourceListName;
+  return String(value ?? "").trim();
+}
+
+function isRowActive(item: unknown) {
+  if (!item || typeof item !== "object" || !("active" in item)) return true;
+  return (item as { active?: boolean | null }).active !== false;
+}
+
 function normalizeCategory(value: string | null | undefined) {
   const category = String(value ?? "").trim();
   return CATEGORY_ORDER.includes(category as (typeof CATEGORY_ORDER)[number]) ? category : "Otro / Temporal";
@@ -161,19 +173,24 @@ export default function CartPage() {
     router.replace(q ? `/general-list?${q}` : "/general-list", { scroll: false });
   }
 
-  const activeCatalogKeySet = React.useMemo(
-    () => new Set(activeShoppingListItems.map((item: ActiveShoppingListItem) => catalogKey(item))),
+  const activePlainShoppingListItems = React.useMemo(
+    () => activeShoppingListItems.filter((item: ActiveShoppingListItem) => !getSourceListName(item)),
     [activeShoppingListItems]
   );
 
-  const myListCatalogKeySet = React.useMemo(
-    () => new Set(generalListItems.map((item: GeneralListItem) => catalogKey(item))),
+  const plainGeneralListItems = React.useMemo(
+    () => generalListItems.filter((item: GeneralListItem) => isRowActive(item) && !getSourceListName(item)),
     [generalListItems]
   );
 
+  const activeCatalogKeySet = React.useMemo(
+    () => new Set(activePlainShoppingListItems.map((item: ActiveShoppingListItem) => catalogKey(item))),
+    [activePlainShoppingListItems]
+  );
+
   const checkedCatalogKeySet = React.useMemo(
-    () => new Set([...activeCatalogKeySet, ...myListCatalogKeySet]),
-    [activeCatalogKeySet, myListCatalogKeySet]
+    () => new Set(activeCatalogKeySet),
+    [activeCatalogKeySet]
   );
 
   const activeCategoryGroups = React.useMemo<ActiveCategoryGroup[]>(
@@ -184,25 +201,25 @@ export default function CartPage() {
   const activeIdByCatalogKey = React.useMemo(
     () =>
       new Map(
-        activeShoppingListItems.map((item: ActiveShoppingListItem) => [catalogKey(item), item.id] as const)
+        activePlainShoppingListItems.map((item: ActiveShoppingListItem) => [catalogKey(item), item.id] as const)
       ),
-    [activeShoppingListItems]
+    [activePlainShoppingListItems]
   );
 
   const generalListIdByCatalogKey = React.useMemo(
     () =>
       new Map(
-        generalListItems.map((item: GeneralListItem) => [catalogKey(item), item.id] as const)
+        plainGeneralListItems.map((item: GeneralListItem) => [catalogKey(item), item.id] as const)
       ),
-    [generalListItems]
+    [plainGeneralListItems]
   );
 
   const generalListQuantityByCatalogKey = React.useMemo(
     () =>
       new Map(
-        generalListItems.map((item: GeneralListItem) => [catalogKey(item), item.quantity || "1"] as const)
+        plainGeneralListItems.map((item: GeneralListItem) => [catalogKey(item), item.quantity || "1"] as const)
       ),
-    [generalListItems]
+    [plainGeneralListItems]
   );
 
   const catalogItems = React.useMemo<CatalogCategoryItem[]>(() => {
@@ -317,7 +334,7 @@ export default function CartPage() {
       darkHero
       subtitle={t(lang, "cartSubtitle")}
       showCart={false}
-      footerInset={selectedCategoryGroup ? 48 : 0}
+      footerInset={selectedCategoryGroup ? CATEGORY_FOOTER_INSET : 0}
       footerActions={footerActions}
     >
       <section style={{ ...cardStyle(), padding: 14 }}>
