@@ -368,7 +368,14 @@ export default function CartPage() {
                         gap: 10,
                       }}
                     >
-                      <div style={{ fontSize: s(17), fontWeight: 500, minWidth: 0 }}>{item.name}</div>
+                      <div style={{ fontSize: s(17), fontWeight: 500, minWidth: 0 }}>
+                        {item.name}
+                        {item.sourceListName ? (
+                          <span style={{ fontSize: s(14), fontWeight: 400, color: "#5b6b9a" }}>
+                            {" "}({item.sourceListName})
+                          </span>
+                        ) : null}
+                      </div>
                       <div style={{ fontSize: s(15), color: "#6b7280", flexShrink: 0 }}>
                         <QtyUnitText quantity={String(item.quantity)} unit={item.unit} />
                       </div>
