@@ -301,7 +301,6 @@ export default function NeedsPage() {
   const [customStores, setCustomStores] = React.useState<string[]>([]);
   const [addingStore, setAddingStore] = React.useState(false);
   const [newStoreName, setNewStoreName] = React.useState("");
-  const [unitSearchQuery, setUnitSearchQuery] = React.useState("");
 
   const [savedLists, setSavedLists] = React.useState<SavedListRecord[]>([]);
   const [savedListsLoaded, setSavedListsLoaded] = React.useState(false);
@@ -311,8 +310,6 @@ export default function NeedsPage() {
   const [selectedOpenSavedListItemIds, setSelectedOpenSavedListItemIds] = React.useState<string[]>([]);
   const [savedListNameEditUnlocked, setSavedListNameEditUnlocked] = React.useState(false);
   const savedListNameInputRef = React.useRef<HTMLInputElement | null>(null);
-  const unitSearchInputRef = React.useRef<HTMLInputElement | null>(null);
-  const quantityInputRef = React.useRef<HTMLInputElement | null>(null);
 
   React.useEffect(() => {
     if (!hydrated) return;
@@ -382,15 +379,6 @@ export default function NeedsPage() {
     setSavedListsMessage("");
   }, [isOpenSavedListView, selectedSavedListId]);
 
-  React.useEffect(() => {
-    if (!draft) return;
-    const timer = window.setTimeout(() => {
-      unitSearchInputRef.current?.focus();
-    }, 0);
-
-    return () => window.clearTimeout(timer);
-  }, [draft]);
-
   const trimmedName = name.trim();
   const showSuggestions = trimmedName.length >= 2 && suggestions.length > 0;
   const canOpenCustomDraft = trimmedName.length >= 3 && suggestions.length === 0;
@@ -416,30 +404,6 @@ export default function NeedsPage() {
       ]),
     };
   }, [customStores, settings.preferredStore]);
-
-  const normalizedUnitSearchQuery = unitSearchQuery.trim().toLocaleLowerCase("es");
-
-  const filteredUnitOptions = React.useMemo(() => {
-    if (normalizedUnitSearchQuery.length < 2) return [];
-
-    return draftSelectOptions.units.filter((option) => {
-      const meta = UNIT_OPTION_META[option as keyof typeof UNIT_OPTION_META];
-      const haystack = [
-        option,
-        meta?.labelEs,
-        meta?.labelEn,
-        meta?.abbrEs,
-        meta?.abbrEn,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLocaleLowerCase("es");
-
-      return haystack.includes(normalizedUnitSearchQuery);
-    });
-  }, [draftSelectOptions.units, normalizedUnitSearchQuery]);
-
-  const showUnitOptions = normalizedUnitSearchQuery.length >= 2;
 
   const groupedActiveShoppingListItems = React.useMemo(
     () => groupItemsByCategory(activeShoppingListItems),
@@ -475,12 +439,10 @@ export default function NeedsPage() {
     setDraft(null);
     setAddingStore(false);
     setNewStoreName("");
-    setUnitSearchQuery("");
     resetInput();
   }
 
   function openDraft(input: DraftItem) {
-    setUnitSearchQuery("");
     setDraft({
       name: input.name,
       category: normalizeCategory(input.category),
@@ -516,15 +478,6 @@ export default function NeedsPage() {
 
   function updateDraftField(field: keyof DraftItem, value: string) {
     setDraft((prev) => (prev ? { ...prev, [field]: value } : prev));
-  }
-
-  function handleSelectUnit(value: string) {
-    updateDraftField("unit", value);
-    setUnitSearchQuery("");
-    window.setTimeout(() => {
-      quantityInputRef.current?.focus();
-      quantityInputRef.current?.select();
-    }, 0);
   }
 
   function openAddStore() {
@@ -736,139 +689,30 @@ export default function NeedsPage() {
 
           <div>
             <div style={{ fontSize: s(12), fontWeight: 700, marginBottom: 5 }}>{t(lang, "unit")}</div>
-
-            <div
+            <select
+              value={draft.unit}
+              onChange={(e) => updateDraftField("unit", e.target.value)}
               style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 10,
+                width: "100%",
                 padding: "12px 14px",
                 borderRadius: 14,
                 border: `1px solid ${MC_NAVY_LINE}`,
-                background: MC_NAVY_SOFT,
-                marginBottom: 8,
+                boxSizing: "border-box",
+                fontSize: s(15),
+                background: "#fff",
               }}
             >
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: s(11), fontWeight: 800, color: MC_NAVY_MUTED }}>
-                  {lang === "en" ? "Selected unit" : "Unidad seleccionada"}
-                </div>
-                <div
-                  style={{
-                    marginTop: 2,
-                    fontSize: s(14),
-                    fontWeight: 800,
-                    color: MC_NAVY,
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                  }}
-                >
-                  {formatUnitOptionLabel(draft.unit, lang)}
-                </div>
-              </div>
-              <div
-                style={{
-                  padding: "6px 10px",
-                  borderRadius: 999,
-                  background: "#fff",
-                  border: `1px solid ${MC_NAVY_LINE}`,
-                  color: MC_NAVY_MUTED,
-                  fontSize: s(11),
-                  fontWeight: 800,
-                  flexShrink: 0,
-                }}
-              >
-                {lang === "en" ? "Type 2 letters" : "Escribe 2 letras"}
-              </div>
-            </div>
-
-            <input
-              ref={unitSearchInputRef}
-              value={unitSearchQuery}
-              onChange={(e) => setUnitSearchQuery(e.target.value)}
-              placeholder={
-                lang === "en"
-                  ? "Type 2 letters to search a unit"
-                  : "Escribe 2 letras para buscar una unidad"
-              }
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck={false}
-              style={{
-                width: "100%",
-                padding: "13px 14px",
-                borderRadius: 14,
-                border: `1.5px solid ${unitSearchQuery.trim() ? MC_NAVY : MC_NAVY_LINE}`,
-                boxSizing: "border-box",
-                fontSize: s(14),
-                background: "#fff",
-                boxShadow: unitSearchQuery.trim() ? "0 0 0 3px rgba(18,36,94,0.08)" : "none",
-              }}
-            />
-
-            {showUnitOptions ? (
-              <div
-                style={{
-                  marginTop: 8,
-                  border: `1px solid ${MC_NAVY_LINE}`,
-                  borderRadius: 16,
-                  background: "#fff",
-                  maxHeight: 220,
-                  overflowY: "auto",
-                  WebkitOverflowScrolling: "touch",
-                  boxShadow: "0 12px 28px rgba(18,36,94,0.10)",
-                }}
-              >
-                <div style={{ display: "grid", gap: 0 }}>
-                  {filteredUnitOptions.length > 0 ? (
-                    filteredUnitOptions.map((option, index) => {
-                      const isSelected = draft.unit === option;
-                      return (
-                        <button
-                          key={option}
-                          type="button"
-                          onClick={() => handleSelectUnit(option)}
-                          style={{
-                            width: "100%",
-                            textAlign: "left",
-                            padding: "12px 14px",
-                            border: "none",
-                            borderBottom:
-                              index === filteredUnitOptions.length - 1 ? "none" : `1px solid ${MC_NAVY_LINE}`,
-                            background: isSelected ? MC_NAVY_SOFT : "#fff",
-                            color: MC_NAVY,
-                            fontSize: s(14),
-                            fontWeight: isSelected ? 800 : 600,
-                            cursor: "pointer",
-                          }}
-                        >
-                          {formatUnitOptionLabel(option, lang)}
-                        </button>
-                      );
-                    })
-                  ) : (
-                    <div
-                      style={{
-                        padding: "14px",
-                        color: MC_NAVY_MUTED,
-                        fontSize: s(13),
-                        textAlign: "center",
-                      }}
-                    >
-                      {lang === "en" ? "No matching units." : "No se encontraron unidades."}
-                    </div>
-                  )}
-                </div>
-              </div>
-            ) : null}
+              {draftSelectOptions.units.map((option) => (
+                <option key={option} value={option}>
+                  {formatUnitOptionLabel(option, lang)}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>
             <div style={{ fontSize: s(12), fontWeight: 700, marginBottom: 5 }}>{t(lang, "quantity")}</div>
             <input
-              ref={quantityInputRef}
               value={draft.quantity}
               inputMode="numeric"
               onChange={(e) => updateDraftField("quantity", e.target.value)}
