@@ -71,14 +71,17 @@ const DEFAULT_CATEGORY = "Otro / Temporal";
 export const CATEGORY_OPTIONS = [
   "Frutas y Verduras",
   "Carnes, Pollo y Pescados",
+  "Jamón y Salchichonería",
   "Lácteos y Refrigerados",
   "Panadería y Tortillería",
   "Abarrotes",
   "Bebidas",
+  "Vinos y Licores",
   "Congelados",
   "Limpieza y Hogar",
   "Farmacia, Bebé y Cuidado Personal",
   "Mascotas",
+  "Ferretería y Autos",
   "Cajas y Salida",
   DEFAULT_CATEGORY,
 ] as const;
@@ -322,6 +325,18 @@ const CATEGORY_ALIASES: Record<string, string> = {
   "meat & seafood": "Carnes, Pollo y Pescados",
   "meat, poultry & seafood": "Carnes, Pollo y Pescados",
 
+  "jamon y salchichoneria": "Jamón y Salchichonería",
+  "jamón y salchichonería": "Jamón y Salchichonería",
+  jamon: "Jamón y Salchichonería",
+  jamón: "Jamón y Salchichonería",
+  salchichoneria: "Jamón y Salchichonería",
+  salchichonería: "Jamón y Salchichonería",
+  deli: "Jamón y Salchichonería",
+  "cold cuts": "Jamón y Salchichonería",
+  "deli meats and cold cuts": "Jamón y Salchichonería",
+  "deli meats & cold cuts": "Jamón y Salchichonería",
+
+
   "lacteos y refrigerados": "Lácteos y Refrigerados",
   lacteos: "Lácteos y Refrigerados",
   refrigerados: "Lácteos y Refrigerados",
@@ -347,6 +362,16 @@ const CATEGORY_ALIASES: Record<string, string> = {
 
   bebidas: "Bebidas",
   beverages: "Bebidas",
+
+  "vinos y licores": "Vinos y Licores",
+  vinos: "Vinos y Licores",
+  licores: "Vinos y Licores",
+  wine: "Vinos y Licores",
+  wines: "Vinos y Licores",
+  spirits: "Vinos y Licores",
+  liquor: "Vinos y Licores",
+  "wine and spirits": "Vinos y Licores",
+  "wine & spirits": "Vinos y Licores",
 
   congelados: "Congelados",
   frozen: "Congelados",
@@ -1020,6 +1045,46 @@ export function upsertStoreProfile(input: {
 
   writeState(nextState);
   return nextState;
+}
+
+export function syncSavedListItemsToCatalog(
+  items: Array<{ name: string; category: string; unit: string; store: string }>
+) {
+  const state = readState();
+  let nextItemsMaster = state.itemsMaster;
+  let changed = false;
+
+  for (const item of items) {
+    const name = safe(item.name);
+    if (!name) continue;
+
+    const category = canonicalizeCategory(item.category) || DEFAULT_CATEGORY;
+    const unit = canonicalizeUnit(item.unit);
+    const store = cleanStore(item.store) || state.settings.preferredStore || "HEB";
+    const match = resolveCatalogMatch(nextItemsMaster, name);
+
+    const currentCategory = match ? canonicalizeCategory((match as { category?: string }).category) || DEFAULT_CATEGORY : "";
+    const currentUnit = match ? canonicalizeUnit((match as { unit?: string }).unit) : "";
+    const currentStore = match ? cleanStore((match as { defaultStore?: string }).defaultStore) : "";
+    const currentActive = match ? (match as { active?: boolean }).active !== false : false;
+
+    if (match && currentCategory === category && currentUnit === unit && currentStore === store && currentActive) {
+      continue;
+    }
+
+    nextItemsMaster = upsertItemMaster(nextItemsMaster, { name, category, unit, store });
+    changed = true;
+  }
+
+  if (!changed) return state;
+
+  const next: MinderCartState = {
+    ...state,
+    itemsMaster: nextItemsMaster,
+  };
+
+  writeState(next);
+  return next;
 }
 
 export function buildSuggestions(query: string): Suggestion[] {
