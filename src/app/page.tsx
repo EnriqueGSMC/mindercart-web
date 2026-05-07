@@ -104,6 +104,8 @@ const FIXED_UNIT_OPTIONS = [
   "lata",
   "botella",
   "frasco",
+  "bote",
+  "sobre",
   "bolsa",
   "rollo",
   "docena",
@@ -164,6 +166,8 @@ function normalizeUnit(value: string) {
   if (["lata", "latas", "can", "cans"].includes(raw)) return "lata";
   if (["botella", "botellas", "bottle", "bottles"].includes(raw)) return "botella";
   if (["frasco", "frascos", "jar", "jars"].includes(raw)) return "frasco";
+  if (["bote", "botes", "tub", "tubs"].includes(raw)) return "bote";
+  if (["sobre", "sobres", "packet", "packets", "pkt"].includes(raw)) return "sobre";
   if (["bolsa", "bolsas", "bag", "bags"].includes(raw)) return "bolsa";
   if (["rollo", "rollos", "roll", "rolls"].includes(raw)) return "rollo";
   if (["docena", "docenas", "dozen", "dozens"].includes(raw)) return "docena";
