@@ -681,7 +681,7 @@ export default function NeedsPage() {
             >
               {draftSelectOptions.categories.map((option) => (
                 <option key={option} value={option}>
-                  {option}
+                  {categoryLabel(lang, option)}
                 </option>
               ))}
             </select>
