@@ -71,14 +71,17 @@ const DEFAULT_CATEGORY = "Otro / Temporal";
 export const CATEGORY_OPTIONS = [
   "Frutas y Verduras",
   "Carnes, Pollo y Pescados",
+  "Jamón y Salchichonería",
   "Lácteos y Refrigerados",
   "Panadería y Tortillería",
   "Abarrotes",
   "Bebidas",
+  "Vinos y Licores",
   "Congelados",
   "Limpieza y Hogar",
   "Farmacia, Bebé y Cuidado Personal",
   "Mascotas",
+  "Ferretería y Autos",
   "Cajas y Salida",
   DEFAULT_CATEGORY,
 ] as const;
@@ -322,6 +325,18 @@ const CATEGORY_ALIASES: Record<string, string> = {
   "meat & seafood": "Carnes, Pollo y Pescados",
   "meat, poultry & seafood": "Carnes, Pollo y Pescados",
 
+  "jamon y salchichoneria": "Jamón y Salchichonería",
+  "jamón y salchichonería": "Jamón y Salchichonería",
+  jamon: "Jamón y Salchichonería",
+  jamón: "Jamón y Salchichonería",
+  salchichoneria: "Jamón y Salchichonería",
+  salchichonería: "Jamón y Salchichonería",
+  deli: "Jamón y Salchichonería",
+  "cold cuts": "Jamón y Salchichonería",
+  "deli meats and cold cuts": "Jamón y Salchichonería",
+  "deli meats & cold cuts": "Jamón y Salchichonería",
+
+
   "lacteos y refrigerados": "Lácteos y Refrigerados",
   lacteos: "Lácteos y Refrigerados",
   refrigerados: "Lácteos y Refrigerados",
@@ -347,6 +362,16 @@ const CATEGORY_ALIASES: Record<string, string> = {
 
   bebidas: "Bebidas",
   beverages: "Bebidas",
+
+  "vinos y licores": "Vinos y Licores",
+  vinos: "Vinos y Licores",
+  licores: "Vinos y Licores",
+  wine: "Vinos y Licores",
+  wines: "Vinos y Licores",
+  spirits: "Vinos y Licores",
+  liquor: "Vinos y Licores",
+  "wine and spirits": "Vinos y Licores",
+  "wine & spirits": "Vinos y Licores",
 
   congelados: "Congelados",
   frozen: "Congelados",
