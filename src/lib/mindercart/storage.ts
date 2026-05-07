@@ -1047,6 +1047,46 @@ export function upsertStoreProfile(input: {
   return nextState;
 }
 
+export function syncSavedListItemsToCatalog(
+  items: Array<{ name: string; category: string; unit: string; store: string }>
+) {
+  const state = readState();
+  let nextItemsMaster = state.itemsMaster;
+  let changed = false;
+
+  for (const item of items) {
+    const name = safe(item.name);
+    if (!name) continue;
+
+    const category = canonicalizeCategory(item.category) || DEFAULT_CATEGORY;
+    const unit = canonicalizeUnit(item.unit);
+    const store = cleanStore(item.store) || state.settings.preferredStore || "HEB";
+    const match = resolveCatalogMatch(nextItemsMaster, name);
+
+    const currentCategory = match ? canonicalizeCategory((match as { category?: string }).category) || DEFAULT_CATEGORY : "";
+    const currentUnit = match ? canonicalizeUnit((match as { unit?: string }).unit) : "";
+    const currentStore = match ? cleanStore((match as { defaultStore?: string }).defaultStore) : "";
+    const currentActive = match ? (match as { active?: boolean }).active !== false : false;
+
+    if (match && currentCategory === category && currentUnit === unit && currentStore === store && currentActive) {
+      continue;
+    }
+
+    nextItemsMaster = upsertItemMaster(nextItemsMaster, { name, category, unit, store });
+    changed = true;
+  }
+
+  if (!changed) return state;
+
+  const next: MinderCartState = {
+    ...state,
+    itemsMaster: nextItemsMaster,
+  };
+
+  writeState(next);
+  return next;
+}
+
 export function buildSuggestions(query: string): Suggestion[] {
   const state = readState();
   const lang = state.settings.language;

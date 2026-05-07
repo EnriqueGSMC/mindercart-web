@@ -12,6 +12,7 @@ import {
   buildSuggestions,
   readState,
   removeActiveItem,
+  syncSavedListItemsToCatalog,
 } from "@/lib/mindercart/storage";
 import { useMinderCartState } from "@/lib/mindercart/hooks";
 import type { Suggestion } from "@/lib/mindercart/types";
@@ -323,6 +324,11 @@ export default function NeedsPage() {
   }, [hydrated]);
 
   React.useEffect(() => {
+    if (!hydrated || !savedListsLoaded || savedLists.length === 0) return;
+    syncSavedListItemsToCatalog(savedLists.flatMap((entry) => entry.items));
+  }, [hydrated, savedListsLoaded, savedLists]);
+
+  React.useEffect(() => {
     if (!isSavedListEditorView || !savedListsLoaded) return;
 
     setMessage("");
@@ -554,6 +560,7 @@ export default function NeedsPage() {
       : [nextRecord, ...savedLists];
 
     persistSavedLists(next);
+    syncSavedListItemsToCatalog(nextRecord.items);
     setSavedListsMessage(
       lang === "en"
         ? isEditSavedListView
