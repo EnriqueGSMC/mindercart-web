@@ -908,11 +908,7 @@ export function deleteActiveItemEverywhere(id: string) {
       const sameItem = normalize(item.name) === targetName && normalize(item.unit) === targetUnit;
       return sameSource || sameItemKey || sameItem ? { ...item, active: false } : item;
     }),
-    itemsMaster: state.itemsMaster.map((item) => {
-      const sameItemKey = targetItemKey && safe(item.itemKey) === targetItemKey;
-      const sameItem = normalize(item.name) === targetName && normalize(item.unit) === targetUnit;
-      return sameItemKey || sameItem ? { ...item, active: false } : item;
-    }),
+    itemsMaster: state.itemsMaster,
   };
 
   writeState(next);
