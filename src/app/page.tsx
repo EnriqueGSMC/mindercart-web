@@ -57,9 +57,9 @@ const modalOverlayStyle: React.CSSProperties = {
   inset: 0,
   background: "rgba(17,24,39,0.35)",
   display: "flex",
-  alignItems: "center",
+  alignItems: "flex-start",
   justifyContent: "center",
-  padding: "calc(14px + env(safe-area-inset-top)) 12px calc(14px + env(safe-area-inset-bottom))",
+  padding: "calc(72px + env(safe-area-inset-top)) 12px calc(110px + env(safe-area-inset-bottom))",
   overflowY: "auto",
   WebkitOverflowScrolling: "touch",
   overscrollBehavior: "contain",
@@ -68,7 +68,7 @@ const modalOverlayStyle: React.CSSProperties = {
 
 const modalCardStyle: React.CSSProperties = {
   width: "min(520px, 100%)",
-  maxHeight: "calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 28px)",
+  maxHeight: "calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 182px)",
   overflowY: "auto",
   WebkitOverflowScrolling: "touch",
   overscrollBehavior: "contain",
@@ -346,6 +346,10 @@ export default function NeedsPage() {
     lang === "en"
       ? "It is not in the list. You can add it."
       : "No está en la lista. Puedes agregarlo.";
+  const editArticleModalHelp =
+    lang === "en"
+      ? "Review the item details and save your changes."
+      : "Revisa los datos del artículo y guarda los cambios.";
   const itemPlaceholder = lang === "en" ? "e.g. milk" : "ej. leche";
 
   const [name, setName] = React.useState("");
@@ -362,6 +366,7 @@ export default function NeedsPage() {
   const [savedListItemsDraft, setSavedListItemsDraft] = React.useState<SavedListDraftItem[]>([]);
   const [savedListsMessage, setSavedListsMessage] = React.useState("");
   const [selectedOpenSavedListItemIds, setSelectedOpenSavedListItemIds] = React.useState<string[]>([]);
+  const [savedListDraftEditingItemId, setSavedListDraftEditingItemId] = React.useState<string | null>(null);
   const [savedListNameEditUnlocked, setSavedListNameEditUnlocked] = React.useState(false);
   const savedListNameInputRef = React.useRef<HTMLInputElement | null>(null);
   const nameInputRef = React.useRef<HTMLInputElement | null>(null);
@@ -517,6 +522,7 @@ export default function NeedsPage() {
 
   function closeDraft() {
     setDraft(null);
+    setSavedListDraftEditingItemId(null);
     setAddingStore(false);
     setNewStoreName("");
     resetInput();
@@ -615,6 +621,18 @@ export default function NeedsPage() {
   function removeSavedListDraftItem(itemId: string) {
     setSavedListItemsDraft((prev) => prev.filter((item) => item.id !== itemId));
     setSavedListsMessage("");
+  }
+
+  function openSavedListDraftItemEditor(item: SavedListDraftItem) {
+    setSavedListDraftEditingItemId(item.id);
+    setSavedListsMessage("");
+    openDraft({
+      name: item.name,
+      category: item.category,
+      unit: item.unit,
+      quantity: item.quantity,
+      store: item.store,
+    });
   }
 
   function deleteSavedList(savedListId: string) {
@@ -732,10 +750,22 @@ export default function NeedsPage() {
       const normalizedKey = normalizeItemKey(draft.name, draft.category);
 
       setSavedListItemsDraft((prev) => {
-        const existingIndex = prev.findIndex((item) => normalizeItemKey(item.name, item.category) === normalizedKey);
+        const editingItemIndex = savedListDraftEditingItemId
+          ? prev.findIndex((item) => item.id === savedListDraftEditingItemId)
+          : -1;
+
+        const nextBaseItem = editingItemIndex >= 0 ? prev[editingItemIndex] : undefined;
+        const itemsWithoutEditing =
+          editingItemIndex >= 0 ? prev.filter((item) => item.id !== savedListDraftEditingItemId) : prev;
+
+        const duplicateIndex = itemsWithoutEditing.findIndex(
+          (item) => normalizeItemKey(item.name, item.category) === normalizedKey
+        );
+        const duplicateItem = duplicateIndex >= 0 ? itemsWithoutEditing[duplicateIndex] : undefined;
+
         const nextItem: SavedListDraftItem = {
-          id: existingIndex >= 0 ? prev[existingIndex].id : buildLocalId("saved-list-item"),
-          itemKey: existingIndex >= 0 ? prev[existingIndex].itemKey : undefined,
+          id: nextBaseItem?.id ?? duplicateItem?.id ?? buildLocalId("saved-list-item"),
+          itemKey: nextBaseItem?.itemKey ?? duplicateItem?.itemKey,
           name: draft.name.trim(),
           category: normalizeCategory(draft.category),
           unit: normalizeUnit(draft.unit),
@@ -743,17 +773,31 @@ export default function NeedsPage() {
           store: draft.store || settings.preferredStore || "HEB",
         };
 
-        if (existingIndex >= 0) {
-          const next = [...prev];
-          next[existingIndex] = nextItem;
+        if (duplicateIndex >= 0) {
+          const next = [...itemsWithoutEditing];
+          next[duplicateIndex] = nextItem;
           return next;
         }
 
-        return [...prev, nextItem];
+        if (editingItemIndex >= 0) {
+          const next = [...itemsWithoutEditing];
+          next.splice(editingItemIndex, 0, nextItem);
+          return next;
+        }
+
+        return [...itemsWithoutEditing, nextItem];
       });
 
       setMessage(
-        `✅ ${draft.name} ${lang === "en" ? "added to this saved list." : "agregado a esta lista guardada."}`
+        `✅ ${draft.name} ${
+          savedListDraftEditingItemId
+            ? lang === "en"
+              ? "updated in this saved list."
+              : "actualizado en esta lista guardada."
+            : lang === "en"
+              ? "added to this saved list."
+              : "agregado a esta lista guardada."
+        }`
       );
       closeDraft();
       return;
@@ -768,11 +812,15 @@ export default function NeedsPage() {
     }
   }
 
+  const isEditingSavedListDraft = isSavedListEditorView && Boolean(savedListDraftEditingItemId);
+  const draftModalHelpText = isEditingSavedListDraft ? editArticleModalHelp : addArticleModalHelp;
+  const draftConfirmLabel = isEditingSavedListDraft ? (lang === "en" ? "Save" : "Guardar") : t(lang, "add");
+
   const draftModal = draft ? (
     <div style={modalOverlayStyle} onClick={closeDraft}>
       <section style={modalCardStyle} onClick={(e) => e.stopPropagation()}>
         <div style={{ fontSize: s(21), fontWeight: 900 }}>{draft.name}</div>
-        <div style={{ marginTop: 4, fontSize: s(13), color: MC_NAVY_MUTED }}>{addArticleModalHelp}</div>
+        <div style={{ marginTop: 4, fontSize: s(13), color: MC_NAVY_MUTED }}>{draftModalHelpText}</div>
 
         <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
           <div>
@@ -901,7 +949,7 @@ export default function NeedsPage() {
               fontSize: s(14),
             }}
           >
-            {t(lang, "add")}
+            {draftConfirmLabel}
           </button>
         </div>
 
@@ -1270,13 +1318,31 @@ export default function NeedsPage() {
                               borderBottom: index === section.items.length - 1 ? "none" : "1px solid #f3f4f6",
                             }}
                           >
-                            <div style={{ minWidth: 0, flex: 1, fontSize: s(18), fontWeight: 500 }}>{getSavedListItemDisplayName(item)}</div>
-
-                            <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                            <button
+                              type="button"
+                              onClick={() => openSavedListDraftItemEditor(item)}
+                              style={{
+                                minWidth: 0,
+                                flex: 1,
+                                display: "grid",
+                                gap: 4,
+                                textAlign: "left",
+                                background: "transparent",
+                                border: "none",
+                                padding: 0,
+                                color: "inherit",
+                                cursor: "pointer",
+                                touchAction: "manipulation",
+                              }}
+                            >
+                              <div style={{ minWidth: 0, fontSize: s(18), fontWeight: 500 }}>{getSavedListItemDisplayName(item)}</div>
                               <div style={{ fontSize: s(15), color: MC_NAVY_MUTED }}>
                                 <QtyUnitText quantity={String(item.quantity)} unit={item.unit} />
+                                {item.store ? ` · ${item.store}` : ""}
                               </div>
+                            </button>
 
+                            <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
                               <button
                                 type="button"
                                 onClick={() => removeSavedListDraftItem(item.id)}
@@ -1294,8 +1360,7 @@ export default function NeedsPage() {
                               </button>
                             </div>
                           </div>
-                        ))}
-                      </div>
+                        ))}                      </div>
                     </div>
                   ))}
                 </div>
