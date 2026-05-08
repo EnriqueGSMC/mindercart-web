@@ -2,7 +2,7 @@
 
 import React from "react";
 import { AppShell, QtyUnitText, cardStyle, scalePx } from "@/components/mindercart/Shell";
-import { formatDateTime, t } from "@/lib/mindercart/i18n";
+import { t } from "@/lib/mindercart/i18n";
 import { useMinderCartState } from "@/lib/mindercart/hooks";
 import { addQuickNeed } from "@/lib/mindercart/storage";
 
@@ -15,8 +15,10 @@ function normalize(value: unknown) {
     .replace(/\s+/g, " ");
 }
 
-function makeActiveKey(input: { itemKey?: string; name: string; unit: string; store: string }) {
-  return [normalize(input.itemKey || input.name), normalize(input.unit), normalize(input.store)].join("|");
+function makeActiveKey(input: { itemKey?: string; name: string; unit: string; store: string; sourceListName?: string }) {
+  const baseIdentity = normalize(input.itemKey || input.name);
+  const sourceIdentity = input.itemKey ? "" : normalize(input.sourceListName);
+  return [baseIdentity, sourceIdentity, normalize(input.unit), normalize(input.store)].join("|");
 }
 
 function formatDateOnly(value: string | number | Date, lang: "es" | "en") {
@@ -81,7 +83,15 @@ export default function HistoryPage() {
   );
 
   const activeKeySet = React.useMemo(
-    () => new Set(activeShoppingListItems.map((item) => makeActiveKey(item))),
+    () =>
+      new Set(
+        activeShoppingListItems.map((item) =>
+          makeActiveKey({
+            ...item,
+            sourceListName: getSourceListName(item as unknown as Record<string, unknown>),
+          })
+        )
+      ),
     [activeShoppingListItems]
   );
 
@@ -131,7 +141,10 @@ export default function HistoryPage() {
       const seen = new Set<string>();
       return entry.items.filter((item) => {
         if (selectedIds && !selectedIds.has(item.id)) return false;
-        const key = makeActiveKey(item);
+        const key = makeActiveKey({
+          ...item,
+          sourceListName: getSourceListName(item as unknown as Record<string, unknown>),
+        });
         if (activeKeySet.has(key)) return false;
         if (seen.has(key)) return false;
         seen.add(key);
@@ -296,7 +309,12 @@ export default function HistoryPage() {
 
                     <div style={{ display: "grid", gap: 8 }}>
                       {row.items.map((item) => {
-                        const alreadyInMyList = activeKeySet.has(makeActiveKey(item));
+                        const alreadyInMyList = activeKeySet.has(
+                          makeActiveKey({
+                            ...item,
+                            sourceListName: getSourceListName(item as unknown as Record<string, unknown>),
+                          })
+                        );
                         const checked = repurchaseMode && (alreadyInMyList || Boolean(selectedByEntry[row.id]?.[item.id]));
                         const sourceListName = getSourceListName(item as unknown as Record<string, unknown>);
 
