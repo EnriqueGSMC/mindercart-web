@@ -33,6 +33,7 @@ type DraftSelectOptions = {
 
 type SavedListDraftItem = DraftItem & {
   id: string;
+  itemKey?: string;
 };
 
 type SavedListRecord = {
@@ -224,6 +225,47 @@ function buildMyListIdentity(name: string, category: string, sourceListName?: st
   return `${normalizeItemKey(name, category)}|${normalizeSourceListName(sourceListName)}`;
 }
 
+
+type CatalogNameSource = {
+  itemKey?: string | null;
+  name?: string | null;
+  nameEs?: string | null;
+  nameEn?: string | null;
+};
+
+function normalizeCatalogLookupValue(value: unknown) {
+  return String(value ?? "").trim().toLocaleLowerCase("es");
+}
+
+function localizedCatalogItemName(item: CatalogNameSource, lang: string) {
+  const fallback = String(item.name ?? "").trim();
+  const localized =
+    lang === "en"
+      ? String(item.nameEn ?? "").trim() || fallback
+      : String(item.nameEs ?? "").trim() || fallback;
+
+  return localized || fallback;
+}
+
+function buildCatalogItemNameLookup(lang: string) {
+  const state = readState();
+  const map = new Map<string, string>();
+
+  state.itemsMaster.forEach((rawItem) => {
+    const item = rawItem as CatalogNameSource;
+    const localizedName = localizedCatalogItemName(item, lang);
+    if (!localizedName) return;
+
+    [item.itemKey, item.name, item.nameEs, item.nameEn].forEach((candidate) => {
+      const lookupKey = normalizeCatalogLookupValue(candidate);
+      if (!lookupKey || map.has(lookupKey)) return;
+      map.set(lookupKey, localizedName);
+    });
+  });
+
+  return map;
+}
+
 function readSavedListsFromBrowser() {
   if (typeof window === "undefined") return [] as SavedListRecord[];
 
@@ -250,8 +292,11 @@ function readSavedListsFromBrowser() {
                 const itemName = String(row.name ?? "").trim();
                 if (!itemName) return null;
 
+                const parsedItemKey = String((row as { itemKey?: unknown }).itemKey ?? "").trim();
+
                 return {
                   id: String(row.id ?? buildLocalId("saved-list-item")),
+                  itemKey: parsedItemKey || undefined,
                   name: itemName,
                   category: normalizeCategory(String(row.category ?? FALLBACK_CATEGORY)),
                   unit: normalizeUnit(String(row.unit ?? "pza")),
@@ -259,7 +304,7 @@ function readSavedListsFromBrowser() {
                   store: String(row.store ?? "HEB").trim() || "HEB",
                 } satisfies SavedListDraftItem;
               })
-              .filter((item): item is SavedListDraftItem => item !== null)
+              .filter((item): item is NonNullable<typeof item> => item !== null)
           : [];
 
         return {
@@ -270,7 +315,7 @@ function readSavedListsFromBrowser() {
           items,
         } satisfies SavedListRecord;
       })
-      .filter((record): record is SavedListRecord => record !== null);
+      .filter((record): record is NonNullable<typeof record> => record !== null);
   } catch {
     return [] as SavedListRecord[];
   }
@@ -444,6 +489,25 @@ export default function NeedsPage() {
   const groupedOpenedSavedListItems = React.useMemo(
     () => groupItemsByCategory(openedSavedList?.items ?? []),
     [openedSavedList]
+  );
+
+  const catalogItemNameLookup = React.useMemo(() => {
+    if (!hydrated) return new Map<string, string>();
+    return buildCatalogItemNameLookup(lang);
+  }, [hydrated, lang]);
+
+  const getSavedListItemDisplayName = React.useCallback(
+    (item: Pick<SavedListDraftItem, "name"> & { itemKey?: string | null }) => {
+      const byItemKey = normalizeCatalogLookupValue(item.itemKey);
+      if (byItemKey) {
+        const localizedByKey = catalogItemNameLookup.get(byItemKey);
+        if (localizedByKey) return localizedByKey;
+      }
+
+      const byName = normalizeCatalogLookupValue(item.name);
+      return catalogItemNameLookup.get(byName) || item.name;
+    },
+    [catalogItemNameLookup]
   );
 
   function resetInput() {
@@ -671,6 +735,7 @@ export default function NeedsPage() {
         const existingIndex = prev.findIndex((item) => normalizeItemKey(item.name, item.category) === normalizedKey);
         const nextItem: SavedListDraftItem = {
           id: existingIndex >= 0 ? prev[existingIndex].id : buildLocalId("saved-list-item"),
+          itemKey: existingIndex >= 0 ? prev[existingIndex].itemKey : undefined,
           name: draft.name.trim(),
           category: normalizeCategory(draft.category),
           unit: normalizeUnit(draft.unit),
@@ -1205,7 +1270,7 @@ export default function NeedsPage() {
                               borderBottom: index === section.items.length - 1 ? "none" : "1px solid #f3f4f6",
                             }}
                           >
-                            <div style={{ minWidth: 0, flex: 1, fontSize: s(18), fontWeight: 500 }}>{item.name}</div>
+                            <div style={{ minWidth: 0, flex: 1, fontSize: s(18), fontWeight: 500 }}>{getSavedListItemDisplayName(item)}</div>
 
                             <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
                               <div style={{ fontSize: s(15), color: MC_NAVY_MUTED }}>
@@ -1375,7 +1440,7 @@ export default function NeedsPage() {
 
                                     <div style={{ minWidth: 0 }}>
                                       <div style={{ fontSize: s(18), fontWeight: 500, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
-                                        {item.name}
+                                        {getSavedListItemDisplayName(item)}
                                       </div>
                                       <div style={{ fontSize: s(13), color: MC_NAVY_MUTED }}>
                                         <QtyUnitText quantity={String(item.quantity)} unit={item.unit} />
