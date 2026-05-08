@@ -311,6 +311,8 @@ export default function NeedsPage() {
   const [selectedOpenSavedListItemIds, setSelectedOpenSavedListItemIds] = React.useState<string[]>([]);
   const [savedListNameEditUnlocked, setSavedListNameEditUnlocked] = React.useState(false);
   const savedListNameInputRef = React.useRef<HTMLInputElement | null>(null);
+  const nameInputRef = React.useRef<HTMLInputElement | null>(null);
+  const touchSuggestionSelectionRef = React.useRef<string | null>(null);
 
   React.useEffect(() => {
     if (!hydrated) return;
@@ -456,6 +458,35 @@ export default function NeedsPage() {
       quantity: input.quantity || "1",
       store: input.store || settings.preferredStore || "HEB",
     });
+  }
+
+  function getSuggestionTouchKey(suggestion: Suggestion) {
+    return `${suggestion.source}_${suggestion.id}`;
+  }
+
+  function commitSuggestionSelection(suggestion: Suggestion) {
+    nameInputRef.current?.blur();
+    applySuggestion(suggestion);
+  }
+
+  function handleSuggestionTouchStart(
+    event: React.TouchEvent<HTMLButtonElement>,
+    suggestion: Suggestion
+  ) {
+    event.preventDefault();
+    touchSuggestionSelectionRef.current = getSuggestionTouchKey(suggestion);
+    commitSuggestionSelection(suggestion);
+  }
+
+  function handleSuggestionClick(suggestion: Suggestion) {
+    const suggestionKey = getSuggestionTouchKey(suggestion);
+
+    if (touchSuggestionSelectionRef.current === suggestionKey) {
+      touchSuggestionSelectionRef.current = null;
+      return;
+    }
+
+    commitSuggestionSelection(suggestion);
   }
 
   function applySuggestion(suggestion: Suggestion) {
@@ -1524,6 +1555,7 @@ export default function NeedsPage() {
           <div style={{ fontSize: s(16), fontWeight: 700 }}>{lang === "en" ? "I need" : "Necesito"}</div>
 
           <input
+            ref={nameInputRef}
             value={name}
             onChange={(e) => {
               setName(e.target.value);
@@ -1559,7 +1591,8 @@ export default function NeedsPage() {
                 <button
                   key={`${row.source}_${row.id}`}
                   type="button"
-                  onClick={() => applySuggestion(row)}
+                  onClick={() => handleSuggestionClick(row)}
+                  onTouchStart={(event) => handleSuggestionTouchStart(event, row)}
                   style={{
                     width: "100%",
                     textAlign: "left",
@@ -1572,6 +1605,8 @@ export default function NeedsPage() {
                     alignItems: "center",
                     justifyContent: "space-between",
                     gap: 10,
+                    touchAction: "manipulation",
+                    WebkitTapHighlightColor: "transparent",
                   }}
                 >
                   <div style={{ fontSize: s(17), fontWeight: 500 }}>{row.name}</div>
