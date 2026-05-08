@@ -1,6 +1,13 @@
 export type Language = "es" | "en";
 export type FontScale = "normal" | "large" | "xlarge";
 
+export type SourceListMetadata = {
+  sourceListName?: string;
+  savedListName?: string;
+  originListName?: string;
+  listName?: string;
+};
+
 export type ItemMaster = {
   id: string;
   itemKey: string;
@@ -14,7 +21,7 @@ export type ItemMaster = {
   createdAt: number;
 };
 
-export type GeneralListItem = {
+export type GeneralListItem = SourceListMetadata & {
   id: string;
   itemKey?: string;
   name: string;
@@ -26,7 +33,7 @@ export type GeneralListItem = {
   lastUsedAt: number | null;
 };
 
-export type ActiveShoppingListItem = {
+export type ActiveShoppingListItem = SourceListMetadata & {
   id: string;
   itemKey?: string;
   name: string;
@@ -37,7 +44,6 @@ export type ActiveShoppingListItem = {
   checked: boolean;
   sourceTypes: string[];
   sourceRefs: string[];
-  sourceListName?: string;
   createdAt: number;
 };
 
@@ -79,7 +85,7 @@ export type MinderCartState = {
   settings: MinderCartSettings;
 };
 
-export type Suggestion = {
+export type Suggestion = SourceListMetadata & {
   id: string;
   itemKey?: string;
   name: string;
