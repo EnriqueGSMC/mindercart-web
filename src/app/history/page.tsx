@@ -36,6 +36,40 @@ function getSourceListName(item: Record<string, unknown>) {
   return typeof raw === "string" && raw.trim() ? raw.trim() : "";
 }
 
+
+type HistoryLikeItem = {
+  name: string;
+  category: string;
+  unit: string;
+  quantity?: string;
+  store?: string;
+  itemKey?: string;
+  sourceListName?: string;
+  savedListName?: string;
+  originListName?: string;
+  listName?: string;
+};
+
+function buildQuickNeedPayload(item: HistoryLikeItem, fallbackStore: string) {
+  const sourceListName = getSourceListName(item as unknown as Record<string, unknown>);
+  return {
+    name: item.name,
+    category: item.category,
+    unit: item.unit,
+    quantity: item.quantity || "1",
+    store: item.store || fallbackStore,
+    ...(typeof item.itemKey === "string" && item.itemKey.trim() ? { itemKey: item.itemKey.trim() } : {}),
+    ...(sourceListName
+      ? {
+          sourceListName,
+          savedListName: sourceListName,
+          originListName: sourceListName,
+          listName: sourceListName,
+        }
+      : {}),
+  } as Parameters<typeof addQuickNeed>[0];
+}
+
 export default function HistoryPage() {
   const { shoppingHistory, activeShoppingListItems, settings, hydrated } = useMinderCartState();
   const lang = settings.language;
@@ -178,13 +212,7 @@ export default function HistoryPage() {
 
     try {
       itemsToAdd.forEach((item) => {
-        addQuickNeed({
-          name: item.name,
-          category: item.category,
-          unit: item.unit,
-          quantity: item.quantity || "1",
-          store: item.store || entry.store || settings.preferredStore,
-        });
+        addQuickNeed(buildQuickNeedPayload(item, entry.store || settings.preferredStore));
       });
 
       setSelectedByEntry((current) => ({
