@@ -186,16 +186,10 @@ function deleteItemEverywhere(id: string) {
     normalizeValue(item.unit) === normalizeValue(target.unit) &&
     normalizeValue(item.store) === normalizeValue(target.store);
 
-  const sameMasterItem = (item: { name: string; unit: string; defaultStore: string }) =>
-    normalizeValue(item.name) === normalizeValue(target.name) &&
-    normalizeValue(item.unit) === normalizeValue(target.unit) &&
-    normalizeValue(item.defaultStore) === normalizeValue(target.store);
-
   const next = {
     ...state,
     activeShoppingListItems: state.activeShoppingListItems.filter((item) => item.id !== id),
     generalListItems: state.generalListItems.filter((item) => !sameGeneralItem(item)),
-    itemsMaster: state.itemsMaster.filter((item) => !sameMasterItem(item)),
   };
 
   writeState(next);
