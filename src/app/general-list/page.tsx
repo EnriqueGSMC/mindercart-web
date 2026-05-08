@@ -25,14 +25,55 @@ const CATEGORY_ORDER = [
   "Lácteos y Refrigerados",
   "Panadería y Tortillería",
   "Abarrotes",
+  "Jamón y Salchichonería",
   "Bebidas",
+  "Vinos y Licores",
   "Congelados",
   "Limpieza y Hogar",
   "Farmacia, Bebé y Cuidado Personal",
   "Mascotas",
+  "Ferretería y Autos",
   "Cajas y Salida",
   "Otro / Temporal",
 ] as const;
+
+const CATEGORY_ALIASES: Record<string, (typeof CATEGORY_ORDER)[number]> = {
+  "frutas y verduras": "Frutas y Verduras",
+  produce: "Frutas y Verduras",
+  "carnes, pollo y pescados": "Carnes, Pollo y Pescados",
+  "meat, poultry and seafood": "Carnes, Pollo y Pescados",
+  "lácteos y refrigerados": "Lácteos y Refrigerados",
+  "lacteos y refrigerados": "Lácteos y Refrigerados",
+  "dairy and refrigerated": "Lácteos y Refrigerados",
+  "panadería y tortillería": "Panadería y Tortillería",
+  "panaderia y tortilleria": "Panadería y Tortillería",
+  "bakery and tortilla shop": "Panadería y Tortillería",
+  abarrotes: "Abarrotes",
+  groceries: "Abarrotes",
+  "jamón y salchichonería": "Jamón y Salchichonería",
+  "jamon y salchichoneria": "Jamón y Salchichonería",
+  "deli meats and cold cuts": "Jamón y Salchichonería",
+  bebidas: "Bebidas",
+  beverages: "Bebidas",
+  "vinos y licores": "Vinos y Licores",
+  "wine and spirits": "Vinos y Licores",
+  congelados: "Congelados",
+  frozen: "Congelados",
+  "limpieza y hogar": "Limpieza y Hogar",
+  "household and cleaning": "Limpieza y Hogar",
+  "farmacia, bebé y cuidado personal": "Farmacia, Bebé y Cuidado Personal",
+  "farmacia, bebe y cuidado personal": "Farmacia, Bebé y Cuidado Personal",
+  "pharmacy, baby and personal care": "Farmacia, Bebé y Cuidado Personal",
+  mascotas: "Mascotas",
+  pets: "Mascotas",
+  "ferretería y autos": "Ferretería y Autos",
+  "ferreteria y autos": "Ferretería y Autos",
+  "hardware and auto": "Ferretería y Autos",
+  "cajas y salida": "Cajas y Salida",
+  checkout: "Cajas y Salida",
+  "otro / temporal": "Otro / Temporal",
+  other: "Otro / Temporal",
+};
 
 type CatalogCategoryItem = {
   id: string;
@@ -111,8 +152,8 @@ function isRowActive(item: unknown) {
 }
 
 function normalizeCategory(value: string | null | undefined) {
-  const category = String(value ?? "").trim();
-  return CATEGORY_ORDER.includes(category as (typeof CATEGORY_ORDER)[number]) ? category : "Otro / Temporal";
+  const normalized = normalizeValue(value);
+  return CATEGORY_ALIASES[normalized] || "Otro / Temporal";
 }
 
 function groupActiveItemsByCategory(items: ActiveShoppingListItem[]) {
@@ -249,7 +290,7 @@ export default function CartPage() {
     const grouped = new Map<string, CatalogCategoryItem[]>();
 
     for (const item of catalogItems) {
-      const category = item.category || "Otro / Temporal";
+      const category = normalizeCategory(item.category);
       const current = grouped.get(category) || [];
       current.push(item);
       grouped.set(category, current);
