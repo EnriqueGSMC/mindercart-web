@@ -50,20 +50,15 @@ const MC_NAVY = "#12245E";
 const MC_NAVY_SOFT = "#EEF3FF";
 const MC_NAVY_LINE = "#D8E2FF";
 const MC_NAVY_MUTED = "#5D6B98";
-const MODAL_VIEWPORT_TOP = "calc(88px + env(safe-area-inset-top))";
-const MODAL_VIEWPORT_BOTTOM = "calc(96px + env(safe-area-inset-bottom))";
 
 const modalOverlayStyle: React.CSSProperties = {
   position: "fixed",
-  top: MODAL_VIEWPORT_TOP,
-  right: 0,
-  bottom: MODAL_VIEWPORT_BOTTOM,
-  left: 0,
+  inset: 0,
   background: "rgba(17,24,39,0.35)",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  padding: "12px",
+  padding: "calc(14px + env(safe-area-inset-top)) 12px calc(14px + env(safe-area-inset-bottom))",
   overflowY: "auto",
   WebkitOverflowScrolling: "touch",
   overscrollBehavior: "contain",
@@ -72,7 +67,7 @@ const modalOverlayStyle: React.CSSProperties = {
 
 const modalCardStyle: React.CSSProperties = {
   width: "min(520px, 100%)",
-  maxHeight: "calc(100dvh - (88px + env(safe-area-inset-top)) - (96px + env(safe-area-inset-bottom)) - 24px)",
+  maxHeight: "calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 28px)",
   overflowY: "auto",
   WebkitOverflowScrolling: "touch",
   overscrollBehavior: "contain",
@@ -144,6 +139,17 @@ function formatUnitOptionLabel(value: string, lang: "es" | "en") {
   return lang === "en"
     ? `${meta.labelEn} (${meta.abbrEn})`
     : `${meta.labelEs} (${meta.abbrEs})`;
+}
+
+function formatUnitInlineText(quantity: string | number | null | undefined, unit: string, lang: "es" | "en") {
+  const normalizedUnit = normalizeUnit(unit);
+  const meta = UNIT_OPTION_META[normalizedUnit as keyof typeof UNIT_OPTION_META];
+  const qty = String(quantity ?? "").trim();
+
+  if (!meta) return qty ? `${qty} ${unit}` : unit;
+
+  const abbr = lang === "en" ? meta.abbrEn : meta.abbrEs;
+  return qty ? `${qty} ${abbr}` : abbr;
 }
 
 const FALLBACK_CATEGORY = "Otro / Temporal";
@@ -312,7 +318,6 @@ export default function NeedsPage() {
   const [savedListsLoaded, setSavedListsLoaded] = React.useState(false);
   const [savedListName, setSavedListName] = React.useState("");
   const [savedListItemsDraft, setSavedListItemsDraft] = React.useState<SavedListDraftItem[]>([]);
-  const [editingSavedListItemId, setEditingSavedListItemId] = React.useState<string | null>(null);
   const [savedListsMessage, setSavedListsMessage] = React.useState("");
   const [selectedOpenSavedListItemIds, setSelectedOpenSavedListItemIds] = React.useState<string[]>([]);
   const [savedListNameEditUnlocked, setSavedListNameEditUnlocked] = React.useState(false);
@@ -449,31 +454,18 @@ export default function NeedsPage() {
 
   function closeDraft() {
     setDraft(null);
-    setEditingSavedListItemId(null);
     setAddingStore(false);
     setNewStoreName("");
     resetInput();
   }
 
   function openDraft(input: DraftItem) {
-    setEditingSavedListItemId(null);
     setDraft({
       name: input.name,
       category: normalizeCategory(input.category),
       unit: normalizeUnit(input.unit),
       quantity: input.quantity || "1",
       store: input.store || settings.preferredStore || "HEB",
-    });
-  }
-
-  function openSavedListDraftEditor(item: SavedListDraftItem) {
-    setEditingSavedListItemId(item.id);
-    setDraft({
-      name: item.name,
-      category: normalizeCategory(item.category),
-      unit: normalizeUnit(item.unit),
-      quantity: item.quantity || "1",
-      store: item.store || settings.preferredStore || "HEB",
     });
   }
 
@@ -648,21 +640,9 @@ export default function NeedsPage() {
       const normalizedKey = normalizeItemKey(draft.name, draft.category);
 
       setSavedListItemsDraft((prev) => {
-        const duplicateIndex = prev.findIndex(
-          (item) =>
-            item.id !== editingSavedListItemId &&
-            normalizeItemKey(item.name, item.category) === normalizedKey
-        );
-        const editingIndex = editingSavedListItemId
-          ? prev.findIndex((item) => item.id === editingSavedListItemId)
-          : -1;
+        const existingIndex = prev.findIndex((item) => normalizeItemKey(item.name, item.category) === normalizedKey);
         const nextItem: SavedListDraftItem = {
-          id:
-            editingIndex >= 0
-              ? prev[editingIndex].id
-              : duplicateIndex >= 0
-                ? prev[duplicateIndex].id
-                : buildLocalId("saved-list-item"),
+          id: existingIndex >= 0 ? prev[existingIndex].id : buildLocalId("saved-list-item"),
           name: draft.name.trim(),
           category: normalizeCategory(draft.category),
           unit: normalizeUnit(draft.unit),
@@ -670,15 +650,9 @@ export default function NeedsPage() {
           store: draft.store || settings.preferredStore || "HEB",
         };
 
-        if (editingIndex >= 0) {
+        if (existingIndex >= 0) {
           const next = [...prev];
-          next[editingIndex] = nextItem;
-          return next;
-        }
-
-        if (duplicateIndex >= 0) {
-          const next = [...prev];
-          next[duplicateIndex] = nextItem;
+          next[existingIndex] = nextItem;
           return next;
         }
 
@@ -686,15 +660,7 @@ export default function NeedsPage() {
       });
 
       setMessage(
-        `✅ ${draft.name} ${
-          editingSavedListItemId
-            ? lang === "en"
-              ? "updated in this saved list."
-              : "actualizado en esta lista guardada."
-            : lang === "en"
-              ? "added to this saved list."
-              : "agregado a esta lista guardada."
-        }`
+        `✅ ${draft.name} ${lang === "en" ? "added to this saved list." : "agregado a esta lista guardada."}`
       );
       closeDraft();
       return;
@@ -842,11 +808,7 @@ export default function NeedsPage() {
               fontSize: s(14),
             }}
           >
-            {isSavedListEditorView && editingSavedListItemId
-              ? lang === "en"
-                ? "Save changes"
-                : "Guardar cambios"
-              : t(lang, "add")}
+            {t(lang, "add")}
           </button>
         </div>
 
@@ -1209,36 +1171,19 @@ export default function NeedsPage() {
                             style={{
                               display: "flex",
                               gap: 10,
-                              alignItems: "stretch",
+                              alignItems: "center",
                               justifyContent: "space-between",
-                              padding: "12px",
+                              padding: "14px 12px",
                               borderBottom: index === section.items.length - 1 ? "none" : "1px solid #f3f4f6",
                             }}
                           >
-                            <button
-                              type="button"
-                              onClick={() => openSavedListDraftEditor(item)}
-                              style={{
-                                minWidth: 0,
-                                flex: 1,
-                                display: "grid",
-                                gap: 4,
-                                textAlign: "left",
-                                padding: 0,
-                                border: 0,
-                                background: "transparent",
-                                font: "inherit",
-                                cursor: "pointer",
-                                touchAction: "manipulation",
-                              }}
-                            >
-                              <div style={{ minWidth: 0, fontSize: s(18), fontWeight: 500 }}>{item.name}</div>
-                              <div style={{ fontSize: s(15), color: MC_NAVY_MUTED }}>
-                                <QtyUnitText quantity={String(item.quantity)} unit={item.unit} />
-                              </div>
-                            </button>
+                            <div style={{ minWidth: 0, flex: 1, fontSize: s(18), fontWeight: 500 }}>{item.name}</div>
 
                             <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                              <div style={{ fontSize: s(15), color: MC_NAVY_MUTED }}>
+                                {formatUnitInlineText(item.quantity, item.unit, lang)}
+                              </div>
+
                               <button
                                 type="button"
                                 onClick={() => removeSavedListDraftItem(item.id)}
@@ -1405,7 +1350,7 @@ export default function NeedsPage() {
                                         {item.name}
                                       </div>
                                       <div style={{ fontSize: s(13), color: MC_NAVY_MUTED }}>
-                                        <QtyUnitText quantity={String(item.quantity)} unit={item.unit} />
+                                        {formatUnitInlineText(item.quantity, item.unit, lang)}
                                         {item.store ? ` · ${item.store}` : ""}
                                       </div>
                                     </div>
