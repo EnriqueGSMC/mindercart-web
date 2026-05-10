@@ -141,42 +141,6 @@ function formatUnitOptionLabel(value: string, lang: "es" | "en") {
     : `${meta.labelEs} (${meta.abbrEs})`;
 }
 
-function resolveUnitMeta(value: string) {
-  const raw = String(value ?? "").trim().toLowerCase();
-  if (!raw) return null;
-
-  if (raw in UNIT_OPTION_META) {
-    return UNIT_OPTION_META[raw as keyof typeof UNIT_OPTION_META];
-  }
-
-  if (["pza", "pzas", "pieza", "piezas", "unidad", "unidades", "ea", "each", "unit", "units"].includes(raw)) return UNIT_OPTION_META.pza;
-  if (["paquete", "paquetes", "pack", "packs"].includes(raw)) return UNIT_OPTION_META.paquete;
-  if (["caja", "cajas", "box", "boxes"].includes(raw)) return UNIT_OPTION_META.caja;
-  if (["lata", "latas", "can", "cans"].includes(raw)) return UNIT_OPTION_META.lata;
-  if (["botella", "botellas", "bottle", "bottles"].includes(raw)) return UNIT_OPTION_META.botella;
-  if (["frasco", "frascos", "jar", "jars"].includes(raw)) return UNIT_OPTION_META.frasco;
-  if (["bote", "botes", "tub", "tubs"].includes(raw)) return UNIT_OPTION_META.bote;
-  if (["sobre", "sobres", "packet", "packets", "pkt"].includes(raw)) return UNIT_OPTION_META.sobre;
-  if (["bolsa", "bolsas", "bag", "bags"].includes(raw)) return UNIT_OPTION_META.bolsa;
-  if (["rollo", "rollos", "roll", "rolls"].includes(raw)) return UNIT_OPTION_META.rollo;
-  if (["docena", "docenas", "dozen", "dozens"].includes(raw)) return UNIT_OPTION_META.docena;
-  if (["g", "gr", "grs", "gramo", "gramos", "gram", "grams"].includes(raw)) return UNIT_OPTION_META.g;
-  if (["kg", "kilo", "kilos", "kilogramo", "kilogramos", "kilogram", "kilograms"].includes(raw)) return UNIT_OPTION_META.kg;
-  if (["oz", "onza", "onzas", "ounce", "ounces"].includes(raw)) return UNIT_OPTION_META.oz;
-  if (["lb", "libra", "libras", "pound", "pounds"].includes(raw)) return UNIT_OPTION_META.lb;
-  if (["ml", "mililitro", "mililitros", "milliliter", "milliliters"].includes(raw)) return UNIT_OPTION_META.ml;
-  if (["l", "lt", "lts", "litro", "litros", "liter", "liters"].includes(raw)) return UNIT_OPTION_META.l;
-  if (["gal", "galon", "galones", "gallon", "gallons"].includes(raw)) return UNIT_OPTION_META.gal;
-
-  return null;
-}
-
-function formatUnitDisplayLabel(value: string, lang: "es" | "en") {
-  const meta = resolveUnitMeta(value);
-  if (!meta) return String(value ?? "").trim();
-  return lang === "en" ? meta.labelEn : meta.labelEs;
-}
-
 const FALLBACK_CATEGORY = "Otro / Temporal";
 const ORDERED_CATEGORIES = CATEGORY_OPTIONS.includes(FALLBACK_CATEGORY)
   ? [...CATEGORY_OPTIONS]
@@ -250,14 +214,6 @@ function buildLocalId(prefix: string) {
 
 function normalizeItemKey(name: string, category: string) {
   return `${String(name ?? "").trim().toLocaleLowerCase("es")}|${normalizeCategory(category).toLocaleLowerCase("es")}`;
-}
-
-function normalizeSourceAwareItemKey(name: string, category: string, sourceListName?: string | null) {
-  return `${normalizeItemKey(name, category)}|${String(sourceListName ?? "").trim().toLocaleLowerCase("es")}`;
-}
-
-function normalizeCatalogNameAlias(value: string | null | undefined) {
-  return String(value ?? "").trim().toLocaleLowerCase("es");
 }
 
 function readSavedListsFromBrowser() {
@@ -343,10 +299,11 @@ export default function NeedsPage() {
   const [message, setMessage] = React.useState("");
   const [suggestions, setSuggestions] = React.useState<Suggestion[]>([]);
   const [draft, setDraft] = React.useState<DraftItem | null>(null);
-  const [editingSavedListItemId, setEditingSavedListItemId] = React.useState<string | null>(null);
   const [customStores, setCustomStores] = React.useState<string[]>([]);
   const [addingStore, setAddingStore] = React.useState(false);
   const [newStoreName, setNewStoreName] = React.useState("");
+  const [editingActiveItemId, setEditingActiveItemId] = React.useState<string | null>(null);
+  const [editingActiveItemSourceListName, setEditingActiveItemSourceListName] = React.useState<string | null>(null);
 
   const [savedLists, setSavedLists] = React.useState<SavedListRecord[]>([]);
   const [savedListsLoaded, setSavedListsLoaded] = React.useState(false);
@@ -456,35 +413,6 @@ export default function NeedsPage() {
     };
   }, [customStores, settings.preferredStore]);
 
-  const localizedSavedListItemNames = React.useMemo(() => {
-    const state = readState() as {
-      itemsMaster?: Array<{ name?: string; nameEs?: string; nameEn?: string }>;
-    };
-
-    const map = new Map<string, string>();
-
-    for (const item of state.itemsMaster ?? []) {
-      const localizedName = String(
-        lang === "en" ? item.nameEn ?? item.name ?? "" : item.nameEs ?? item.name ?? ""
-      ).trim();
-
-      if (!localizedName) continue;
-
-      [item.name, item.nameEs, item.nameEn].forEach((alias) => {
-        const normalizedAlias = normalizeCatalogNameAlias(alias);
-        if (!normalizedAlias) return;
-        map.set(normalizedAlias, localizedName);
-      });
-    }
-
-    return map;
-  }, [lang]);
-
-  const getSavedListItemDisplayName = React.useCallback(
-    (name: string) => localizedSavedListItemNames.get(normalizeCatalogNameAlias(name)) || name,
-    [localizedSavedListItemNames]
-  );
-
   const groupedActiveShoppingListItems = React.useMemo(
     () => groupItemsByCategory(activeShoppingListItems),
     [activeShoppingListItems]
@@ -496,12 +424,7 @@ export default function NeedsPage() {
   );
 
   const activeShoppingListItemKeys = React.useMemo(
-    () =>
-      new Set(
-        activeShoppingListItems.map((item) =>
-          normalizeSourceAwareItemKey(item.name, item.category, item.sourceListName)
-        )
-      ),
+    () => new Set(activeShoppingListItems.map((item) => normalizeItemKey(item.name, item.category))),
     [activeShoppingListItems]
   );
 
@@ -522,14 +445,19 @@ export default function NeedsPage() {
 
   function closeDraft() {
     setDraft(null);
-    setEditingSavedListItemId(null);
+    setEditingActiveItemId(null);
+    setEditingActiveItemSourceListName(null);
     setAddingStore(false);
     setNewStoreName("");
     resetInput();
   }
 
-  function openDraft(input: DraftItem, options?: { savedListItemId?: string | null }) {
-    setEditingSavedListItemId(options?.savedListItemId ?? null);
+  function openDraft(
+    input: DraftItem,
+    options?: { activeItemId?: string | null; sourceListName?: string | null }
+  ) {
+    setEditingActiveItemId(options?.activeItemId ?? null);
+    setEditingActiveItemSourceListName(options?.sourceListName ?? null);
     setDraft({
       name: input.name,
       category: normalizeCategory(input.category),
@@ -651,19 +579,11 @@ export default function NeedsPage() {
           ? "Lista guardada actualizada."
           : "Lista guardada creada."
     );
-    if (isEditSavedListView && existing) {
-      router.push(`/?view=saved-lists&saved-list-mode=open&saved-list-id=${encodeURIComponent(existing.id)}`);
-      return;
-    }
-
     router.push("/?view=saved-lists");
   }
 
   function isSavedListItemAlreadyInMyList(item: SavedListDraftItem) {
-    const comparisonName = getSavedListItemDisplayName(item.name);
-    return activeShoppingListItemKeys.has(
-      normalizeSourceAwareItemKey(comparisonName, item.category, openedSavedList?.name)
-    );
+    return activeShoppingListItemKeys.has(normalizeItemKey(item.name, item.category));
   }
 
   function toggleOpenedSavedListItem(itemId: string) {
@@ -715,18 +635,13 @@ export default function NeedsPage() {
     if (!draft) return;
 
     if (isSavedListEditorView) {
-      const trimmedDraftName = draft.name.trim();
-      const normalizedKey = normalizeItemKey(trimmedDraftName, draft.category);
-      const isEditingSavedListItem = Boolean(editingSavedListItemId);
+      const normalizedKey = normalizeItemKey(draft.name, draft.category);
 
       setSavedListItemsDraft((prev) => {
-        const existingIndex = editingSavedListItemId
-          ? prev.findIndex((item) => item.id === editingSavedListItemId)
-          : prev.findIndex((item) => normalizeItemKey(item.name, item.category) === normalizedKey);
-
+        const existingIndex = prev.findIndex((item) => normalizeItemKey(item.name, item.category) === normalizedKey);
         const nextItem: SavedListDraftItem = {
           id: existingIndex >= 0 ? prev[existingIndex].id : buildLocalId("saved-list-item"),
-          name: trimmedDraftName,
+          name: draft.name.trim(),
           category: normalizeCategory(draft.category),
           unit: normalizeUnit(draft.unit),
           quantity: String(draft.quantity ?? "1").trim() || "1",
@@ -743,20 +658,28 @@ export default function NeedsPage() {
       });
 
       setMessage(
-        `✅ ${trimmedDraftName} ${lang === "en"
-          ? isEditingSavedListItem
-            ? "updated in this saved list."
-            : "added to this saved list."
-          : isEditingSavedListItem
-            ? "actualizado en esta lista guardada."
-            : "agregado a esta lista guardada."
-        }`
+        `✅ ${draft.name} ${lang === "en" ? "added to this saved list." : "agregado a esta lista guardada."}`
       );
       closeDraft();
       return;
     }
 
     try {
+      if (editingActiveItemId) {
+        removeActiveItem(editingActiveItemId);
+        addQuickNeed({
+          ...draft,
+          sourceListName: editingActiveItemSourceListName || undefined,
+        });
+        setMessage(
+          `✅ ${draft.name} ${
+            lang === "en" ? "updated in My List." : "actualizado en Mi Lista."
+          }`
+        );
+        closeDraft();
+        return;
+      }
+
       addQuickNeed(draft);
       setMessage(`✅ ${draft.name} ${t(lang, "addedToList")}`);
       closeDraft();
@@ -1258,42 +1181,25 @@ export default function NeedsPage() {
                         {section.items.map((item, index) => (
                           <div
                             key={item.id}
-                            role="button"
-                            tabIndex={0}
-                            onClick={() => openDraft(item, { savedListItemId: item.id })}
-                            onKeyDown={(event) => {
-                              if (event.key === "Enter" || event.key === " ") {
-                                event.preventDefault();
-                                openDraft(item, { savedListItemId: item.id });
-                              }
-                            }}
                             style={{
-                              width: "100%",
                               display: "flex",
                               gap: 10,
                               alignItems: "center",
                               justifyContent: "space-between",
                               padding: "14px 12px",
                               borderBottom: index === section.items.length - 1 ? "none" : "1px solid #f3f4f6",
-                              background: "#fff",
-                              textAlign: "left",
-                              cursor: "pointer",
-                              touchAction: "manipulation",
                             }}
                           >
-                            <div style={{ minWidth: 0, flex: 1, fontSize: s(18), fontWeight: 500 }}>{getSavedListItemDisplayName(item.name)}</div>
+                            <div style={{ minWidth: 0, flex: 1, fontSize: s(18), fontWeight: 500 }}>{item.name}</div>
 
                             <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
                               <div style={{ fontSize: s(15), color: MC_NAVY_MUTED }}>
-                                <QtyUnitText quantity={String(item.quantity)} unit={formatUnitDisplayLabel(item.unit, lang)} />
+                                <QtyUnitText quantity={String(item.quantity)} unit={item.unit} />
                               </div>
 
                               <button
                                 type="button"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  removeSavedListDraftItem(item.id);
-                                }}
+                                onClick={() => removeSavedListDraftItem(item.id)}
                                 style={{
                                   padding: "8px 12px",
                                   borderRadius: 12,
@@ -1302,7 +1208,6 @@ export default function NeedsPage() {
                                   fontWeight: 700,
                                   whiteSpace: "nowrap",
                                   fontSize: s(14),
-                                  cursor: "pointer",
                                 }}
                               >
                                 {t(lang, "remove")}
@@ -1455,10 +1360,10 @@ export default function NeedsPage() {
 
                                     <div style={{ minWidth: 0 }}>
                                       <div style={{ fontSize: s(18), fontWeight: 500, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
-                                        {getSavedListItemDisplayName(item.name)}
+                                        {item.name}
                                       </div>
                                       <div style={{ fontSize: s(13), color: MC_NAVY_MUTED }}>
-                                        <QtyUnitText quantity={String(item.quantity)} unit={formatUnitDisplayLabel(item.unit, lang)} />
+                                        <QtyUnitText quantity={String(item.quantity)} unit={item.unit} />
                                         {item.store ? ` · ${item.store}` : ""}
                                       </div>
                                     </div>
@@ -1767,7 +1672,24 @@ export default function NeedsPage() {
                         borderBottom: index === section.items.length - 1 ? "none" : "1px solid #f3f4f6",
                       }}
                     >
-                      <div style={{ minWidth: 0, flex: 1 }}>
+                      <div
+                        onClick={() =>
+                          openDraft(
+                            {
+                              name: item.name,
+                              category: item.category,
+                              unit: item.unit,
+                              quantity: String(item.quantity ?? "1"),
+                              store: item.store || settings.preferredStore || "HEB",
+                            },
+                            {
+                              activeItemId: item.id,
+                              sourceListName: item.sourceListName ?? null,
+                            }
+                          )
+                        }
+                        style={{ minWidth: 0, flex: 1, cursor: "pointer" }}
+                      >
                         <div style={{ fontSize: s(18), fontWeight: 500 }}>
                           {item.name}
                           {item.sourceListName ? (
@@ -1780,7 +1702,7 @@ export default function NeedsPage() {
 
                       <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
                         <div style={{ fontSize: s(15), color: MC_NAVY_MUTED }}>
-                          <QtyUnitText quantity={String(item.quantity)} unit={formatUnitDisplayLabel(item.unit, lang)} />
+                          <QtyUnitText quantity={String(item.quantity)} unit={item.unit} />
                         </div>
 
                         <button
