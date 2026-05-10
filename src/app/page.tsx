@@ -252,6 +252,10 @@ function normalizeItemKey(name: string, category: string) {
   return `${String(name ?? "").trim().toLocaleLowerCase("es")}|${normalizeCategory(category).toLocaleLowerCase("es")}`;
 }
 
+function normalizeSourceAwareItemKey(name: string, category: string, sourceListName?: string | null) {
+  return `${normalizeItemKey(name, category)}|${String(sourceListName ?? "").trim().toLocaleLowerCase("es")}`;
+}
+
 function normalizeCatalogNameAlias(value: string | null | undefined) {
   return String(value ?? "").trim().toLocaleLowerCase("es");
 }
@@ -492,7 +496,12 @@ export default function NeedsPage() {
   );
 
   const activeShoppingListItemKeys = React.useMemo(
-    () => new Set(activeShoppingListItems.map((item) => normalizeItemKey(item.name, item.category))),
+    () =>
+      new Set(
+        activeShoppingListItems.map((item) =>
+          normalizeSourceAwareItemKey(item.name, item.category, item.sourceListName)
+        )
+      ),
     [activeShoppingListItems]
   );
 
@@ -652,7 +661,9 @@ export default function NeedsPage() {
 
   function isSavedListItemAlreadyInMyList(item: SavedListDraftItem) {
     const comparisonName = getSavedListItemDisplayName(item.name);
-    return activeShoppingListItemKeys.has(normalizeItemKey(comparisonName, item.category));
+    return activeShoppingListItemKeys.has(
+      normalizeSourceAwareItemKey(comparisonName, item.category, openedSavedList?.name)
+    );
   }
 
   function toggleOpenedSavedListItem(itemId: string) {
