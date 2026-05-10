@@ -225,6 +225,8 @@ function normalizeUnitKey(unit: string): string {
 const UNIT_ALIAS_TO_CANONICAL: Record<string, string> = {
   pieza: "piece",
   piezas: "piece",
+  pza: "piece",
+  pzas: "piece",
   piece: "piece",
   pieces: "piece",
   unidad: "unit",
