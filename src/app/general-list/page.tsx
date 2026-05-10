@@ -98,6 +98,14 @@ type ActiveCategoryGroup = {
   items: ActiveCategoryItem[];
 };
 
+type ActiveItemEditDraft = {
+  original: ActiveShoppingListItem;
+  category: string;
+  unit: string;
+  quantity: string;
+  store: string;
+};
+
 const modalOverlayStyle: React.CSSProperties = {
   position: "fixed",
   top: MODAL_TOP_OFFSET,
@@ -201,6 +209,7 @@ export default function CartPage() {
   const lang = settings.language;
   const s = (px: number) => scalePx(settings.fontScale, px);
   const [openCategory, setOpenCategory] = React.useState<string | null>(null);
+  const [activeItemDraft, setActiveItemDraft] = React.useState<ActiveItemEditDraft | null>(null);
 
   React.useEffect(() => {
     setOpenCategory(searchParams.get("category"));
@@ -343,6 +352,80 @@ export default function CartPage() {
     }
   }
 
+  const categoryOptions = React.useMemo(
+    () => CATEGORY_ORDER.filter((category) => category !== "Otro / Temporal"),
+    []
+  );
+
+  const unitOptions = React.useMemo(() => {
+    const values = new Map<string, string>();
+
+    const addValue = (value: unknown) => {
+      const raw = String(value ?? "").trim();
+      if (!raw) return;
+      const key = normalizeValue(raw);
+      if (!values.has(key)) values.set(key, raw);
+    };
+
+    itemsMaster.forEach((item: ItemMaster) => addValue(item.unit));
+    generalListItems.forEach((item: GeneralListItem) => addValue(item.unit));
+    activeShoppingListItems.forEach((item: ActiveShoppingListItem) => addValue(item.unit));
+
+    return [...values.values()].sort((a, b) => a.localeCompare(b));
+  }, [activeShoppingListItems, generalListItems, itemsMaster]);
+
+  const storeOptions = React.useMemo(() => {
+    const values = new Map<string, string>();
+
+    const addValue = (value: unknown) => {
+      const raw = String(value ?? "").trim();
+      if (!raw) return;
+      const key = normalizeValue(raw);
+      if (!values.has(key)) values.set(key, raw);
+    };
+
+    addValue(settings.preferredStore);
+    itemsMaster.forEach((item: ItemMaster) => addValue(item.defaultStore));
+    generalListItems.forEach((item: GeneralListItem) => addValue(item.store));
+    activeShoppingListItems.forEach((item: ActiveShoppingListItem) => addValue(item.store));
+
+    return [...values.values()].sort((a, b) => a.localeCompare(b));
+  }, [activeShoppingListItems, generalListItems, itemsMaster, settings.preferredStore]);
+
+  function openActiveItemDraft(item: ActiveShoppingListItem) {
+    setActiveItemDraft({
+      original: item,
+      category: item.category,
+      unit: item.unit,
+      quantity: String(item.quantity || "1"),
+      store: item.store || settings.preferredStore || "HEB",
+    });
+  }
+
+  function closeActiveItemDraft() {
+    setActiveItemDraft(null);
+  }
+
+  function saveActiveItemDraft() {
+    if (!activeItemDraft) return;
+
+    const { original, category, unit, quantity, store } = activeItemDraft;
+    const { id: originalId, ...rest } = original as ActiveShoppingListItem & Record<string, unknown>;
+
+    removeActiveItem(originalId);
+
+    addQuickNeed({
+      ...(rest as Record<string, unknown>),
+      name: original.name,
+      category,
+      unit,
+      quantity,
+      store,
+    } as Parameters<typeof addQuickNeed>[0]);
+
+    closeActiveItemDraft();
+  }
+
   if (!hydrated) {
     return (
       <AppShell
@@ -414,9 +497,12 @@ export default function CartPage() {
 
                 <div style={{ display: "grid", gap: 10 }}>
                   {group.items.map((item) => (
-                    <div
+                    <button
                       key={item.id}
+                      type="button"
+                      onClick={() => openActiveItemDraft(item)}
                       style={{
+                        width: "100%",
                         padding: "12px 14px",
                         borderRadius: 16,
                         border: "1px solid #f0f0f0",
@@ -424,6 +510,9 @@ export default function CartPage() {
                         alignItems: "center",
                         justifyContent: "space-between",
                         gap: 10,
+                        background: "#fff",
+                        color: "#111827",
+                        textAlign: "left",
                       }}
                     >
                       <div style={{ fontSize: s(17), fontWeight: 500, minWidth: 0 }}>
@@ -437,7 +526,7 @@ export default function CartPage() {
                       <div style={{ fontSize: s(15), color: "#6b7280", flexShrink: 0 }}>
                         <QtyUnitText quantity={String(item.quantity)} unit={item.unit} />
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -487,6 +576,212 @@ export default function CartPage() {
           ))}
         </div>
       </section>
+
+      {activeItemDraft ? (
+        <div style={modalOverlayStyle}>
+          <section style={modalCardStyle}>
+            <div
+              style={{
+                position: "sticky",
+                top: 0,
+                zIndex: 2,
+                background: "#fff",
+                borderBottom: "1px solid #e6ecff",
+                padding: "16px 16px 14px",
+                flexShrink: 0,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
+              }}
+            >
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: s(20), fontWeight: 900 }}>
+                  {activeItemDraft.original.name}
+                  {activeItemDraft.original.sourceListName ? (
+                    <span style={{ fontSize: s(14), fontWeight: 400, color: "#5b6b9a" }}>
+                      {" "}({activeItemDraft.original.sourceListName})
+                    </span>
+                  ) : null}
+                </div>
+                <div style={{ marginTop: 6, fontSize: s(14), color: "#5b6b9a" }}>
+                  {lang === "en"
+                    ? "Update category, unit, quantity, or store for this item."
+                    : "Actualiza categoría, unidad, cantidad o tienda de este artículo."}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={closeActiveItemDraft}
+                style={{
+                  border: "1px solid #dbe3ff",
+                  background: "#fff",
+                  color: MC_NAVY,
+                  borderRadius: 999,
+                  padding: "8px 12px",
+                  fontWeight: 800,
+                }}
+              >
+                {lang === "en" ? "Close" : "Cerrar"}
+              </button>
+            </div>
+
+            <div
+              style={{
+                overflowY: "auto",
+                WebkitOverflowScrolling: "touch",
+                overscrollBehavior: "contain",
+                touchAction: "pan-y",
+                padding: 16,
+                display: "grid",
+                gap: 14,
+                maxHeight: "min(58vh, 100%)",
+              }}
+            >
+              <label style={{ display: "grid", gap: 6 }}>
+                <span style={{ fontSize: s(13), fontWeight: 800, color: "#374151" }}>
+                  {lang === "en" ? "Category" : "Categoría"}
+                </span>
+                <select
+                  value={activeItemDraft.category}
+                  onChange={(e) =>
+                    setActiveItemDraft((current) => (current ? { ...current, category: e.target.value } : current))
+                  }
+                  style={{
+                    width: "100%",
+                    borderRadius: 14,
+                    border: "1px solid #dbe3ff",
+                    padding: "12px 14px",
+                    fontSize: s(16),
+                    background: "#fff",
+                  }}
+                >
+                  {categoryOptions.map((category) => (
+                    <option key={category} value={category}>
+                      {categoryLabel(lang, category)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <div style={{ display: "grid", gap: 14, gridTemplateColumns: "1fr 1fr" }}>
+                <label style={{ display: "grid", gap: 6 }}>
+                  <span style={{ fontSize: s(13), fontWeight: 800, color: "#374151" }}>
+                    {lang === "en" ? "Quantity" : "Cantidad"}
+                  </span>
+                  <input
+                    value={activeItemDraft.quantity}
+                    onChange={(e) =>
+                      setActiveItemDraft((current) => (current ? { ...current, quantity: e.target.value } : current))
+                    }
+                    inputMode="decimal"
+                    style={{
+                      width: "100%",
+                      borderRadius: 14,
+                      border: "1px solid #dbe3ff",
+                      padding: "12px 14px",
+                      fontSize: s(16),
+                    }}
+                  />
+                </label>
+
+                <label style={{ display: "grid", gap: 6 }}>
+                  <span style={{ fontSize: s(13), fontWeight: 800, color: "#374151" }}>
+                    {lang === "en" ? "Unit" : "Unidad"}
+                  </span>
+                  <input
+                    list="mindercart-cart-unit-options"
+                    value={activeItemDraft.unit}
+                    onChange={(e) =>
+                      setActiveItemDraft((current) => (current ? { ...current, unit: e.target.value } : current))
+                    }
+                    style={{
+                      width: "100%",
+                      borderRadius: 14,
+                      border: "1px solid #dbe3ff",
+                      padding: "12px 14px",
+                      fontSize: s(16),
+                    }}
+                  />
+                </label>
+              </div>
+
+              <label style={{ display: "grid", gap: 6 }}>
+                <span style={{ fontSize: s(13), fontWeight: 800, color: "#374151" }}>
+                  {lang === "en" ? "Store" : "Tienda"}
+                </span>
+                <input
+                  list="mindercart-cart-store-options"
+                  value={activeItemDraft.store}
+                  onChange={(e) =>
+                    setActiveItemDraft((current) => (current ? { ...current, store: e.target.value } : current))
+                  }
+                  style={{
+                    width: "100%",
+                    borderRadius: 14,
+                    border: "1px solid #dbe3ff",
+                    padding: "12px 14px",
+                    fontSize: s(16),
+                  }}
+                />
+              </label>
+
+              <datalist id="mindercart-cart-unit-options">
+                {unitOptions.map((unit) => (
+                  <option key={unit} value={unit} />
+                ))}
+              </datalist>
+
+              <datalist id="mindercart-cart-store-options">
+                {storeOptions.map((store) => (
+                  <option key={store} value={store} />
+                ))}
+              </datalist>
+            </div>
+
+            <div
+              style={{
+                borderTop: "1px solid #e6ecff",
+                padding: 16,
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 10,
+                flexShrink: 0,
+              }}
+            >
+              <button
+                type="button"
+                onClick={closeActiveItemDraft}
+                style={{
+                  border: "1px solid #dbe3ff",
+                  background: "#fff",
+                  color: MC_NAVY,
+                  borderRadius: 999,
+                  padding: "10px 14px",
+                  fontWeight: 800,
+                }}
+              >
+                {lang === "en" ? "Cancel" : "Cancelar"}
+              </button>
+              <button
+                type="button"
+                onClick={saveActiveItemDraft}
+                style={{
+                  border: "none",
+                  background: MC_NAVY,
+                  color: "#fff",
+                  borderRadius: 999,
+                  padding: "10px 16px",
+                  fontWeight: 900,
+                }}
+              >
+                {lang === "en" ? "Save" : "Guardar"}
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
 
       {selectedCategoryGroup ? (
         <div style={modalOverlayStyle}>
