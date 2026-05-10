@@ -141,6 +141,42 @@ function formatUnitOptionLabel(value: string, lang: "es" | "en") {
     : `${meta.labelEs} (${meta.abbrEs})`;
 }
 
+function resolveUnitMeta(value: string) {
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (!raw) return null;
+
+  if (raw in UNIT_OPTION_META) {
+    return UNIT_OPTION_META[raw as keyof typeof UNIT_OPTION_META];
+  }
+
+  if (["pza", "pzas", "pieza", "piezas", "unidad", "unidades", "ea", "each", "unit", "units"].includes(raw)) return UNIT_OPTION_META.pza;
+  if (["paquete", "paquetes", "pack", "packs"].includes(raw)) return UNIT_OPTION_META.paquete;
+  if (["caja", "cajas", "box", "boxes"].includes(raw)) return UNIT_OPTION_META.caja;
+  if (["lata", "latas", "can", "cans"].includes(raw)) return UNIT_OPTION_META.lata;
+  if (["botella", "botellas", "bottle", "bottles"].includes(raw)) return UNIT_OPTION_META.botella;
+  if (["frasco", "frascos", "jar", "jars"].includes(raw)) return UNIT_OPTION_META.frasco;
+  if (["bote", "botes", "tub", "tubs"].includes(raw)) return UNIT_OPTION_META.bote;
+  if (["sobre", "sobres", "packet", "packets", "pkt"].includes(raw)) return UNIT_OPTION_META.sobre;
+  if (["bolsa", "bolsas", "bag", "bags"].includes(raw)) return UNIT_OPTION_META.bolsa;
+  if (["rollo", "rollos", "roll", "rolls"].includes(raw)) return UNIT_OPTION_META.rollo;
+  if (["docena", "docenas", "dozen", "dozens"].includes(raw)) return UNIT_OPTION_META.docena;
+  if (["g", "gr", "grs", "gramo", "gramos", "gram", "grams"].includes(raw)) return UNIT_OPTION_META.g;
+  if (["kg", "kilo", "kilos", "kilogramo", "kilogramos", "kilogram", "kilograms"].includes(raw)) return UNIT_OPTION_META.kg;
+  if (["oz", "onza", "onzas", "ounce", "ounces"].includes(raw)) return UNIT_OPTION_META.oz;
+  if (["lb", "libra", "libras", "pound", "pounds"].includes(raw)) return UNIT_OPTION_META.lb;
+  if (["ml", "mililitro", "mililitros", "milliliter", "milliliters"].includes(raw)) return UNIT_OPTION_META.ml;
+  if (["l", "lt", "lts", "litro", "litros", "liter", "liters"].includes(raw)) return UNIT_OPTION_META.l;
+  if (["gal", "galon", "galones", "gallon", "gallons"].includes(raw)) return UNIT_OPTION_META.gal;
+
+  return null;
+}
+
+function formatUnitDisplayLabel(value: string, lang: "es" | "en") {
+  const meta = resolveUnitMeta(value);
+  if (!meta) return String(value ?? "").trim();
+  return lang === "en" ? meta.labelEn : meta.labelEs;
+}
+
 const FALLBACK_CATEGORY = "Otro / Temporal";
 const ORDERED_CATEGORIES = CATEGORY_OPTIONS.includes(FALLBACK_CATEGORY)
   ? [...CATEGORY_OPTIONS]
@@ -1204,7 +1240,7 @@ export default function NeedsPage() {
 
                             <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
                               <div style={{ fontSize: s(15), color: MC_NAVY_MUTED }}>
-                                <QtyUnitText quantity={String(item.quantity)} unit={item.unit} />
+                                <QtyUnitText quantity={String(item.quantity)} unit={formatUnitDisplayLabel(item.unit, lang)} />
                               </div>
 
                               <button
@@ -1377,7 +1413,7 @@ export default function NeedsPage() {
                                         {item.name}
                                       </div>
                                       <div style={{ fontSize: s(13), color: MC_NAVY_MUTED }}>
-                                        <QtyUnitText quantity={String(item.quantity)} unit={item.unit} />
+                                        <QtyUnitText quantity={String(item.quantity)} unit={formatUnitDisplayLabel(item.unit, lang)} />
                                         {item.store ? ` · ${item.store}` : ""}
                                       </div>
                                     </div>
@@ -1699,7 +1735,7 @@ export default function NeedsPage() {
 
                       <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
                         <div style={{ fontSize: s(15), color: MC_NAVY_MUTED }}>
-                          <QtyUnitText quantity={String(item.quantity)} unit={item.unit} />
+                          <QtyUnitText quantity={String(item.quantity)} unit={formatUnitDisplayLabel(item.unit, lang)} />
                         </div>
 
                         <button
