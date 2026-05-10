@@ -299,6 +299,7 @@ export default function NeedsPage() {
   const [message, setMessage] = React.useState("");
   const [suggestions, setSuggestions] = React.useState<Suggestion[]>([]);
   const [draft, setDraft] = React.useState<DraftItem | null>(null);
+  const [editingSavedListItemId, setEditingSavedListItemId] = React.useState<string | null>(null);
   const [customStores, setCustomStores] = React.useState<string[]>([]);
   const [addingStore, setAddingStore] = React.useState(false);
   const [newStoreName, setNewStoreName] = React.useState("");
@@ -311,8 +312,6 @@ export default function NeedsPage() {
   const [selectedOpenSavedListItemIds, setSelectedOpenSavedListItemIds] = React.useState<string[]>([]);
   const [savedListNameEditUnlocked, setSavedListNameEditUnlocked] = React.useState(false);
   const savedListNameInputRef = React.useRef<HTMLInputElement | null>(null);
-  const nameInputRef = React.useRef<HTMLInputElement | null>(null);
-  const touchSuggestionSelectionRef = React.useRef<string | null>(null);
 
   React.useEffect(() => {
     if (!hydrated) return;
@@ -445,12 +444,14 @@ export default function NeedsPage() {
 
   function closeDraft() {
     setDraft(null);
+    setEditingSavedListItemId(null);
     setAddingStore(false);
     setNewStoreName("");
     resetInput();
   }
 
-  function openDraft(input: DraftItem) {
+  function openDraft(input: DraftItem, options?: { savedListItemId?: string | null }) {
+    setEditingSavedListItemId(options?.savedListItemId ?? null);
     setDraft({
       name: input.name,
       category: normalizeCategory(input.category),
@@ -458,35 +459,6 @@ export default function NeedsPage() {
       quantity: input.quantity || "1",
       store: input.store || settings.preferredStore || "HEB",
     });
-  }
-
-  function getSuggestionTouchKey(suggestion: Suggestion) {
-    return `${suggestion.source}_${suggestion.id}`;
-  }
-
-  function commitSuggestionSelection(suggestion: Suggestion) {
-    nameInputRef.current?.blur();
-    applySuggestion(suggestion);
-  }
-
-  function handleSuggestionTouchStart(
-    event: React.TouchEvent<HTMLButtonElement>,
-    suggestion: Suggestion
-  ) {
-    event.preventDefault();
-    touchSuggestionSelectionRef.current = getSuggestionTouchKey(suggestion);
-    commitSuggestionSelection(suggestion);
-  }
-
-  function handleSuggestionClick(suggestion: Suggestion) {
-    const suggestionKey = getSuggestionTouchKey(suggestion);
-
-    if (touchSuggestionSelectionRef.current === suggestionKey) {
-      touchSuggestionSelectionRef.current = null;
-      return;
-    }
-
-    commitSuggestionSelection(suggestion);
   }
 
   function applySuggestion(suggestion: Suggestion) {
@@ -601,9 +573,8 @@ export default function NeedsPage() {
           ? "Lista guardada actualizada."
           : "Lista guardada creada."
     );
-
-    if (isEditSavedListView) {
-      router.push(`/?view=saved-lists&saved-list-mode=open&saved-list-id=${nextRecord.id}`);
+    if (isEditSavedListView && existing) {
+      router.push(`/?view=saved-lists&saved-list-mode=open&saved-list-id=${encodeURIComponent(existing.id)}`);
       return;
     }
 
@@ -663,13 +634,18 @@ export default function NeedsPage() {
     if (!draft) return;
 
     if (isSavedListEditorView) {
-      const normalizedKey = normalizeItemKey(draft.name, draft.category);
+      const trimmedDraftName = draft.name.trim();
+      const normalizedKey = normalizeItemKey(trimmedDraftName, draft.category);
+      const isEditingSavedListItem = Boolean(editingSavedListItemId);
 
       setSavedListItemsDraft((prev) => {
-        const existingIndex = prev.findIndex((item) => normalizeItemKey(item.name, item.category) === normalizedKey);
+        const existingIndex = editingSavedListItemId
+          ? prev.findIndex((item) => item.id === editingSavedListItemId)
+          : prev.findIndex((item) => normalizeItemKey(item.name, item.category) === normalizedKey);
+
         const nextItem: SavedListDraftItem = {
           id: existingIndex >= 0 ? prev[existingIndex].id : buildLocalId("saved-list-item"),
-          name: draft.name.trim(),
+          name: trimmedDraftName,
           category: normalizeCategory(draft.category),
           unit: normalizeUnit(draft.unit),
           quantity: String(draft.quantity ?? "1").trim() || "1",
@@ -686,7 +662,14 @@ export default function NeedsPage() {
       });
 
       setMessage(
-        `✅ ${draft.name} ${lang === "en" ? "added to this saved list." : "agregado a esta lista guardada."}`
+        `✅ ${trimmedDraftName} ${lang === "en"
+          ? isEditingSavedListItem
+            ? "updated in this saved list."
+            : "added to this saved list."
+          : isEditingSavedListItem
+            ? "actualizado en esta lista guardada."
+            : "agregado a esta lista guardada."
+        }`
       );
       closeDraft();
       return;
@@ -1194,13 +1177,27 @@ export default function NeedsPage() {
                         {section.items.map((item, index) => (
                           <div
                             key={item.id}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => openDraft(item, { savedListItemId: item.id })}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter" || event.key === " ") {
+                                event.preventDefault();
+                                openDraft(item, { savedListItemId: item.id });
+                              }
+                            }}
                             style={{
+                              width: "100%",
                               display: "flex",
                               gap: 10,
                               alignItems: "center",
                               justifyContent: "space-between",
                               padding: "14px 12px",
                               borderBottom: index === section.items.length - 1 ? "none" : "1px solid #f3f4f6",
+                              background: "#fff",
+                              textAlign: "left",
+                              cursor: "pointer",
+                              touchAction: "manipulation",
                             }}
                           >
                             <div style={{ minWidth: 0, flex: 1, fontSize: s(18), fontWeight: 500 }}>{item.name}</div>
@@ -1212,7 +1209,10 @@ export default function NeedsPage() {
 
                               <button
                                 type="button"
-                                onClick={() => removeSavedListDraftItem(item.id)}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  removeSavedListDraftItem(item.id);
+                                }}
                                 style={{
                                   padding: "8px 12px",
                                   borderRadius: 12,
@@ -1221,6 +1221,7 @@ export default function NeedsPage() {
                                   fontWeight: 700,
                                   whiteSpace: "nowrap",
                                   fontSize: s(14),
+                                  cursor: "pointer",
                                 }}
                               >
                                 {t(lang, "remove")}
@@ -1561,7 +1562,6 @@ export default function NeedsPage() {
           <div style={{ fontSize: s(16), fontWeight: 700 }}>{lang === "en" ? "I need" : "Necesito"}</div>
 
           <input
-            ref={nameInputRef}
             value={name}
             onChange={(e) => {
               setName(e.target.value);
@@ -1597,8 +1597,7 @@ export default function NeedsPage() {
                 <button
                   key={`${row.source}_${row.id}`}
                   type="button"
-                  onClick={() => handleSuggestionClick(row)}
-                  onTouchStart={(event) => handleSuggestionTouchStart(event, row)}
+                  onClick={() => applySuggestion(row)}
                   style={{
                     width: "100%",
                     textAlign: "left",
@@ -1611,8 +1610,6 @@ export default function NeedsPage() {
                     alignItems: "center",
                     justifyContent: "space-between",
                     gap: 10,
-                    touchAction: "manipulation",
-                    WebkitTapHighlightColor: "transparent",
                   }}
                 >
                   <div style={{ fontSize: s(17), fontWeight: 500 }}>{row.name}</div>
