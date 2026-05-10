@@ -651,7 +651,8 @@ export default function NeedsPage() {
   }
 
   function isSavedListItemAlreadyInMyList(item: SavedListDraftItem) {
-    return activeShoppingListItemKeys.has(normalizeItemKey(item.name, item.category));
+    const comparisonName = getSavedListItemDisplayName(item.name);
+    return activeShoppingListItemKeys.has(normalizeItemKey(comparisonName, item.category));
   }
 
   function toggleOpenedSavedListItem(itemId: string) {
