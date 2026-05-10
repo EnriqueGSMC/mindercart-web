@@ -17,7 +17,7 @@ function normalize(value: unknown) {
 
 function makeActiveKey(input: { itemKey?: string; name: string; unit: string; store: string; sourceListName?: string }) {
   const baseIdentity = normalize(input.itemKey || input.name);
-  const sourceIdentity = input.itemKey ? "" : normalize(input.sourceListName);
+  const sourceIdentity = normalize(input.sourceListName);
   return [baseIdentity, sourceIdentity, normalize(input.unit), normalize(input.store)].join("|");
 }
 
