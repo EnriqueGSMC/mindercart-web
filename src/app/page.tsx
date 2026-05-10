@@ -251,7 +251,7 @@ function readSavedListsFromBrowser() {
                   store: String(row.store ?? "HEB").trim() || "HEB",
                 } satisfies SavedListDraftItem;
               })
-              .filter((item) => item !== null) as SavedListDraftItem[]
+              .filter((item): item is SavedListDraftItem => item !== null)
           : [];
 
         return {
@@ -262,7 +262,7 @@ function readSavedListsFromBrowser() {
           items,
         } satisfies SavedListRecord;
       })
-      .filter((record) => record !== null) as SavedListRecord[];
+      .filter((record): record is SavedListRecord => record !== null);
   } catch {
     return [] as SavedListRecord[];
   }
@@ -310,8 +310,9 @@ export default function NeedsPage() {
   const [savedListsMessage, setSavedListsMessage] = React.useState("");
   const [selectedOpenSavedListItemIds, setSelectedOpenSavedListItemIds] = React.useState<string[]>([]);
   const [savedListNameEditUnlocked, setSavedListNameEditUnlocked] = React.useState(false);
-  const [editingSavedListItemId, setEditingSavedListItemId] = React.useState<string | null>(null);
   const savedListNameInputRef = React.useRef<HTMLInputElement | null>(null);
+  const nameInputRef = React.useRef<HTMLInputElement | null>(null);
+  const touchSuggestionSelectionRef = React.useRef<string | null>(null);
 
   React.useEffect(() => {
     if (!hydrated) return;
@@ -444,14 +445,12 @@ export default function NeedsPage() {
 
   function closeDraft() {
     setDraft(null);
-    setEditingSavedListItemId(null);
     setAddingStore(false);
     setNewStoreName("");
     resetInput();
   }
 
-  function openDraft(input: DraftItem, options?: { savedListItemId?: string | null }) {
-    setEditingSavedListItemId(options?.savedListItemId ?? null);
+  function openDraft(input: DraftItem) {
     setDraft({
       name: input.name,
       category: normalizeCategory(input.category),
@@ -459,6 +458,35 @@ export default function NeedsPage() {
       quantity: input.quantity || "1",
       store: input.store || settings.preferredStore || "HEB",
     });
+  }
+
+  function getSuggestionTouchKey(suggestion: Suggestion) {
+    return `${suggestion.source}_${suggestion.id}`;
+  }
+
+  function commitSuggestionSelection(suggestion: Suggestion) {
+    nameInputRef.current?.blur();
+    applySuggestion(suggestion);
+  }
+
+  function handleSuggestionTouchStart(
+    event: React.TouchEvent<HTMLButtonElement>,
+    suggestion: Suggestion
+  ) {
+    event.preventDefault();
+    touchSuggestionSelectionRef.current = getSuggestionTouchKey(suggestion);
+    commitSuggestionSelection(suggestion);
+  }
+
+  function handleSuggestionClick(suggestion: Suggestion) {
+    const suggestionKey = getSuggestionTouchKey(suggestion);
+
+    if (touchSuggestionSelectionRef.current === suggestionKey) {
+      touchSuggestionSelectionRef.current = null;
+      return;
+    }
+
+    commitSuggestionSelection(suggestion);
   }
 
   function applySuggestion(suggestion: Suggestion) {
@@ -487,17 +515,6 @@ export default function NeedsPage() {
 
   function updateDraftField(field: keyof DraftItem, value: string) {
     setDraft((prev) => (prev ? { ...prev, [field]: value } : prev));
-  }
-
-  function formatSavedListQtyUnit(quantity: string, unit: string) {
-    const normalizedUnit = normalizeUnit(unit);
-    const meta = UNIT_OPTION_META[normalizedUnit as keyof typeof UNIT_OPTION_META];
-    const unitLabel = meta
-      ? lang === "en"
-        ? meta.labelEn
-        : meta.labelEs
-      : unit;
-    return `${String(quantity ?? "1").trim() || "1"} ${unitLabel}`.trim();
   }
 
   function openAddStore() {
@@ -584,6 +601,12 @@ export default function NeedsPage() {
           ? "Lista guardada actualizada."
           : "Lista guardada creada."
     );
+
+    if (isEditSavedListView) {
+      router.push(`/?view=saved-lists&saved-list-mode=open&saved-list-id=${nextRecord.id}`);
+      return;
+    }
+
     router.push("/?view=saved-lists");
   }
 
@@ -643,16 +666,9 @@ export default function NeedsPage() {
       const normalizedKey = normalizeItemKey(draft.name, draft.category);
 
       setSavedListItemsDraft((prev) => {
-        const editingIndex = editingSavedListItemId
-          ? prev.findIndex((item) => item.id === editingSavedListItemId)
-          : -1;
-        const existingIndex = prev.findIndex((item, index) => {
-          if (editingIndex >= 0 && index === editingIndex) return false;
-          return normalizeItemKey(item.name, item.category) === normalizedKey;
-        });
-        const targetIndex = editingIndex >= 0 ? editingIndex : existingIndex;
+        const existingIndex = prev.findIndex((item) => normalizeItemKey(item.name, item.category) === normalizedKey);
         const nextItem: SavedListDraftItem = {
-          id: targetIndex >= 0 ? prev[targetIndex].id : buildLocalId("saved-list-item"),
+          id: existingIndex >= 0 ? prev[existingIndex].id : buildLocalId("saved-list-item"),
           name: draft.name.trim(),
           category: normalizeCategory(draft.category),
           unit: normalizeUnit(draft.unit),
@@ -660,9 +676,9 @@ export default function NeedsPage() {
           store: draft.store || settings.preferredStore || "HEB",
         };
 
-        if (targetIndex >= 0) {
+        if (existingIndex >= 0) {
           const next = [...prev];
-          next[targetIndex] = nextItem;
+          next[existingIndex] = nextItem;
           return next;
         }
 
@@ -1187,31 +1203,13 @@ export default function NeedsPage() {
                               borderBottom: index === section.items.length - 1 ? "none" : "1px solid #f3f4f6",
                             }}
                           >
-                            <button
-                              type="button"
-                              onClick={() => openDraft(item, { savedListItemId: item.id })}
-                              style={{
-                                minWidth: 0,
-                                flex: 1,
-                                display: "grid",
-                                gap: 4,
-                                textAlign: "left",
-                                border: "none",
-                                background: "transparent",
-                                padding: 0,
-                                margin: 0,
-                                color: "inherit",
-                                cursor: "pointer",
-                                touchAction: "manipulation",
-                              }}
-                            >
-                              <div style={{ minWidth: 0, fontSize: s(18), fontWeight: 500 }}>{item.name}</div>
-                              <div style={{ fontSize: s(15), color: MC_NAVY_MUTED }}>
-                                {formatSavedListQtyUnit(String(item.quantity), item.unit)}
-                              </div>
-                            </button>
+                            <div style={{ minWidth: 0, flex: 1, fontSize: s(18), fontWeight: 500 }}>{item.name}</div>
 
                             <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                              <div style={{ fontSize: s(15), color: MC_NAVY_MUTED }}>
+                                <QtyUnitText quantity={String(item.quantity)} unit={item.unit} />
+                              </div>
+
                               <button
                                 type="button"
                                 onClick={() => removeSavedListDraftItem(item.id)}
@@ -1563,6 +1561,7 @@ export default function NeedsPage() {
           <div style={{ fontSize: s(16), fontWeight: 700 }}>{lang === "en" ? "I need" : "Necesito"}</div>
 
           <input
+            ref={nameInputRef}
             value={name}
             onChange={(e) => {
               setName(e.target.value);
@@ -1598,7 +1597,8 @@ export default function NeedsPage() {
                 <button
                   key={`${row.source}_${row.id}`}
                   type="button"
-                  onClick={() => applySuggestion(row)}
+                  onClick={() => handleSuggestionClick(row)}
+                  onTouchStart={(event) => handleSuggestionTouchStart(event, row)}
                   style={{
                     width: "100%",
                     textAlign: "left",
@@ -1611,6 +1611,8 @@ export default function NeedsPage() {
                     alignItems: "center",
                     justifyContent: "space-between",
                     gap: 10,
+                    touchAction: "manipulation",
+                    WebkitTapHighlightColor: "transparent",
                   }}
                 >
                   <div style={{ fontSize: s(17), fontWeight: 500 }}>{row.name}</div>
