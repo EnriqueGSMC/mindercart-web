@@ -308,6 +308,8 @@ export default function NeedsPage() {
   const [savedListName, setSavedListName] = React.useState("");
   const [savedListItemsDraft, setSavedListItemsDraft] = React.useState<SavedListDraftItem[]>([]);
   const [editingSavedListItemId, setEditingSavedListItemId] = React.useState<string | null>(null);
+  const [editingActiveItemId, setEditingActiveItemId] = React.useState<string | null>(null);
+  const [editingActiveItemSourceListName, setEditingActiveItemSourceListName] = React.useState<string | null>(null);
   const [savedListsMessage, setSavedListsMessage] = React.useState("");
   const [selectedOpenSavedListItemIds, setSelectedOpenSavedListItemIds] = React.useState<string[]>([]);
   const [savedListNameEditUnlocked, setSavedListNameEditUnlocked] = React.useState(false);
@@ -445,6 +447,8 @@ export default function NeedsPage() {
   function closeDraft() {
     setDraft(null);
     setEditingSavedListItemId(null);
+    setEditingActiveItemId(null);
+    setEditingActiveItemSourceListName(null);
     setAddingStore(false);
     setNewStoreName("");
     resetInput();
@@ -452,12 +456,35 @@ export default function NeedsPage() {
 
   function openDraft(input: DraftItem, options?: { savedListItemId?: string | null }) {
     setEditingSavedListItemId(options?.savedListItemId ?? null);
+    setEditingActiveItemId(null);
+    setEditingActiveItemSourceListName(null);
     setDraft({
       name: input.name,
       category: normalizeCategory(input.category),
       unit: normalizeUnit(input.unit),
       quantity: input.quantity || "1",
       store: input.store || settings.preferredStore || "HEB",
+    });
+  }
+
+  function openActiveItemDraft(item: {
+    id: string;
+    name: string;
+    category: string;
+    unit: string;
+    quantity: string;
+    store: string;
+    sourceListName?: string;
+  }) {
+    setEditingSavedListItemId(null);
+    setEditingActiveItemId(item.id);
+    setEditingActiveItemSourceListName(item.sourceListName ?? null);
+    setDraft({
+      name: item.name,
+      category: normalizeCategory(item.category),
+      unit: normalizeUnit(item.unit),
+      quantity: item.quantity || "1",
+      store: item.store || settings.preferredStore || "HEB",
     });
   }
 
@@ -657,6 +684,21 @@ export default function NeedsPage() {
         `✅ ${draft.name} ${lang === "en" ? "updated in this saved list." : "actualizado en esta lista guardada."}`
       );
       closeDraft();
+      return;
+    }
+
+    if (editingActiveItemId) {
+      try {
+        removeActiveItem(editingActiveItemId);
+        addQuickNeed({
+          ...draft,
+          ...(editingActiveItemSourceListName ? { sourceListName: editingActiveItemSourceListName } : {}),
+        });
+        setMessage(`✅ ${draft.name} ${lang === "en" ? "updated in My List." : "actualizado en Mi Lista."}`);
+        closeDraft();
+      } catch (e: unknown) {
+        setMessage(`⚠ ${String((e as { message?: string })?.message || e)}`);
+      }
       return;
     }
 
@@ -1650,6 +1692,7 @@ export default function NeedsPage() {
                   {section.items.map((item, index) => (
                     <div
                       key={item.id}
+                      onClick={() => openActiveItemDraft(item)}
                       style={{
                         display: "flex",
                         gap: 10,
@@ -1657,6 +1700,8 @@ export default function NeedsPage() {
                         justifyContent: "space-between",
                         padding: "14px 12px",
                         borderBottom: index === section.items.length - 1 ? "none" : "1px solid #f3f4f6",
+                        cursor: "pointer",
+                        touchAction: "manipulation",
                       }}
                     >
                       <div style={{ minWidth: 0, flex: 1 }}>
@@ -1677,7 +1722,10 @@ export default function NeedsPage() {
 
                         <button
                           type="button"
-                          onClick={() => removeActiveItem(item.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeActiveItem(item.id);
+                          }}
                           style={{
                             padding: "8px 12px",
                             borderRadius: 12,
