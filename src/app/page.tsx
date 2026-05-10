@@ -600,11 +600,19 @@ export default function NeedsPage() {
           ? "Lista guardada actualizada."
           : "Lista guardada creada."
     );
-    router.push("/?view=saved-lists");
+    router.push(`/?view=saved-lists&saved-list-mode=open&saved-list-id=${encodeURIComponent(nextRecord.id)}`);
   }
 
   function isSavedListItemAlreadyInMyList(item: SavedListDraftItem) {
-    return activeShoppingListItemKeys.has(normalizeItemKey(item.name, item.category));
+    if (!openedSavedList) return false;
+
+    const normalizedKey = normalizeItemKey(item.name, item.category);
+
+    return activeShoppingListItems.some(
+      (activeItem) =>
+        normalizeItemKey(activeItem.name, activeItem.category) === normalizedKey
+        && (activeItem.sourceListName ?? null) === openedSavedList.name
+    );
   }
 
   function toggleOpenedSavedListItem(itemId: string) {
