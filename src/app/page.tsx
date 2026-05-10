@@ -252,6 +252,10 @@ function normalizeItemKey(name: string, category: string) {
   return `${String(name ?? "").trim().toLocaleLowerCase("es")}|${normalizeCategory(category).toLocaleLowerCase("es")}`;
 }
 
+function normalizeCatalogNameAlias(value: string | null | undefined) {
+  return String(value ?? "").trim().toLocaleLowerCase("es");
+}
+
 function readSavedListsFromBrowser() {
   if (typeof window === "undefined") return [] as SavedListRecord[];
 
@@ -447,6 +451,35 @@ export default function NeedsPage() {
       ]),
     };
   }, [customStores, settings.preferredStore]);
+
+  const localizedSavedListItemNames = React.useMemo(() => {
+    const state = readState() as {
+      itemsMaster?: Array<{ name?: string; nameEs?: string; nameEn?: string }>;
+    };
+
+    const map = new Map<string, string>();
+
+    for (const item of state.itemsMaster ?? []) {
+      const localizedName = String(
+        lang === "en" ? item.nameEn ?? item.name ?? "" : item.nameEs ?? item.name ?? ""
+      ).trim();
+
+      if (!localizedName) continue;
+
+      [item.name, item.nameEs, item.nameEn].forEach((alias) => {
+        const normalizedAlias = normalizeCatalogNameAlias(alias);
+        if (!normalizedAlias) return;
+        map.set(normalizedAlias, localizedName);
+      });
+    }
+
+    return map;
+  }, [lang]);
+
+  const getSavedListItemDisplayName = React.useCallback(
+    (name: string) => localizedSavedListItemNames.get(normalizeCatalogNameAlias(name)) || name,
+    [localizedSavedListItemNames]
+  );
 
   const groupedActiveShoppingListItems = React.useMemo(
     () => groupItemsByCategory(activeShoppingListItems),
@@ -1236,7 +1269,7 @@ export default function NeedsPage() {
                               touchAction: "manipulation",
                             }}
                           >
-                            <div style={{ minWidth: 0, flex: 1, fontSize: s(18), fontWeight: 500 }}>{item.name}</div>
+                            <div style={{ minWidth: 0, flex: 1, fontSize: s(18), fontWeight: 500 }}>{getSavedListItemDisplayName(item.name)}</div>
 
                             <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
                               <div style={{ fontSize: s(15), color: MC_NAVY_MUTED }}>
@@ -1410,7 +1443,7 @@ export default function NeedsPage() {
 
                                     <div style={{ minWidth: 0 }}>
                                       <div style={{ fontSize: s(18), fontWeight: 500, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
-                                        {item.name}
+                                        {getSavedListItemDisplayName(item.name)}
                                       </div>
                                       <div style={{ fontSize: s(13), color: MC_NAVY_MUTED }}>
                                         <QtyUnitText quantity={String(item.quantity)} unit={formatUnitDisplayLabel(item.unit, lang)} />
