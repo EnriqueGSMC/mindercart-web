@@ -299,7 +299,6 @@ export default function NeedsPage() {
   const [message, setMessage] = React.useState("");
   const [suggestions, setSuggestions] = React.useState<Suggestion[]>([]);
   const [draft, setDraft] = React.useState<DraftItem | null>(null);
-  const [editingActiveItem, setEditingActiveItem] = React.useState<{ id: string; sourceListName?: string } | null>(null);
   const [customStores, setCustomStores] = React.useState<string[]>([]);
   const [addingStore, setAddingStore] = React.useState(false);
   const [newStoreName, setNewStoreName] = React.useState("");
@@ -308,6 +307,7 @@ export default function NeedsPage() {
   const [savedListsLoaded, setSavedListsLoaded] = React.useState(false);
   const [savedListName, setSavedListName] = React.useState("");
   const [savedListItemsDraft, setSavedListItemsDraft] = React.useState<SavedListDraftItem[]>([]);
+  const [editingSavedListItemId, setEditingSavedListItemId] = React.useState<string | null>(null);
   const [savedListsMessage, setSavedListsMessage] = React.useState("");
   const [selectedOpenSavedListItemIds, setSelectedOpenSavedListItemIds] = React.useState<string[]>([]);
   const [savedListNameEditUnlocked, setSavedListNameEditUnlocked] = React.useState(false);
@@ -444,14 +444,14 @@ export default function NeedsPage() {
 
   function closeDraft() {
     setDraft(null);
-    setEditingActiveItem(null);
+    setEditingSavedListItemId(null);
     setAddingStore(false);
     setNewStoreName("");
     resetInput();
   }
 
-  function openDraft(input: DraftItem, options?: { activeItem?: { id: string; sourceListName?: string } | null }) {
-    setEditingActiveItem(options?.activeItem ?? null);
+  function openDraft(input: DraftItem, options?: { savedListItemId?: string | null }) {
+    setEditingSavedListItemId(options?.savedListItemId ?? null);
     setDraft({
       name: input.name,
       category: normalizeCategory(input.category),
@@ -632,7 +632,9 @@ export default function NeedsPage() {
       const normalizedKey = normalizeItemKey(draft.name, draft.category);
 
       setSavedListItemsDraft((prev) => {
-        const existingIndex = prev.findIndex((item) => normalizeItemKey(item.name, item.category) === normalizedKey);
+        const existingIndex = editingSavedListItemId
+          ? prev.findIndex((item) => item.id === editingSavedListItemId)
+          : prev.findIndex((item) => normalizeItemKey(item.name, item.category) === normalizedKey);
         const nextItem: SavedListDraftItem = {
           id: existingIndex >= 0 ? prev[existingIndex].id : buildLocalId("saved-list-item"),
           name: draft.name.trim(),
@@ -652,24 +654,9 @@ export default function NeedsPage() {
       });
 
       setMessage(
-        `✅ ${draft.name} ${lang === "en" ? "added to this saved list." : "agregado a esta lista guardada."}`
+        `✅ ${draft.name} ${lang === "en" ? "updated in this saved list." : "actualizado en esta lista guardada."}`
       );
       closeDraft();
-      return;
-    }
-
-    if (editingActiveItem) {
-      try {
-        removeActiveItem(editingActiveItem.id);
-        addQuickNeed({
-          ...draft,
-          sourceListName: editingActiveItem.sourceListName,
-        });
-        setMessage(`✅ ${draft.name} ${lang === "en" ? "updated in My List." : "actualizado en Mi Lista."}`);
-        closeDraft();
-      } catch (e: unknown) {
-        setMessage(`⚠ ${String((e as { message?: string })?.message || e)}`);
-      }
       return;
     }
 
@@ -1175,6 +1162,7 @@ export default function NeedsPage() {
                         {section.items.map((item, index) => (
                           <div
                             key={item.id}
+                            onClick={() => openDraft(item, { savedListItemId: item.id })}
                             style={{
                               display: "flex",
                               gap: 10,
@@ -1182,6 +1170,8 @@ export default function NeedsPage() {
                               justifyContent: "space-between",
                               padding: "14px 12px",
                               borderBottom: index === section.items.length - 1 ? "none" : "1px solid #f3f4f6",
+                              cursor: "pointer",
+                              touchAction: "manipulation",
                             }}
                           >
                             <div style={{ minWidth: 0, flex: 1, fontSize: s(18), fontWeight: 500 }}>{item.name}</div>
@@ -1193,7 +1183,10 @@ export default function NeedsPage() {
 
                               <button
                                 type="button"
-                                onClick={() => removeSavedListDraftItem(item.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removeSavedListDraftItem(item.id);
+                                }}
                                 style={{
                                   padding: "8px 12px",
                                   borderRadius: 12,
@@ -1657,15 +1650,6 @@ export default function NeedsPage() {
                   {section.items.map((item, index) => (
                     <div
                       key={item.id}
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => openDraft(item, { activeItem: { id: item.id, sourceListName: item.sourceListName } })}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          openDraft(item, { activeItem: { id: item.id, sourceListName: item.sourceListName } });
-                        }
-                      }}
                       style={{
                         display: "flex",
                         gap: 10,
@@ -1673,8 +1657,6 @@ export default function NeedsPage() {
                         justifyContent: "space-between",
                         padding: "14px 12px",
                         borderBottom: index === section.items.length - 1 ? "none" : "1px solid #f3f4f6",
-                        cursor: "pointer",
-                        touchAction: "manipulation",
                       }}
                     >
                       <div style={{ minWidth: 0, flex: 1 }}>
@@ -1695,10 +1677,7 @@ export default function NeedsPage() {
 
                         <button
                           type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            removeActiveItem(item.id);
-                          }}
+                          onClick={() => removeActiveItem(item.id)}
                           style={{
                             padding: "8px 12px",
                             borderRadius: 12,
