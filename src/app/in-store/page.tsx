@@ -327,9 +327,72 @@ function translateCategoryLabel(category: string, language: string) {
   return CATEGORY_LABELS_EN[normalizeCategory(category)] ?? category;
 }
 
-function formatWhatsAppItemLine(item: Pick<DisplayListItem, "name" | "quantity" | "unit">) {
+
+const WHATSAPP_UNIT_META = {
+  pza: { esSingular: "pieza", esPlural: "piezas", enSingular: "piece", enPlural: "pieces" },
+  paquete: { esSingular: "paquete", esPlural: "paquetes", enSingular: "pack", enPlural: "packs" },
+  caja: { esSingular: "caja", esPlural: "cajas", enSingular: "box", enPlural: "boxes" },
+  lata: { esSingular: "lata", esPlural: "latas", enSingular: "can", enPlural: "cans" },
+  botella: { esSingular: "botella", esPlural: "botellas", enSingular: "bottle", enPlural: "bottles" },
+  frasco: { esSingular: "frasco", esPlural: "frascos", enSingular: "jar", enPlural: "jars" },
+  bote: { esSingular: "bote", esPlural: "botes", enSingular: "tub", enPlural: "tubs" },
+  sobre: { esSingular: "sobre", esPlural: "sobres", enSingular: "packet", enPlural: "packets" },
+  bolsa: { esSingular: "bolsa", esPlural: "bolsas", enSingular: "bag", enPlural: "bags" },
+  rollo: { esSingular: "rollo", esPlural: "rollos", enSingular: "roll", enPlural: "rolls" },
+  docena: { esSingular: "docena", esPlural: "docenas", enSingular: "dozen", enPlural: "dozens" },
+  g: { esSingular: "g", esPlural: "g", enSingular: "g", enPlural: "g" },
+  kg: { esSingular: "kg", esPlural: "kg", enSingular: "kg", enPlural: "kg" },
+  oz: { esSingular: "oz", esPlural: "oz", enSingular: "oz", enPlural: "oz" },
+  lb: { esSingular: "lb", esPlural: "lb", enSingular: "lb", enPlural: "lb" },
+  ml: { esSingular: "ml", esPlural: "ml", enSingular: "ml", enPlural: "ml" },
+  l: { esSingular: "l", esPlural: "l", enSingular: "l", enPlural: "l" },
+  gal: { esSingular: "gal", esPlural: "gal", enSingular: "gal", enPlural: "gal" },
+} as const;
+
+function normalizeWhatsAppUnit(value: unknown): keyof typeof WHATSAPP_UNIT_META | "" {
+  const raw = normalizeValue(value);
+  if (!raw) return "";
+
+  if (["pza", "pzas", "pieza", "piezas", "unidad", "unidades", "ea", "each", "unit", "units", "pc", "pcs", "piece", "pieces"].includes(raw)) return "pza";
+  if (["paquete", "paquetes", "pack", "packs", "pk", "pks"].includes(raw)) return "paquete";
+  if (["caja", "cajas", "box", "boxes"].includes(raw)) return "caja";
+  if (["lata", "latas", "can", "cans"].includes(raw)) return "lata";
+  if (["botella", "botellas", "bottle", "bottles", "btl", "btls"].includes(raw)) return "botella";
+  if (["frasco", "frascos", "jar", "jars"].includes(raw)) return "frasco";
+  if (["bote", "botes", "tub", "tubs"].includes(raw)) return "bote";
+  if (["sobre", "sobres", "packet", "packets", "pkt", "pkts"].includes(raw)) return "sobre";
+  if (["bolsa", "bolsas", "bag", "bags"].includes(raw)) return "bolsa";
+  if (["rollo", "rollos", "roll", "rolls"].includes(raw)) return "rollo";
+  if (["docena", "docenas", "dozen", "dozens", "doz"].includes(raw)) return "docena";
+  if (["g", "gr", "grs", "gramo", "gramos", "gram", "grams"].includes(raw)) return "g";
+  if (["kg", "kilo", "kilos", "kilogramo", "kilogramos", "kilogram", "kilograms"].includes(raw)) return "kg";
+  if (["oz", "onza", "onzas", "ounce", "ounces"].includes(raw)) return "oz";
+  if (["lb", "libra", "libras", "pound", "pounds"].includes(raw)) return "lb";
+  if (["ml", "mililitro", "mililitros", "milliliter", "milliliters"].includes(raw)) return "ml";
+  if (["l", "lt", "lts", "litro", "litros", "liter", "liters"].includes(raw)) return "l";
+  if (["gal", "galon", "galones", "gallon", "gallons"].includes(raw)) return "gal";
+
+  return "";
+}
+
+function formatWhatsAppUnit(value: unknown, quantity: unknown, language: string) {
+  const canonicalUnit = normalizeWhatsAppUnit(value);
+  if (!canonicalUnit) return toSafeText(value);
+
+  const meta = WHATSAPP_UNIT_META[canonicalUnit];
+  const numericQuantity = Number(String(quantity ?? "").replace(",", "."));
+  const usePlural = Number.isFinite(numericQuantity) ? Math.abs(numericQuantity) !== 1 : false;
+
+  if (language === "en") {
+    return usePlural ? meta.enPlural : meta.enSingular;
+  }
+
+  return usePlural ? meta.esPlural : meta.esSingular;
+}
+
+function formatWhatsAppItemLine(item: Pick<DisplayListItem, "name" | "quantity" | "unit">, language: string) {
   const quantity = toSafeText(item.quantity);
-  const unit = toSafeText(item.unit);
+  const unit = formatWhatsAppUnit(item.unit, item.quantity, language);
   const details = [quantity, unit].filter(Boolean).join(" ");
 
   return details ? `- ${item.name} (${details})` : `- ${item.name}`;
@@ -347,7 +410,7 @@ function buildStoreWhatsAppText(
     .map((group) =>
       [
         translateCategoryLabel(group.category, language),
-        ...group.items.map((item) => formatWhatsAppItemLine(item)),
+        ...group.items.map((item) => formatWhatsAppItemLine(item, language)),
       ].join("\n")
     )
     .join("\n\n");
