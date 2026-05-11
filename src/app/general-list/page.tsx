@@ -665,58 +665,42 @@ export default function CartPage() {
                 </select>
               </label>
 
-              <div style={{ display: "grid", gap: 14, gridTemplateColumns: "1fr 1fr" }}>
-                <label style={{ display: "grid", gap: 6 }}>
-                  <span style={{ fontSize: s(13), fontWeight: 800, color: "#374151" }}>
-                    {lang === "en" ? "Quantity" : "Cantidad"}
-                  </span>
-                  <input
-                    value={activeItemDraft.quantity}
-                    onChange={(e) =>
-                      setActiveItemDraft((current) => (current ? { ...current, quantity: e.target.value } : current))
-                    }
-                    inputMode="decimal"
-                    style={{
-                      width: "100%",
-                      borderRadius: 14,
-                      border: "1px solid #dbe3ff",
-                      padding: "12px 14px",
-                      fontSize: s(16),
-                    }}
-                  />
-                </label>
-
-                <label style={{ display: "grid", gap: 6 }}>
-                  <span style={{ fontSize: s(13), fontWeight: 800, color: "#374151" }}>
-                    {lang === "en" ? "Unit" : "Unidad"}
-                  </span>
-                  <input
-                    list="mindercart-cart-unit-options"
-                    value={activeItemDraft.unit}
-                    onChange={(e) =>
-                      setActiveItemDraft((current) => (current ? { ...current, unit: e.target.value } : current))
-                    }
-                    style={{
-                      width: "100%",
-                      borderRadius: 14,
-                      border: "1px solid #dbe3ff",
-                      padding: "12px 14px",
-                      fontSize: s(16),
-                    }}
-                  />
-                </label>
-              </div>
+              <label style={{ display: "grid", gap: 6 }}>
+                <span style={{ fontSize: s(13), fontWeight: 800, color: "#374151" }}>
+                  {lang === "en" ? "Unit" : "Unidad"}
+                </span>
+                <select
+                  value={activeItemDraft.unit}
+                  onChange={(e) =>
+                    setActiveItemDraft((current) => (current ? { ...current, unit: e.target.value } : current))
+                  }
+                  style={{
+                    width: "100%",
+                    borderRadius: 14,
+                    border: "1px solid #dbe3ff",
+                    padding: "12px 14px",
+                    fontSize: s(16),
+                    background: "#fff",
+                  }}
+                >
+                  {unitOptions.map((unit) => (
+                    <option key={unit} value={unit}>
+                      {unit}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
               <label style={{ display: "grid", gap: 6 }}>
                 <span style={{ fontSize: s(13), fontWeight: 800, color: "#374151" }}>
-                  {lang === "en" ? "Store" : "Tienda"}
+                  {lang === "en" ? "Quantity" : "Cantidad"}
                 </span>
                 <input
-                  list="mindercart-cart-store-options"
-                  value={activeItemDraft.store}
+                  value={activeItemDraft.quantity}
                   onChange={(e) =>
-                    setActiveItemDraft((current) => (current ? { ...current, store: e.target.value } : current))
+                    setActiveItemDraft((current) => (current ? { ...current, quantity: e.target.value } : current))
                   }
+                  inputMode="decimal"
                   style={{
                     width: "100%",
                     borderRadius: 14,
@@ -727,17 +711,31 @@ export default function CartPage() {
                 />
               </label>
 
-              <datalist id="mindercart-cart-unit-options">
-                {unitOptions.map((unit) => (
-                  <option key={unit} value={unit} />
-                ))}
-              </datalist>
-
-              <datalist id="mindercart-cart-store-options">
-                {storeOptions.map((store) => (
-                  <option key={store} value={store} />
-                ))}
-              </datalist>
+              <label style={{ display: "grid", gap: 6 }}>
+                <span style={{ fontSize: s(13), fontWeight: 800, color: "#374151" }}>
+                  {lang === "en" ? "Store" : "Tienda"}
+                </span>
+                <select
+                  value={activeItemDraft.store}
+                  onChange={(e) =>
+                    setActiveItemDraft((current) => (current ? { ...current, store: e.target.value } : current))
+                  }
+                  style={{
+                    width: "100%",
+                    borderRadius: 14,
+                    border: "1px solid #dbe3ff",
+                    padding: "12px 14px",
+                    fontSize: s(16),
+                    background: "#fff",
+                  }}
+                >
+                  {storeOptions.map((store) => (
+                    <option key={store} value={store}>
+                      {store}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
 
             <div
