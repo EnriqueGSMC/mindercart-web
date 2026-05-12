@@ -27,6 +27,12 @@ type RemoveAction = {
   name: string;
 } | null;
 
+type MoveStoreSelection = {
+  id: string;
+  name: string;
+  currentStore: string;
+} | null;
+
 type AddFlowStep = "search" | "editor";
 
 type CatalogSuggestion = {
@@ -194,6 +200,235 @@ function deleteItemEverywhere(id: string) {
 
   writeState(next);
   return next;
+}
+
+
+function toSafeBoolean(value: unknown) {
+  return value === true;
+}
+
+function hasSourceListOrigin(item: { sourceListName?: unknown }) {
+  return toSafeText(item.sourceListName).length > 0;
+}
+
+function sameNameInStore(
+  item: {
+    name?: unknown;
+    store?: unknown;
+    defaultStore?: unknown;
+  },
+  target: {
+    name: string;
+    store: string;
+  }
+) {
+  return (
+    normalizeValue(item.name) === normalizeValue(target.name) &&
+    normalizeValue(item.store ?? item.defaultStore) === normalizeValue(target.store)
+  );
+}
+
+function sameSourceAwareIdentity(
+  item: {
+    name?: unknown;
+    unit?: unknown;
+    defaultUnit?: unknown;
+    store?: unknown;
+    defaultStore?: unknown;
+    sourceListName?: unknown;
+  },
+  target: {
+    name: string;
+    unit: string;
+    store: string;
+    sourceListName?: string | null;
+  }
+) {
+  return (
+    normalizeValue(item.name) === normalizeValue(target.name) &&
+    normalizeValue(item.unit ?? item.defaultUnit) === normalizeValue(target.unit) &&
+    normalizeValue(item.store ?? item.defaultStore) === normalizeValue(target.store) &&
+    normalizeValue(item.sourceListName) === normalizeValue(target.sourceListName)
+  );
+}
+
+function buildMoveStoreOptions(currentStore: string) {
+  const state = readState() as Record<string, unknown>;
+  const settings =
+    state.settings && typeof state.settings === "object"
+      ? (state.settings as Record<string, unknown>)
+      : {};
+  const itemsMaster = Array.isArray(state.itemsMaster)
+    ? (state.itemsMaster as Array<Record<string, unknown>>)
+    : [];
+  const generalListItems = Array.isArray(state.generalListItems)
+    ? (state.generalListItems as Array<Record<string, unknown>>)
+    : [];
+  const activeShoppingListItems = Array.isArray(state.activeShoppingListItems)
+    ? (state.activeShoppingListItems as Array<Record<string, unknown>>)
+    : [];
+  const values = new Map<string, string>();
+
+  const register = (value: unknown) => {
+    const store = toSafeText(value);
+    if (!store) return;
+    if (normalizeValue(store) === normalizeValue(currentStore)) return;
+    const key = normalizeValue(store);
+    if (values.has(key)) return;
+    values.set(key, store);
+  };
+
+  register(settings.preferredStore);
+  itemsMaster.forEach((item) => register(item.defaultStore ?? item.store));
+  generalListItems.forEach((item) => register(item.store));
+  activeShoppingListItems.forEach((item) => register(item.store));
+
+  return Array.from(values.values()).sort((left, right) => left.localeCompare(right, "es"));
+}
+
+function moveActiveItemToStore(id: string, targetStore: string) {
+  const state = readState();
+  const activeShoppingListItems = Array.isArray(state.activeShoppingListItems)
+    ? [...(state.activeShoppingListItems as Array<Record<string, unknown>>)]
+    : [];
+  const generalListItems = Array.isArray(state.generalListItems)
+    ? [...(state.generalListItems as Array<Record<string, unknown>>)]
+    : [];
+
+  const sourceIndex = activeShoppingListItems.findIndex((item) => String(item.id) === id);
+  if (sourceIndex < 0) {
+    return { ok: false as const };
+  }
+
+  const sourceItem = activeShoppingListItems[sourceIndex];
+  const currentStore = toSafeText(sourceItem.store);
+  const nextStore = toSafeText(targetStore);
+  if (!nextStore || normalizeValue(currentStore) === normalizeValue(nextStore)) {
+    return { ok: false as const };
+  }
+
+  const sourceName = toSafeText(sourceItem.name);
+  const sourceUnit = toSafeText(sourceItem.unit ?? sourceItem.defaultUnit, "pza");
+  const sourceCategory = toSafeText(sourceItem.category, "Abarrotes");
+  const sourceHasOrigin = hasSourceListOrigin(sourceItem);
+  const sourceSourceListName = toSafeText(sourceItem.sourceListName);
+  const sameNameDestinationItems = activeShoppingListItems.filter(
+    (item, index) =>
+      index !== sourceIndex &&
+      sameNameInStore(item, {
+        name: sourceName,
+        store: nextStore,
+      })
+  );
+  const mergeTarget = !sourceHasOrigin
+    ? sameNameDestinationItems.find(
+        (item) =>
+          !hasSourceListOrigin(item) &&
+          normalizeValue(item.unit ?? item.defaultUnit) === normalizeValue(sourceUnit)
+      )
+    : undefined;
+
+  const sourceGeneralIndex = generalListItems.findIndex((item) =>
+    sameSourceAwareIdentity(item, {
+      name: sourceName,
+      unit: sourceUnit,
+      store: currentStore,
+      sourceListName: sourceSourceListName,
+    })
+  );
+
+  let nextActiveShoppingListItems = activeShoppingListItems;
+  let nextGeneralListItems = generalListItems;
+  let merged = false;
+
+  if (mergeTarget) {
+    merged = true;
+    const mergeTargetId = String(mergeTarget.id ?? "");
+    const mergedQuantity = String(
+      toSafePositiveNumber(mergeTarget.quantity, 1) + toSafePositiveNumber(sourceItem.quantity, 1)
+    );
+
+    nextActiveShoppingListItems = activeShoppingListItems
+      .map((item, index) => {
+        if (index === sourceIndex) return null;
+        if (String(item.id) !== mergeTargetId) return item;
+        return {
+          ...item,
+          quantity: mergedQuantity,
+          checked: toSafeBoolean(item.checked) || toSafeBoolean(sourceItem.checked),
+        };
+      })
+      .filter(Boolean) as Array<Record<string, unknown>>;
+
+    const targetGeneralIndex = generalListItems.findIndex((item) =>
+      sameSourceAwareIdentity(item, {
+        name: sourceName,
+        unit: sourceUnit,
+        store: nextStore,
+        sourceListName: "",
+      })
+    );
+
+    nextGeneralListItems = generalListItems
+      .map((item, index) => {
+        if (index === targetGeneralIndex) {
+          return {
+            ...item,
+            quantity: mergedQuantity,
+            category: toSafeText(item.category, sourceCategory),
+            active: true,
+            lastUsedAt: Date.now(),
+          };
+        }
+
+        if (index === sourceGeneralIndex) {
+          return null;
+        }
+
+        return item;
+      })
+      .filter(Boolean) as Array<Record<string, unknown>>;
+  } else {
+    nextActiveShoppingListItems = activeShoppingListItems.map((item, index) =>
+      index === sourceIndex
+        ? {
+            ...item,
+            store: nextStore,
+          }
+        : item
+    );
+
+    if (sourceGeneralIndex >= 0) {
+      nextGeneralListItems = generalListItems.map((item, index) =>
+        index === sourceGeneralIndex
+          ? {
+              ...item,
+              store: nextStore,
+              active: true,
+              lastUsedAt: Date.now(),
+            }
+          : item
+      );
+    }
+  }
+
+  const nextState = {
+    ...state,
+    activeShoppingListItems: nextActiveShoppingListItems as any,
+    generalListItems: nextGeneralListItems as any,
+  };
+
+  writeState(nextState);
+
+  return {
+    ok: true as const,
+    currentStore,
+    targetStore: nextStore,
+    itemName: sourceName,
+    merged,
+    duplicateExists: sameNameDestinationItems.length > 0,
+    sourceHasOrigin,
+  };
 }
 
 
@@ -455,6 +690,7 @@ export default function ShoppingPage() {
   const [message, setMessage] = React.useState("");
   const [openStore, setOpenStore] = React.useState<string | null>(null);
   const [removeAction, setRemoveAction] = React.useState<RemoveAction>(null);
+  const [moveStoreSelection, setMoveStoreSelection] = React.useState<MoveStoreSelection>(null);
   const [deferredIdsByStore, setDeferredIdsByStore] = React.useState<Record<string, string[]>>({});
   const [isAddToPurchaseOpen, setIsAddToPurchaseOpen] = React.useState(false);
   const [addFlowStep, setAddFlowStep] = React.useState<AddFlowStep>("search");
@@ -489,6 +725,10 @@ export default function ShoppingPage() {
     () => groupItemsByCategory(addedItems as DisplayListItem[]),
     [addedItems]
   );
+  const moveStoreOptions = React.useMemo(
+    () => (selectedStoreGroup ? buildMoveStoreOptions(selectedStoreGroup.store) : []),
+    [selectedStoreGroup, activeShoppingListItems]
+  );
 
   if (!hydrated) {
     return (
@@ -518,6 +758,118 @@ export default function ShoppingPage() {
 
   function closeRemoveMenu() {
     setRemoveAction(null);
+  }
+
+  function closeMoveStoreSelection() {
+    setMoveStoreSelection(null);
+  }
+
+  function openMoveStoreSelection() {
+    if (!removeAction || !selectedStoreGroup) return;
+    setMoveStoreSelection({
+      id: removeAction.id,
+      name: removeAction.name,
+      currentStore: selectedStoreGroup.store,
+    });
+    closeRemoveMenu();
+  }
+
+  function onMoveItemToStore(targetStore: string) {
+    if (!moveStoreSelection) return;
+
+    const normalizedTargetStore = toSafeText(targetStore);
+    if (!normalizedTargetStore) return;
+
+    if (normalizeValue(normalizedTargetStore) === normalizeValue(moveStoreSelection.currentStore)) {
+      setMessage(
+        lang === "en"
+          ? `\"${moveStoreSelection.name}\" is already assigned to ${moveStoreSelection.currentStore}.`
+          : `\"${moveStoreSelection.name}\" ya está asignado a ${moveStoreSelection.currentStore}.`
+      );
+      closeMoveStoreSelection();
+      closeRemoveMenu();
+      return;
+    }
+
+    const state = readState();
+    const sourceItem = Array.isArray(state.activeShoppingListItems)
+      ? (state.activeShoppingListItems as Array<Record<string, unknown>>).find(
+          (item) => String(item.id) === moveStoreSelection.id
+        )
+      : null;
+
+    if (!sourceItem) {
+      setMessage(lang === "en" ? "Item not found." : "No se encontró el artículo.");
+      closeMoveStoreSelection();
+      closeRemoveMenu();
+      return;
+    }
+
+    const sameNameDestinationItems = (Array.isArray(state.activeShoppingListItems)
+      ? (state.activeShoppingListItems as Array<Record<string, unknown>>)
+      : []
+    ).filter(
+      (item) =>
+        String(item.id) !== moveStoreSelection.id &&
+        sameNameInStore(item, {
+          name: toSafeText(sourceItem.name),
+          store: normalizedTargetStore,
+        })
+    );
+
+    const canMerge =
+      !hasSourceListOrigin(sourceItem) &&
+      sameNameDestinationItems.some(
+        (item) =>
+          !hasSourceListOrigin(item) &&
+          normalizeValue(item.unit ?? item.defaultUnit) === normalizeValue(sourceItem.unit ?? sourceItem.defaultUnit)
+      );
+
+    const confirmationText =
+      sameNameDestinationItems.length > 0
+        ? canMerge
+          ? lang === "en"
+            ? `${moveStoreSelection.name} already exists in ${normalizedTargetStore}. If you continue, quantities will be merged.`
+            : `${moveStoreSelection.name} ya existe en ${normalizedTargetStore}. Si continúas, las cantidades se consolidarán.`
+          : lang === "en"
+            ? `${moveStoreSelection.name} already exists in ${normalizedTargetStore}. If you continue, it will stay as a separate item.`
+            : `${moveStoreSelection.name} ya existe en ${normalizedTargetStore}. Si continúas, quedará como artículo separado.`
+        : lang === "en"
+          ? `Move ${moveStoreSelection.name} from ${moveStoreSelection.currentStore} to ${normalizedTargetStore}?`
+          : `¿Mover ${moveStoreSelection.name} de ${moveStoreSelection.currentStore} a ${normalizedTargetStore}?`;
+
+    const confirmed = window.confirm(confirmationText);
+    if (!confirmed) return;
+
+    const result = moveActiveItemToStore(moveStoreSelection.id, normalizedTargetStore);
+    if (!result.ok) {
+      setMessage(lang === "en" ? "Item could not be moved." : "No se pudo mover el artículo.");
+      closeMoveStoreSelection();
+      closeRemoveMenu();
+      return;
+    }
+
+    setDeferredIdsByStore((current) => {
+      const next = Object.fromEntries(
+        Object.entries(current).map(([store, ids]) => [
+          store,
+          ids.filter((id) => id !== moveStoreSelection.id),
+        ])
+      );
+      return next;
+    });
+
+    setMessage(
+      result.merged
+        ? lang === "en"
+          ? `\"${moveStoreSelection.name}\" moved to ${normalizedTargetStore} and merged there.`
+          : `\"${moveStoreSelection.name}\" se movió a ${normalizedTargetStore} y se consolidó ahí.`
+        : lang === "en"
+          ? `\"${moveStoreSelection.name}\" moved to ${normalizedTargetStore}.`
+          : `\"${moveStoreSelection.name}\" se movió a ${normalizedTargetStore}.`
+    );
+    closeMoveStoreSelection();
+    closeRemoveMenu();
   }
 
   function onMoveToLater() {
@@ -792,7 +1144,7 @@ export default function ShoppingPage() {
           onClick={() => setRemoveAction({ id: item.id, name: getDisplayItemName(item) })}
           style={sideActionButtonStyle(s(14))}
         >
-          {lang === "en" ? "Remove" : "Quitar"}
+          {lang === "en" ? "Move" : "Mover"}
         </button>
       </div>
     );
@@ -1279,7 +1631,7 @@ export default function ShoppingPage() {
         <div style={modalOverlayStyle} onClick={closeRemoveMenu}>
           <div style={modalCardStyle} onClick={(event) => event.stopPropagation()}>
             <div style={{ fontSize: s(16), fontWeight: 900, color: MC_NAVY }}>
-              {lang === "en" ? "Remove item" : "Quitar artículo"}
+              {lang === "en" ? "Move item" : "Mover artículo"}
             </div>
             <div style={{ marginTop: 6, fontSize: s(14), color: MC_NAVY_MUTED }}>
               {removeAction.name}
@@ -1306,6 +1658,24 @@ export default function ShoppingPage() {
 
               <button
                 type="button"
+                onClick={openMoveStoreSelection}
+                style={{
+                  width: "100%",
+                  minHeight: 48,
+                  padding: "12px 14px",
+                  borderRadius: 16,
+                  border: `1px solid ${MC_NAVY_LINE}`,
+                  background: "#fff",
+                  color: MC_NAVY,
+                  fontWeight: 900,
+                  fontSize: s(14),
+                }}
+              >
+                {lang === "en" ? "Store" : "Tienda"}
+              </button>
+
+              <button
+                type="button"
                 onClick={onDeleteItem}
                 style={{
                   width: "100%",
@@ -1320,6 +1690,75 @@ export default function ShoppingPage() {
                 }}
               >
                 {lang === "en" ? "Delete" : "Eliminar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {moveStoreSelection ? (
+        <div style={modalOverlayStyle} onClick={closeMoveStoreSelection}>
+          <div
+            style={{
+              ...modalCardStyle,
+              maxHeight: "min(420px, calc(100dvh - 56px))",
+            }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div style={{ fontSize: s(16), fontWeight: 900, color: MC_NAVY }}>
+              {lang === "en" ? "Choose store" : "Escoge tienda"}
+            </div>
+            <div style={{ marginTop: 6, fontSize: s(14), color: MC_NAVY_MUTED }}>
+              {moveStoreSelection.name}
+            </div>
+
+            <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
+              {moveStoreOptions.length === 0 ? (
+                <div style={{ fontSize: s(14), color: MC_NAVY_MUTED }}>
+                  {lang === "en" ? "No other stores available." : "No hay otras tiendas disponibles."}
+                </div>
+              ) : (
+                <div style={{ display: "grid", gap: 10, maxHeight: 240, overflowY: "auto", paddingRight: 2 }}>
+                  {moveStoreOptions.map((store) => (
+                    <button
+                      key={store}
+                      type="button"
+                      onClick={() => onMoveItemToStore(store)}
+                      style={{
+                        width: "100%",
+                        minHeight: 48,
+                        padding: "12px 14px",
+                        borderRadius: 16,
+                        border: `1px solid ${MC_NAVY_LINE}`,
+                        background: "#fff",
+                        color: MC_NAVY,
+                        fontWeight: 900,
+                        fontSize: s(14),
+                        textAlign: "left",
+                      }}
+                    >
+                      {store}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={closeMoveStoreSelection}
+                style={{
+                  width: "100%",
+                  minHeight: 48,
+                  padding: "12px 14px",
+                  borderRadius: 16,
+                  border: `1px solid ${MC_NAVY_LINE}`,
+                  background: "#fff",
+                  color: MC_NAVY,
+                  fontWeight: 900,
+                  fontSize: s(14),
+                }}
+              >
+                {lang === "en" ? "Cancel" : "Cancelar"}
               </button>
             </div>
           </div>
