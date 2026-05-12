@@ -13,6 +13,7 @@ import {
 } from "@/components/mindercart/Shell";
 import { t } from "@/lib/mindercart/i18n";
 import {
+  STORE_OPTIONS,
   buildShoppingListHtmlForStore,
   closeShoppingForStore,
   groupByStore,
@@ -279,6 +280,7 @@ function buildMoveStoreOptions(currentStore: string) {
   };
 
   register(settings.preferredStore);
+  STORE_OPTIONS.forEach((store) => register(store));
   itemsMaster.forEach((item) => register(item.defaultStore ?? item.store));
   generalListItems.forEach((item) => register(item.store));
   activeShoppingListItems.forEach((item) => register(item.store));
