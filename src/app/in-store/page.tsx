@@ -12,6 +12,7 @@ import {
   scalePx,
 } from "@/components/mindercart/Shell";
 import { t } from "@/lib/mindercart/i18n";
+import { CATEGORY_CATALOG, UNIT_CATALOG, categoryCatalogLabel } from "@/lib/mindercart/catalog";
 import {
   buildShoppingListHtmlForStore,
   closeShoppingForStore,
@@ -60,61 +61,8 @@ type DisplayListItem = {
   sourceListName?: string | null;
 };
 
-const OFFICIAL_CATEGORIES = [
-  "Frutas y Verduras",
-  "Carnes, Pollo y Pescados",
-  "Jamón y Salchichonería",
-  "Lácteos y Refrigerados",
-  "Panadería y Tortillería",
-  "Abarrotes",
-  "Bebidas",
-  "Vinos y Licores",
-  "Congelados",
-  "Limpieza y Hogar",
-  "Farmacia, Bebé y Cuidado Personal",
-  "Mascotas",
-  "Ferretería y Autos",
-  "Cajas y Salida",
-  "Otro / Temporal",
-] as const;
-
-const CATEGORY_LABELS_EN: Record<(typeof OFFICIAL_CATEGORIES)[number], string> = {
-  "Frutas y Verduras": "Fruits and Vegetables",
-  "Carnes, Pollo y Pescados": "Meat, Poultry and Seafood",
-  "Jamón y Salchichonería": "Deli Meats and Cold Cuts",
-  "Lácteos y Refrigerados": "Dairy and Chilled",
-  "Panadería y Tortillería": "Bakery and Tortilleria",
-  Abarrotes: "Pantry and Groceries",
-  Bebidas: "Beverages",
-  "Vinos y Licores": "Wine and Spirits",
-  Congelados: "Frozen",
-  "Limpieza y Hogar": "Cleaning and Home",
-  "Farmacia, Bebé y Cuidado Personal": "Pharmacy, Baby and Personal Care",
-  Mascotas: "Pet Care",
-  "Ferretería y Autos": "Hardware and Auto",
-  "Cajas y Salida": "Checkout and Front Area",
-  "Otro / Temporal": "Other / Seasonal",
-};
-
-
-const OFFICIAL_UNITS = [
-  "pza",
-  "paquete",
-  "caja",
-  "lata",
-  "botella",
-  "frasco",
-  "bolsa",
-  "rollo",
-  "docena",
-  "g",
-  "kg",
-  "oz",
-  "lb",
-  "ml",
-  "l",
-  "gal",
-] as const;
+const OFFICIAL_CATEGORY_VALUES = CATEGORY_CATALOG.map((row) => row.legacyValue);
+const OFFICIAL_UNIT_VALUES = UNIT_CATALOG.map((row) => row.legacyValue);
 
 const modalOverlayStyle: React.CSSProperties = {
   position: "fixed",
@@ -524,9 +472,9 @@ function sameCatalogIdentity(
   );
 }
 
-function normalizeCategory(value: unknown): (typeof OFFICIAL_CATEGORIES)[number] {
+function normalizeCategory(value: unknown) {
   const normalizedCategory = normalizeValue(value);
-  const foundCategory = OFFICIAL_CATEGORIES.find(
+  const foundCategory = OFFICIAL_CATEGORY_VALUES.find(
     (category) => normalizeValue(category) === normalizedCategory
   );
 
@@ -542,7 +490,7 @@ function sortItemsByName<T extends { name?: unknown }>(items: T[]) {
 }
 
 function groupItemsByCategory<T extends { name?: unknown; category?: unknown }>(items: T[]) {
-  const itemsByCategory = new Map<(typeof OFFICIAL_CATEGORIES)[number], T[]>();
+  const itemsByCategory = new Map<string, T[]>();
 
   items.forEach((item) => {
     const category = normalizeCategory(item.category);
@@ -551,21 +499,17 @@ function groupItemsByCategory<T extends { name?: unknown; category?: unknown }>(
     itemsByCategory.set(category, currentItems);
   });
 
-  return OFFICIAL_CATEGORIES.map((category) => ({
+  return OFFICIAL_CATEGORY_VALUES.map((category) => ({
     category,
     items: sortItemsByName(itemsByCategory.get(category) ?? []),
   })).filter((group) => group.items.length > 0);
 }
 
 function translateCategoryLabel(category: string, language: string) {
-  if (language !== "en") return category;
-  return CATEGORY_LABELS_EN[normalizeCategory(category)] ?? category;
+  return categoryCatalogLabel(language === "en" ? "en" : "es", normalizeCategory(category));
 }
 
-const UNIT_OPTION_LABELS: Record<
-  (typeof OFFICIAL_UNITS)[number],
-  { es: string; en: string }
-> = {
+const UNIT_OPTION_LABELS: Record<string, { es: string; en: string }> = {
   pza: { es: "Pieza (pza)", en: "Piece (pc)" },
   paquete: { es: "Paquete (pq)", en: "Pack (pk)" },
   caja: { es: "Caja (caja)", en: "Box (box)" },
@@ -585,14 +529,14 @@ const UNIT_OPTION_LABELS: Record<
 };
 
 function formatUnitOptionLabel(unit: string, language: string) {
-  const normalizedUnit = OFFICIAL_UNITS.find(
+  const normalizedUnit = OFFICIAL_UNIT_VALUES.find(
     (option) => normalizeValue(option) === normalizeValue(unit)
   );
 
   if (!normalizedUnit) return unit;
-  return language === "en"
-    ? UNIT_OPTION_LABELS[normalizedUnit].en
-    : UNIT_OPTION_LABELS[normalizedUnit].es;
+  const labels = UNIT_OPTION_LABELS[normalizedUnit];
+  if (!labels) return unit;
+  return language === "en" ? labels.en : labels.es;
 }
 
 const WHATSAPP_UNIT_META = {
@@ -762,7 +706,7 @@ export default function ShoppingPage() {
     [selectedStoreGroup, activeShoppingListItems]
   );
   const addPurchaseUnitOptions = React.useMemo(() => {
-    const values: string[] = [...OFFICIAL_UNITS];
+    const values: string[] = [...OFFICIAL_UNIT_VALUES];
     const currentUnit = String(draftPurchaseItem?.unit ?? "").trim();
 
     if (currentUnit && !values.some((option) => normalizeValue(option) === normalizeValue(currentUnit))) {
@@ -776,7 +720,7 @@ export default function ShoppingPage() {
     );
   }, [draftPurchaseItem?.unit, lang]);
   const addPurchaseCategoryOptions = React.useMemo(() => {
-    const values: string[] = [...OFFICIAL_CATEGORIES];
+    const values: string[] = [...OFFICIAL_CATEGORY_VALUES];
     const currentCategory = String(draftPurchaseItem?.category ?? "").trim();
 
     if (
