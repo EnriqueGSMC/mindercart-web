@@ -562,6 +562,38 @@ function translateCategoryLabel(category: string, language: string) {
   return CATEGORY_LABELS_EN[normalizeCategory(category)] ?? category;
 }
 
+const UNIT_OPTION_LABELS: Record<
+  (typeof OFFICIAL_UNITS)[number],
+  { es: string; en: string }
+> = {
+  pza: { es: "Pieza (pza)", en: "Piece (pc)" },
+  paquete: { es: "Paquete (pq)", en: "Pack (pk)" },
+  caja: { es: "Caja (caja)", en: "Box (box)" },
+  lata: { es: "Lata (lata)", en: "Can (can)" },
+  botella: { es: "Botella (btl)", en: "Bottle (btl)" },
+  frasco: { es: "Frasco (frasco)", en: "Jar (jar)" },
+  bolsa: { es: "Bolsa (bag)", en: "Bag (bag)" },
+  rollo: { es: "Rollo (rollo)", en: "Roll (roll)" },
+  docena: { es: "Docena (doc)", en: "Dozen (doz)" },
+  g: { es: "Gramo (g)", en: "Gram (g)" },
+  kg: { es: "Kilogramo (kg)", en: "Kilogram (kg)" },
+  oz: { es: "Onza (oz)", en: "Ounce (oz)" },
+  lb: { es: "Libra (lb)", en: "Pound (lb)" },
+  ml: { es: "Mililitro (ml)", en: "Milliliter (ml)" },
+  l: { es: "Litro (l)", en: "Liter (l)" },
+  gal: { es: "Galón (gal)", en: "Gallon (gal)" },
+};
+
+function formatUnitOptionLabel(unit: string, language: string) {
+  const normalizedUnit = OFFICIAL_UNITS.find(
+    (option) => normalizeValue(option) === normalizeValue(unit)
+  );
+
+  if (!normalizedUnit) return unit;
+  return language === "en"
+    ? UNIT_OPTION_LABELS[normalizedUnit].en
+    : UNIT_OPTION_LABELS[normalizedUnit].es;
+}
 
 const WHATSAPP_UNIT_META = {
   pza: { esSingular: "pieza", esPlural: "piezas", enSingular: "piece", enPlural: "pieces" },
@@ -729,6 +761,20 @@ export default function ShoppingPage() {
     () => (selectedStoreGroup ? buildMoveStoreOptions(selectedStoreGroup.store) : []),
     [selectedStoreGroup, activeShoppingListItems]
   );
+  const addPurchaseUnitOptions = React.useMemo(() => {
+    const values: string[] = [...OFFICIAL_UNITS];
+    const currentUnit = String(draftPurchaseItem?.unit ?? "").trim();
+
+    if (currentUnit && !values.some((option) => normalizeValue(option) === normalizeValue(currentUnit))) {
+      values.push(currentUnit);
+    }
+
+    return values.sort((a, b) =>
+      formatUnitOptionLabel(a, lang).localeCompare(formatUnitOptionLabel(b, lang), lang, {
+        sensitivity: "base",
+      })
+    );
+  }, [draftPurchaseItem?.unit, lang]);
 
   if (!hydrated) {
     return (
@@ -1548,9 +1594,9 @@ export default function ShoppingPage() {
                         background: "#fff",
                       }}
                     >
-                      {OFFICIAL_UNITS.map((unit) => (
+                      {addPurchaseUnitOptions.map((unit) => (
                         <option key={unit} value={unit}>
-                          {unit}
+                          {formatUnitOptionLabel(unit, lang)}
                         </option>
                       ))}
                     </select>
