@@ -1464,20 +1464,29 @@ export default function ShoppingPage() {
                   style={{
                     width: "100%",
                     minHeight: 48,
-                    borderRadius: 14,
+                    borderRadius: 18,
                     border: `1px solid ${MC_NAVY_LINE}`,
-                    padding: "12px 14px",
-                    fontSize: s(16),
+                    padding: "16px 18px",
+                    fontSize: s(18),
                     outline: "none",
                     color: MC_NAVY,
+                    boxSizing: "border-box",
                   }}
                 />
                 </label>
 
                 {normalizedAddSearch.length >= 2 ? (
                   matchedSuggestions.length > 0 ? (
-                    <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
-                      {matchedSuggestions.map((item) => (
+                    <div
+                      style={{
+                        marginTop: 12,
+                        border: `1px solid ${MC_NAVY_LINE}`,
+                        borderRadius: 18,
+                        overflow: "hidden",
+                        background: "#fff",
+                      }}
+                    >
+                      {matchedSuggestions.map((item, index) => (
                         <button
                           key={`${item.name}-${item.unit}-${item.category}-${item.store}`}
                           type="button"
@@ -1485,16 +1494,21 @@ export default function ShoppingPage() {
                           style={{
                             width: "100%",
                             textAlign: "left",
-                            borderRadius: 16,
-                            border: `1px solid ${MC_NAVY_LINE}`,
+                            padding: "14px 16px",
+                            border: 0,
+                            borderBottom:
+                              index === matchedSuggestions.length - 1
+                                ? "none"
+                                : `1px solid ${MC_NAVY_SOFT}`,
                             background: "#fff",
-                            padding: 14,
                             color: MC_NAVY,
+                            display: "grid",
+                            gap: 4,
                           }}
                         >
-                          <div style={{ fontSize: s(16), fontWeight: 900 }}>{item.name}</div>
-                          <div style={{ marginTop: 4, fontSize: s(13), color: MC_NAVY_MUTED }}>
-                            {item.category} · {item.unit}
+                          <div style={{ fontSize: s(17), fontWeight: 500 }}>{item.name}</div>
+                          <div style={{ fontSize: s(14), color: MC_NAVY_MUTED }}>
+                            {translateCategoryLabel(item.category, lang)} · {formatUnitOptionLabel(item.unit, lang)}
                           </div>
                         </button>
                       ))}
