@@ -1252,10 +1252,6 @@ export default function ShoppingPage() {
 
 
           <section style={{ ...cardStyle(), padding: 14 }}>
-            <div style={{ fontSize: s(15), fontWeight: 800, marginBottom: 10 }}>
-              {lang === "en" ? "To add right now" : "Para agregar ahorita"}
-            </div>
-
             {pendingItems.length === 0 ? (
               <div
                 style={{
