@@ -404,7 +404,11 @@ export default function NeedsPage() {
       ]).sort((a, b) =>
         categoryLabel(lang, a).localeCompare(categoryLabel(lang, b), lang, { sensitivity: "base" })
       ),
-      units: [...FIXED_UNIT_OPTIONS],
+      units: [...FIXED_UNIT_OPTIONS].sort((a, b) =>
+        formatUnitOptionLabel(a, lang).localeCompare(formatUnitOptionLabel(b, lang), lang, {
+          sensitivity: "base",
+        })
+      ),
       stores: uniqueValues([
         settings.preferredStore,
         ...STORE_OPTIONS,
