@@ -325,7 +325,8 @@ export default function HistoryPage() {
                           cursor: "pointer",
                         }}
                       >
-                        {copy.backToHistory}
+                        <span>← </span>
+                        <span style={{ textDecoration: "underline" }}>{copy.backToHistory.replace(/^←\s*/, "")}</span>
                       </button>
                       <div style={{ fontSize: s(18), fontWeight: 900, lineHeight: 1.2, color: "#111827" }}>
                         {copy.purchaseLabel} · {formatDateOnly(row.closedAt, lang)}
