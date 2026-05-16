@@ -465,8 +465,12 @@ export default function CartPage() {
       values.push(currentUnit);
     }
 
-    return values;
-  }, [activeItemDraft?.unit]);
+    return values.sort((a, b) =>
+      formatUnitOptionLabel(a, lang).localeCompare(formatUnitOptionLabel(b, lang), lang, {
+        sensitivity: "base",
+      })
+    );
+  }, [activeItemDraft?.unit, lang]);
 
   const storeOptions = React.useMemo(() => {
     return uniqueValues([
