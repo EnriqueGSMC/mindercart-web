@@ -450,8 +450,11 @@ export default function CartPage() {
   }
 
   const categoryOptions = React.useMemo(
-    () => CATEGORY_ORDER.filter((category) => category !== "Otro / Temporal"),
-    []
+    () =>
+      CATEGORY_ORDER.filter((category) => category !== "Otro / Temporal").sort((a, b) =>
+        categoryLabel(lang, a).localeCompare(categoryLabel(lang, b), lang, { sensitivity: "base" })
+      ),
+    [lang]
   );
 
   const unitOptions = React.useMemo(() => {
