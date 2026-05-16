@@ -13,7 +13,6 @@ import {
 } from "@/components/mindercart/Shell";
 import { t } from "@/lib/mindercart/i18n";
 import {
-  STORE_OPTIONS,
   buildShoppingListHtmlForStore,
   closeShoppingForStore,
   groupByStore,
@@ -280,7 +279,6 @@ function buildMoveStoreOptions(currentStore: string) {
   };
 
   register(settings.preferredStore);
-  STORE_OPTIONS.forEach((store) => register(store));
   itemsMaster.forEach((item) => register(item.defaultStore ?? item.store));
   generalListItems.forEach((item) => register(item.store));
   activeShoppingListItems.forEach((item) => register(item.store));
@@ -1237,7 +1235,7 @@ export default function ShoppingPage() {
               }}
             >
               <span aria-hidden="true">←</span>
-              <span>{lang === "en" ? "Back to stores" : "Regresar a tiendas"}</span>
+              <span style={{ textDecoration: "underline", textUnderlineOffset: 2 }}>{lang === "en" ? "Back to stores" : "Regresar a tiendas"}</span>
             </button>
             <div style={{ fontSize: s(16), fontWeight: 800, color: MC_NAVY }}>
               {lang === "en" ? "Your Shopping Cart" : "Tu Carrito de Compras"}
@@ -1252,6 +1250,10 @@ export default function ShoppingPage() {
 
 
           <section style={{ ...cardStyle(), padding: 14 }}>
+            <div style={{ fontSize: s(15), fontWeight: 800, marginBottom: 10 }}>
+              {lang === "en" ? "To add right now" : "Para agregar ahorita"}
+            </div>
+
             {pendingItems.length === 0 ? (
               <div
                 style={{
@@ -1716,54 +1718,28 @@ export default function ShoppingPage() {
                   {lang === "en" ? "No other stores available." : "No hay otras tiendas disponibles."}
                 </div>
               ) : (
-                <div
-                  style={{
-                    marginTop: 2,
-                    borderRadius: 18,
-                    border: `1px solid ${MC_NAVY_LINE}`,
-                    background: MC_NAVY_SOFT,
-                    padding: 10,
-                  }}
-                >
-                  {moveStoreOptions.length > 4 ? (
-                    <div style={{ marginBottom: 8, fontSize: s(12), fontWeight: 800, color: MC_NAVY_MUTED }}>
-                      {lang === "en" ? "Scroll to see more stores" : "Desliza para ver más tiendas"}
-                    </div>
-                  ) : null}
-
-                  <div
-                    style={{
-                      display: "grid",
-                      gap: 10,
-                      maxHeight: "min(300px, calc(100dvh - 260px))",
-                      overflowY: "scroll",
-                      overscrollBehavior: "contain",
-                      WebkitOverflowScrolling: "touch",
-                      paddingRight: 4,
-                    }}
-                  >
-                    {moveStoreOptions.map((store) => (
-                      <button
-                        key={store}
-                        type="button"
-                        onClick={() => onMoveItemToStore(store)}
-                        style={{
-                          width: "100%",
-                          minHeight: 48,
-                          padding: "12px 14px",
-                          borderRadius: 16,
-                          border: `1px solid ${MC_NAVY_LINE}`,
-                          background: "#fff",
-                          color: MC_NAVY,
-                          fontWeight: 900,
-                          fontSize: s(14),
-                          textAlign: "left",
-                        }}
-                      >
-                        {store}
-                      </button>
-                    ))}
-                  </div>
+                <div style={{ display: "grid", gap: 10, maxHeight: 240, overflowY: "auto", paddingRight: 2 }}>
+                  {moveStoreOptions.map((store) => (
+                    <button
+                      key={store}
+                      type="button"
+                      onClick={() => onMoveItemToStore(store)}
+                      style={{
+                        width: "100%",
+                        minHeight: 48,
+                        padding: "12px 14px",
+                        borderRadius: 16,
+                        border: `1px solid ${MC_NAVY_LINE}`,
+                        background: "#fff",
+                        color: MC_NAVY,
+                        fontWeight: 900,
+                        fontSize: s(14),
+                        textAlign: "left",
+                      }}
+                    >
+                      {store}
+                    </button>
+                  ))}
                 </div>
               )}
 
