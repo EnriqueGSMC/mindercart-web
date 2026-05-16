@@ -3,14 +3,18 @@
 import React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell, MC_NAVY, QtyUnitText, cardStyle, scalePx } from "@/components/mindercart/Shell";
-import { categoryLabel, t } from "@/lib/mindercart/i18n";
+import { t } from "@/lib/mindercart/i18n";
+import { addGeneralSelections, addQuickNeed, itemKey, removeActiveItem } from "@/lib/mindercart/storage";
 import {
-  STORE_OPTIONS,
-  addGeneralSelections,
-  addQuickNeed,
-  itemKey,
-  removeActiveItem,
-} from "@/lib/mindercart/storage";
+  CATEGORY_LEGACY_VALUES,
+  DEFAULT_CATEGORY_VALUE,
+  STORE_SEED_VALUES,
+  UNIT_LEGACY_VALUES,
+  canonicalCategoryValue,
+  canonicalUnitValue,
+  categoryCatalogLabel,
+  getCategoryCatalogOptions,
+} from "@/lib/mindercart/catalog";
 import { useMinderCartState } from "@/lib/mindercart/hooks";
 import type { ActiveShoppingListItem, GeneralListItem, ItemMaster } from "@/lib/mindercart/types";
 
@@ -21,89 +25,7 @@ const CHECKED_ROW_BG = "#EAF1FF";
 const CHECKED_ROW_BORDER = "#C9D8FF";
 const ADD_STORE_VALUE = "__ADD_STORE__";
 
-const CATEGORY_ORDER = [
-  "Frutas y Verduras",
-  "Carnes, Pollo y Pescados",
-  "Lácteos y Refrigerados",
-  "Panadería y Tortillería",
-  "Abarrotes",
-  "Jamón y Salchichonería",
-  "Bebidas",
-  "Vinos y Licores",
-  "Congelados",
-  "Limpieza y Hogar",
-  "Farmacia, Bebé y Cuidado Personal",
-  "Mascotas",
-  "Ferretería y Autos",
-  "Cajas y Salida",
-  "Otro / Temporal",
-] as const;
-
-const CATEGORY_ALIASES: Record<string, (typeof CATEGORY_ORDER)[number]> = {
-  "frutas y verduras": "Frutas y Verduras",
-  produce: "Frutas y Verduras",
-  "carnes, pollo y pescados": "Carnes, Pollo y Pescados",
-  "meat, poultry and seafood": "Carnes, Pollo y Pescados",
-  "lácteos y refrigerados": "Lácteos y Refrigerados",
-  "lacteos y refrigerados": "Lácteos y Refrigerados",
-  "dairy and refrigerated": "Lácteos y Refrigerados",
-  "panadería y tortillería": "Panadería y Tortillería",
-  "panaderia y tortilleria": "Panadería y Tortillería",
-  "bakery and tortilla shop": "Panadería y Tortillería",
-  abarrotes: "Abarrotes",
-  groceries: "Abarrotes",
-  "jamón y salchichonería": "Jamón y Salchichonería",
-  "jamon y salchichoneria": "Jamón y Salchichonería",
-  "deli meats and cold cuts": "Jamón y Salchichonería",
-  bebidas: "Bebidas",
-  beverages: "Bebidas",
-  "vinos y licores": "Vinos y Licores",
-  "wine and spirits": "Vinos y Licores",
-  congelados: "Congelados",
-  frozen: "Congelados",
-  "limpieza y hogar": "Limpieza y Hogar",
-  "household and cleaning": "Limpieza y Hogar",
-  "farmacia, bebé y cuidado personal": "Farmacia, Bebé y Cuidado Personal",
-  "farmacia, bebe y cuidado personal": "Farmacia, Bebé y Cuidado Personal",
-  "pharmacy, baby and personal care": "Farmacia, Bebé y Cuidado Personal",
-  mascotas: "Mascotas",
-  pets: "Mascotas",
-  "ferretería y autos": "Ferretería y Autos",
-  "ferreteria y autos": "Ferretería y Autos",
-  "hardware and auto": "Ferretería y Autos",
-  "cajas y salida": "Cajas y Salida",
-  checkout: "Cajas y Salida",
-  "otro / temporal": "Otro / Temporal",
-  other: "Otro / Temporal",
-};
-
-
-
-const FIXED_UNIT_OPTIONS = [
-  "pza",
-  "paquete",
-  "caja",
-  "lata",
-  "botella",
-  "frasco",
-  "bote",
-  "sobre",
-  "bolsa",
-  "rollo",
-  "docena",
-  "g",
-  "kg",
-  "oz",
-  "lb",
-  "ml",
-  "l",
-  "gal",
-] as const;
-
-const UNIT_OPTION_META: Record<
-  (typeof FIXED_UNIT_OPTIONS)[number],
-  { labelEs: string; labelEn: string; abbrEs: string; abbrEn: string }
-> = {
+const UNIT_OPTION_META: Record<string, { labelEs: string; labelEn: string; abbrEs: string; abbrEn: string }> = {
   pza: { labelEs: "Pieza", labelEn: "Piece", abbrEs: "pza", abbrEn: "pc" },
   paquete: { labelEs: "Paquete", labelEn: "Pack", abbrEs: "paq.", abbrEn: "pack" },
   caja: { labelEs: "Caja", labelEn: "Box", abbrEs: "caja", abbrEn: "box" },
@@ -200,36 +122,10 @@ function uniqueValues(values: Array<string | null | undefined>) {
 }
 
 
-function normalizeUnitOptionValue(value: string) {
-  const raw = normalizeValue(value);
-  if (!raw) return "";
-
-  if (["pza", "pzas", "pieza", "piezas", "unidad", "unidades", "ea", "each", "unit", "units"].includes(raw)) return "pza";
-  if (["paquete", "paquetes", "pack", "packs"].includes(raw)) return "paquete";
-  if (["caja", "cajas", "box", "boxes"].includes(raw)) return "caja";
-  if (["lata", "latas", "can", "cans"].includes(raw)) return "lata";
-  if (["botella", "botellas", "bottle", "bottles"].includes(raw)) return "botella";
-  if (["frasco", "frascos", "jar", "jars"].includes(raw)) return "frasco";
-  if (["bote", "botes", "tub", "tubs"].includes(raw)) return "bote";
-  if (["sobre", "sobres", "packet", "packets", "pkt"].includes(raw)) return "sobre";
-  if (["bolsa", "bolsas", "bag", "bags"].includes(raw)) return "bolsa";
-  if (["rollo", "rollos", "roll", "rolls"].includes(raw)) return "rollo";
-  if (["docena", "docenas", "dozen", "dozens"].includes(raw)) return "docena";
-  if (["g", "gr", "grs", "gramo", "gramos", "gram", "grams"].includes(raw)) return "g";
-  if (["kg", "kilo", "kilos", "kilogramo", "kilogramos", "kilogram", "kilograms"].includes(raw)) return "kg";
-  if (["oz", "onza", "onzas", "ounce", "ounces"].includes(raw)) return "oz";
-  if (["lb", "libra", "libras", "pound", "pounds"].includes(raw)) return "lb";
-  if (["ml", "mililitro", "mililitros", "milliliter", "milliliters"].includes(raw)) return "ml";
-  if (["l", "lt", "lts", "litro", "litros", "liter", "liters"].includes(raw)) return "l";
-  if (["gal", "galon", "galones", "gallon", "gallons"].includes(raw)) return "gal";
-
-  return "";
-}
-
 function formatUnitOptionLabel(value: string, lang: "es" | "en") {
-  const canonicalValue = normalizeUnitOptionValue(value);
-  const meta = canonicalValue ? UNIT_OPTION_META[canonicalValue as keyof typeof UNIT_OPTION_META] : null;
-  if (!meta) return value;
+  const canonicalValue = canonicalUnitValue(value);
+  const meta = canonicalValue ? UNIT_OPTION_META[canonicalValue] : null;
+  if (!meta) return String(value ?? "").trim();
 
   return lang === "en" ? `${meta.labelEn} (${meta.abbrEn})` : `${meta.labelEs} (${meta.abbrEs})`;
 }
@@ -254,8 +150,7 @@ function isRowActive(item: unknown) {
 }
 
 function normalizeCategory(value: string | null | undefined) {
-  const normalized = normalizeValue(value);
-  return CATEGORY_ALIASES[normalized] || "Otro / Temporal";
+  return canonicalCategoryValue(value);
 }
 
 function groupActiveItemsByCategory(items: ActiveShoppingListItem[]) {
@@ -270,7 +165,7 @@ function groupActiveItemsByCategory(items: ActiveShoppingListItem[]) {
 
   const orderedGroups: ActiveCategoryGroup[] = [];
 
-  for (const category of CATEGORY_ORDER) {
+  for (const category of CATEGORY_LEGACY_VALUES) {
     const categoryItems = grouped.get(category) || [];
     if (categoryItems.length === 0) continue;
     orderedGroups.push({
@@ -402,7 +297,7 @@ export default function CartPage() {
       grouped.set(category, current);
     }
 
-    for (const category of CATEGORY_ORDER) {
+    for (const category of CATEGORY_LEGACY_VALUES) {
       const items = grouped.get(category) || [];
       groups.push({
         category,
@@ -449,16 +344,21 @@ export default function CartPage() {
     }
   }
 
-  const categoryOptions = React.useMemo(
-    () =>
-      CATEGORY_ORDER.filter((category) => category !== "Otro / Temporal").sort((a, b) =>
-        categoryLabel(lang, a).localeCompare(categoryLabel(lang, b), lang, { sensitivity: "base" })
-      ),
-    [lang]
-  );
+  const categoryOptions = React.useMemo(() => {
+    const values = getCategoryCatalogOptions(lang)
+      .map((option) => option.value)
+      .filter((value) => value !== DEFAULT_CATEGORY_VALUE);
+    const currentCategory = String(activeItemDraft?.category ?? "").trim();
+
+    if (currentCategory && !values.some((value) => normalizeValue(value) === normalizeValue(currentCategory))) {
+      values.push(currentCategory);
+    }
+
+    return values;
+  }, [activeItemDraft?.category, lang]);
 
   const unitOptions = React.useMemo(() => {
-    const values: string[] = [...FIXED_UNIT_OPTIONS];
+    const values: string[] = [...UNIT_LEGACY_VALUES];
     const currentUnit = String(activeItemDraft?.unit ?? "").trim();
 
     if (currentUnit && !values.some((option) => normalizeValue(option) === normalizeValue(currentUnit))) {
@@ -475,7 +375,7 @@ export default function CartPage() {
   const storeOptions = React.useMemo(() => {
     return uniqueValues([
       settings.preferredStore,
-      ...STORE_OPTIONS,
+      ...STORE_SEED_VALUES,
       ...itemsMaster.map((item: ItemMaster) => item.defaultStore),
       ...generalListItems.map((item: GeneralListItem) => item.store),
       ...activeShoppingListItems.map((item: ActiveShoppingListItem) => item.store),
@@ -606,7 +506,7 @@ export default function CartPage() {
                     fontWeight: 900,
                   }}
                 >
-                  {categoryLabel(lang, group.category)}
+                  {categoryCatalogLabel(lang, group.category)}
                 </div>
 
                 <div style={{ display: "grid", gap: 10 }}>
@@ -680,7 +580,7 @@ export default function CartPage() {
                   ? lang === "en"
                     ? "Frequent purchases"
                     : "Compras frecuentes"
-                  : categoryLabel(lang, group.category)}
+                  : categoryCatalogLabel(lang, group.category)}
               </span>
               <span style={{ fontWeight: 400, fontSize: s(15) }}>
                 {" "}
@@ -773,7 +673,7 @@ export default function CartPage() {
                 >
                   {categoryOptions.map((category) => (
                     <option key={category} value={category}>
-                      {categoryLabel(lang, category)}
+                      {categoryCatalogLabel(lang, category)}
                     </option>
                   ))}
                 </select>
@@ -1004,7 +904,7 @@ export default function CartPage() {
                   ? lang === "en"
                     ? "Frequent purchases"
                     : "Compras frecuentes"
-                  : categoryLabel(lang, selectedCategoryGroup.category)}
+                  : categoryCatalogLabel(lang, selectedCategoryGroup.category)}
               </div>
               <div style={{ marginTop: 6, fontSize: s(14), color: "#5b6b9a" }}>
                 {lang === "en"
