@@ -410,7 +410,7 @@ export default function NeedsPage() {
         ...state.generalListItems.map((item) => item.store),
         ...state.activeShoppingListItems.map((item) => item.store),
         ...customStores,
-      ]),
+      ]).sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" })),
     };
   }, [customStores, settings.preferredStore]);
 
