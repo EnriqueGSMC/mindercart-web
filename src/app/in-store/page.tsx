@@ -775,6 +775,23 @@ export default function ShoppingPage() {
       })
     );
   }, [draftPurchaseItem?.unit, lang]);
+  const addPurchaseCategoryOptions = React.useMemo(() => {
+    const values: string[] = [...OFFICIAL_CATEGORIES];
+    const currentCategory = String(draftPurchaseItem?.category ?? "").trim();
+
+    if (
+      currentCategory &&
+      !values.some((option) => normalizeValue(option) === normalizeValue(currentCategory))
+    ) {
+      values.push(currentCategory);
+    }
+
+    return values.sort((a, b) =>
+      translateCategoryLabel(a, lang).localeCompare(translateCategoryLabel(b, lang), lang, {
+        sensitivity: "base",
+      })
+    );
+  }, [draftPurchaseItem?.category, lang]);
 
   if (!hydrated) {
     return (
@@ -1621,9 +1638,9 @@ export default function ShoppingPage() {
                         background: "#fff",
                       }}
                     >
-                      {OFFICIAL_CATEGORIES.map((category) => (
+                      {addPurchaseCategoryOptions.map((category) => (
                         <option key={category} value={category}>
-                          {category}
+                          {translateCategoryLabel(category, lang)}
                         </option>
                       ))}
                     </select>
