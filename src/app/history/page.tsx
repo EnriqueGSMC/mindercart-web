@@ -301,7 +301,15 @@ export default function HistoryPage() {
                 ) : null}
 
                 {expanded ? (
-                  <div style={{ display: "grid", gap: 12, paddingBottom: 120 }}>
+                  <div
+                    style={{
+                      display: "grid",
+                      gap: 12,
+                      paddingBottom: repurchaseMode
+                        ? "calc(176px + env(safe-area-inset-bottom))"
+                        : "calc(132px + env(safe-area-inset-bottom))",
+                    }}
+                  >
                     <div
                       style={{
                         borderBottom: "1px solid #e5e7eb",
@@ -441,11 +449,12 @@ export default function HistoryPage() {
                       <div
                         style={{
                           position: "sticky",
-                          bottom: 84,
+                          bottom: "calc(84px + env(safe-area-inset-bottom))",
                           zIndex: 2,
                           background: "#fff",
                           borderTop: "1px solid #eef2f7",
                           paddingTop: 10,
+                          paddingBottom: "calc(10px + env(safe-area-inset-bottom))",
                           display: "grid",
                           gap: 10,
                         }}
