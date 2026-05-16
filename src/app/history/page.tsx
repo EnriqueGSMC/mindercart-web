@@ -260,7 +260,7 @@ export default function HistoryPage() {
           <div style={{ fontWeight: 900, fontSize: s(15) }}>{t(lang, "noHistory")}</div>
         </section>
       ) : (
-        <div style={{ display: "grid", gap: 12 }}>
+        <div style={{ display: "grid", gap: 12, paddingBottom: "calc(124px + env(safe-area-inset-bottom))" }}>
           {shoppingHistory.map((row) => {
             const expanded = expandedId === row.id;
             const repurchaseMode = Boolean(repurchaseModeByEntry[row.id]);
