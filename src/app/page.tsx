@@ -401,7 +401,9 @@ export default function NeedsPage() {
         ...state.itemsMaster.map((item) => normalizeCategory(item.category)),
         ...state.generalListItems.map((item) => normalizeCategory(item.category)),
         ...state.activeShoppingListItems.map((item) => normalizeCategory(item.category)),
-      ]),
+      ]).sort((a, b) =>
+        categoryLabel(lang, a).localeCompare(categoryLabel(lang, b), lang, { sensitivity: "base" })
+      ),
       units: [...FIXED_UNIT_OPTIONS],
       stores: uniqueValues([
         settings.preferredStore,
@@ -412,7 +414,7 @@ export default function NeedsPage() {
         ...customStores,
       ]).sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" })),
     };
-  }, [customStores, settings.preferredStore]);
+  }, [customStores, lang, settings.preferredStore]);
 
   const groupedActiveShoppingListItems = React.useMemo(
     () => groupItemsByCategory(activeShoppingListItems),
