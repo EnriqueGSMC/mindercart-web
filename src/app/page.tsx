@@ -1284,7 +1284,8 @@ export default function NeedsPage() {
                       lineHeight: 1.15,
                     }}
                   >
-                    {backToSavedListsLabel}
+                    <span>← </span>
+                    <span style={{ textDecoration: "underline" }}>{backToSavedListsLabel.replace(/^←\s*/, "")}</span>
                   </Link>
 
                   <div style={{ fontSize: s(19), fontWeight: 900, color: MC_NAVY, lineHeight: 1.15 }}>
@@ -1497,7 +1498,8 @@ export default function NeedsPage() {
                       lineHeight: 1.1,
                     }}
                   >
-                    {backToMyListLabel}
+                    <span>← </span>
+                    <span style={{ textDecoration: "underline" }}>{backToMyListLabel.replace(/^←\s*/, "")}</span>
                   </Link>
 
                   <div style={{ fontSize: s(17), fontWeight: 800, lineHeight: 1.18, paddingTop: 1 }}>
