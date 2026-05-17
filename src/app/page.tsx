@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import React from "react";
 import { AppShell, QtyUnitText, cardStyle, scalePx } from "@/components/mindercart/Shell";
 import { categoryLabel, t } from "@/lib/mindercart/i18n";
-import { canonicalUnitValue, getUnitCatalogOptions, unitCatalogLabel } from "@/lib/mindercart/catalog";
 import {
   CATEGORY_OPTIONS,
   STORE_OPTIONS,
@@ -89,6 +88,58 @@ function uniqueValues(values: Array<string | null | undefined>) {
   );
 }
 
+const FIXED_UNIT_OPTIONS = [
+  "pza",
+  "paquete",
+  "caja",
+  "lata",
+  "botella",
+  "frasco",
+  "bote",
+  "sobre",
+  "bolsa",
+  "rollo",
+  "docena",
+  "g",
+  "kg",
+  "oz",
+  "lb",
+  "ml",
+  "l",
+  "gal",
+] as const;
+
+const UNIT_OPTION_META: Record<
+  (typeof FIXED_UNIT_OPTIONS)[number],
+  { labelEs: string; labelEn: string; abbrEs: string; abbrEn: string }
+> = {
+  pza: { labelEs: "Pieza", labelEn: "Piece", abbrEs: "pza.", abbrEn: "pc" },
+  paquete: { labelEs: "Paquete", labelEn: "Pack", abbrEs: "paq.", abbrEn: "pk" },
+  caja: { labelEs: "Caja", labelEn: "Box", abbrEs: "caja", abbrEn: "box" },
+  lata: { labelEs: "Lata", labelEn: "Can", abbrEs: "lata", abbrEn: "can" },
+  botella: { labelEs: "Botella", labelEn: "Bottle", abbrEs: "bot.", abbrEn: "btl" },
+  frasco: { labelEs: "Frasco", labelEn: "Jar", abbrEs: "fras.", abbrEn: "jar" },
+  bote: { labelEs: "Bote", labelEn: "Tub", abbrEs: "bote", abbrEn: "tub" },
+  sobre: { labelEs: "Sobre", labelEn: "Packet", abbrEs: "sbre.", abbrEn: "pkt" },
+  bolsa: { labelEs: "Bolsa", labelEn: "Bag", abbrEs: "bolsa", abbrEn: "bag" },
+  rollo: { labelEs: "Rollo", labelEn: "Roll", abbrEs: "rollo", abbrEn: "roll" },
+  docena: { labelEs: "Docena", labelEn: "Dozen", abbrEs: "doc.", abbrEn: "doz" },
+  g: { labelEs: "Gramo", labelEn: "Gram", abbrEs: "g", abbrEn: "g" },
+  kg: { labelEs: "Kilogramo", labelEn: "Kilogram", abbrEs: "kg", abbrEn: "kg" },
+  oz: { labelEs: "Onza", labelEn: "Ounce", abbrEs: "oz", abbrEn: "oz" },
+  lb: { labelEs: "Libra", labelEn: "Pound", abbrEs: "lb", abbrEn: "lb" },
+  ml: { labelEs: "Mililitro", labelEn: "Milliliter", abbrEs: "mL", abbrEn: "mL" },
+  l: { labelEs: "Litro", labelEn: "Liter", abbrEs: "L", abbrEn: "L" },
+  gal: { labelEs: "Galón", labelEn: "Gallon", abbrEs: "gal", abbrEn: "gal" },
+};
+
+function formatUnitOptionLabel(value: string, lang: "es" | "en") {
+  const meta = UNIT_OPTION_META[value as keyof typeof UNIT_OPTION_META];
+  if (!meta) return value;
+  return lang === "en"
+    ? `${meta.labelEn} (${meta.abbrEn})`
+    : `${meta.labelEs} (${meta.abbrEs})`;
+}
 
 const FALLBACK_CATEGORY = "Otro / Temporal";
 const ORDERED_CATEGORIES = CATEGORY_OPTIONS.includes(FALLBACK_CATEGORY)
@@ -129,7 +180,29 @@ function groupItemsByCategory<T extends { name: string; category?: string | null
 }
 
 function normalizeUnit(value: string) {
-  return canonicalUnitValue(value);
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (!raw) return "pza";
+
+  if (["pza", "pzas", "pieza", "piezas", "unidad", "unidades", "ea", "each", "unit", "units"].includes(raw)) return "pza";
+  if (["paquete", "paquetes", "pack", "packs"].includes(raw)) return "paquete";
+  if (["caja", "cajas", "box", "boxes"].includes(raw)) return "caja";
+  if (["lata", "latas", "can", "cans"].includes(raw)) return "lata";
+  if (["botella", "botellas", "bottle", "bottles"].includes(raw)) return "botella";
+  if (["frasco", "frascos", "jar", "jars"].includes(raw)) return "frasco";
+  if (["bote", "botes", "tub", "tubs"].includes(raw)) return "bote";
+  if (["sobre", "sobres", "packet", "packets", "pkt"].includes(raw)) return "sobre";
+  if (["bolsa", "bolsas", "bag", "bags"].includes(raw)) return "bolsa";
+  if (["rollo", "rollos", "roll", "rolls"].includes(raw)) return "rollo";
+  if (["docena", "docenas", "dozen", "dozens"].includes(raw)) return "docena";
+  if (["g", "gr", "grs", "gramo", "gramos", "gram", "grams"].includes(raw)) return "g";
+  if (["kg", "kilo", "kilos", "kilogramo", "kilogramos", "kilogram", "kilograms"].includes(raw)) return "kg";
+  if (["oz", "onza", "onzas", "ounce", "ounces"].includes(raw)) return "oz";
+  if (["lb", "libra", "libras", "pound", "pounds"].includes(raw)) return "lb";
+  if (["ml", "mililitro", "mililitros", "milliliter", "milliliters"].includes(raw)) return "ml";
+  if (["l", "lt", "lts", "litro", "litros", "liter", "liters"].includes(raw)) return "l";
+  if (["gal", "galon", "galones", "gallon", "gallons"].includes(raw)) return "gal";
+
+  return "pza";
 }
 
 function buildLocalId(prefix: string) {
@@ -331,7 +404,11 @@ export default function NeedsPage() {
       ]).sort((a, b) =>
         categoryLabel(lang, a).localeCompare(categoryLabel(lang, b), lang, { sensitivity: "base" })
       ),
-      units: getUnitCatalogOptions(lang, "long_with_short").map((option) => option.value),
+      units: [...FIXED_UNIT_OPTIONS].sort((a, b) =>
+        formatUnitOptionLabel(a, lang).localeCompare(formatUnitOptionLabel(b, lang), lang, {
+          sensitivity: "base",
+        })
+      ),
       stores: uniqueValues([
         settings.preferredStore,
         ...STORE_OPTIONS,
@@ -695,7 +772,7 @@ export default function NeedsPage() {
             >
               {draftSelectOptions.units.map((option) => (
                 <option key={option} value={option}>
-                  {unitCatalogLabel(lang, option, "long_with_short")}
+                  {formatUnitOptionLabel(option, lang)}
                 </option>
               ))}
             </select>
