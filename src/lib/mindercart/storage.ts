@@ -1164,6 +1164,7 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
   const emptyLabel = lang === "en" ? "No items." : "No hay artículos.";
   const displayDate = escapeHtml(formatDisplayDate(lang));
   const pdfGroups = groupStoreRowsForPdf(rows, lang);
+  const storeLabelWithCount = `${store} (${rows.length})`;
 
   const sharedHeader = `
     <div class="mc-print-header">
@@ -1174,7 +1175,7 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
           </div>
           <div class="mc-print-left-copy">
             <div class="mc-print-title-left">MinderCart</div>
-            <div class="mc-print-store">${escapeHtml(store)}</div>
+            <div class="mc-print-store">${escapeHtml(storeLabelWithCount)}</div>
           </div>
         </div>
         <div class="mc-print-right">

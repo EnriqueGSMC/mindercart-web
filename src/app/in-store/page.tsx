@@ -552,7 +552,7 @@ function buildStoreWhatsAppText(
     )
     .join("\n\n");
 
-  return `${store}\n\n${groupedText}`.trim();
+  return `${store} (${items.length})\n\n${groupedText}`.trim();
 }
 
 function sideActionButtonStyle(fontSize: number): React.CSSProperties {
