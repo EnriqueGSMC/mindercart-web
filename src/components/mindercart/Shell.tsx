@@ -442,7 +442,7 @@ export function AppShell(props: {
               ) : null}
             </div>
 
-            {props.secondaryAction ? (
+            {!menuOpen && props.secondaryAction ? (
               <Link href={props.secondaryAction.href} style={actionButtonStyle()}>
                 {props.secondaryAction.label}
               </Link>
