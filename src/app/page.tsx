@@ -1298,6 +1298,19 @@ export default function NeedsPage() {
                     {openedSavedList?.name ?? savedListsTitle}
                   </div>
 
+                  {openedSavedList ? (
+                    <div
+                      style={{
+                        fontSize: s(12),
+                        color: MC_NAVY_MUTED,
+                        lineHeight: 1.2,
+                        maxWidth: "100%",
+                        fontWeight: 400,
+                      }}
+                    >
+                      {openListHelpText}
+                    </div>
+                  ) : null}
                 </div>
 
                 {openedSavedList ? (
@@ -1333,17 +1346,6 @@ export default function NeedsPage() {
             ) : (
               <>
                 <section style={{ ...cardStyle(), padding: 14, paddingBottom: "calc(26px + env(safe-area-inset-bottom))", width: "100%", boxSizing: "border-box", overflow: "hidden" }}>
-                  <div
-                    style={{
-                      marginBottom: 12,
-                      fontSize: s(13),
-                      fontWeight: 900,
-                      color: MC_NAVY,
-                      lineHeight: 1.2,
-                    }}
-                  >
-                    {openListHelpText}
-                  </div>
                   {groupedOpenedSavedListItems.length === 0 ? (
                     <div style={{ fontSize: s(14), color: MC_NAVY_MUTED }}>{noDraftItemsLabel}</div>
                   ) : (
@@ -1423,7 +1425,8 @@ export default function NeedsPage() {
                                         flexShrink: 0,
                                       }}
                                     >
-                                      {lang === "en" ? "Already in My List" : "Ya está en Mi Lista"}
+                                      <div>{lang === "en" ? "Already in" : "Ya está en"}</div>
+                                      <div>{lang === "en" ? "My List" : "Mi Lista"}</div>
                                     </div>
                                   ) : null}
                                 </label>
