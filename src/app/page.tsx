@@ -1298,19 +1298,6 @@ export default function NeedsPage() {
                     {openedSavedList?.name ?? savedListsTitle}
                   </div>
 
-                  {openedSavedList ? (
-                    <div
-                      style={{
-                        fontSize: s(12),
-                        color: MC_NAVY_MUTED,
-                        lineHeight: 1.2,
-                        maxWidth: "100%",
-                        fontWeight: 400,
-                      }}
-                    >
-                      {openListHelpText}
-                    </div>
-                  ) : null}
                 </div>
 
                 {openedSavedList ? (
@@ -1346,6 +1333,18 @@ export default function NeedsPage() {
             ) : (
               <>
                 <section style={{ ...cardStyle(), padding: 14, paddingBottom: "calc(26px + env(safe-area-inset-bottom))", width: "100%", boxSizing: "border-box", overflow: "hidden" }}>
+                  <div
+                    style={{
+                      fontSize: s(12),
+                      color: MC_NAVY_MUTED,
+                      lineHeight: 1.2,
+                      fontWeight: 400,
+                      marginBottom: 14,
+                    }}
+                  >
+                    {openListHelpText}
+                  </div>
+
                   {groupedOpenedSavedListItems.length === 0 ? (
                     <div style={{ fontSize: s(14), color: MC_NAVY_MUTED }}>{noDraftItemsLabel}</div>
                   ) : (
