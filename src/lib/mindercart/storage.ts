@@ -912,10 +912,9 @@ export function syncSavedListItemsToCatalog(
 
     const currentCategory = match ? canonicalizeCategory((match as { category?: string }).category) || DEFAULT_CATEGORY : "";
     const currentUnit = match ? canonicalizeUnit((match as { unit?: string }).unit) : "";
-    const currentStore = match ? cleanStore((match as { defaultStore?: string }).defaultStore) : "";
     const currentActive = match ? (match as { active?: boolean }).active !== false : false;
 
-    if (match && currentCategory === category && currentUnit === unit && currentStore === store && currentActive) {
+    if (match && currentCategory === category && currentUnit === unit && currentActive) {
       continue;
     }
 
@@ -992,7 +991,7 @@ export function buildSuggestions(query: string): Suggestion[] {
 
   return merged
     .filter((item) => {
-      const key = `${safe(item.itemKey) || normalize(item.name)}__${normalize(item.unit)}__${normalize(item.store)}`;
+      const key = safe(item.itemKey) || normalize(item.name);
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
