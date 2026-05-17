@@ -22,6 +22,7 @@ export type UnitCatalogEntry = CatalogEntryBase & {
   legacyValue: string;
   labels: LocalizedLabel;
   shortLabels: LocalizedLabel;
+  pluralLabels?: LocalizedLabel;
 };
 
 export type CategoryCatalogEntry = CatalogEntryBase & {
@@ -51,6 +52,7 @@ export const UNIT_CATALOG: readonly UnitCatalogEntry[] = [
     legacyValue: "pza",
     labels: { es: "Pieza", en: "Piece" },
     shortLabels: { es: "pza", en: "pc" },
+    pluralLabels: { es: "Piezas", en: "Pieces" },
     aliases: [
       "pza",
       "pzas",
@@ -75,6 +77,7 @@ export const UNIT_CATALOG: readonly UnitCatalogEntry[] = [
     legacyValue: "paquete",
     labels: { es: "Paquete", en: "Pack" },
     shortLabels: { es: "paquete", en: "pack" },
+    pluralLabels: { es: "Paquetes", en: "Packs" },
     aliases: ["paquete", "paquetes", "pack", "packs"],
     active: true,
   },
@@ -83,6 +86,7 @@ export const UNIT_CATALOG: readonly UnitCatalogEntry[] = [
     legacyValue: "caja",
     labels: { es: "Caja", en: "Box" },
     shortLabels: { es: "caja", en: "box" },
+    pluralLabels: { es: "Cajas", en: "Boxes" },
     aliases: ["caja", "cajas", "box", "boxes"],
     active: true,
   },
@@ -91,6 +95,7 @@ export const UNIT_CATALOG: readonly UnitCatalogEntry[] = [
     legacyValue: "lata",
     labels: { es: "Lata", en: "Can" },
     shortLabels: { es: "lata", en: "can" },
+    pluralLabels: { es: "Latas", en: "Cans" },
     aliases: ["lata", "latas", "can", "cans"],
     active: true,
   },
@@ -99,6 +104,7 @@ export const UNIT_CATALOG: readonly UnitCatalogEntry[] = [
     legacyValue: "botella",
     labels: { es: "Botella", en: "Bottle" },
     shortLabels: { es: "botella", en: "bottle" },
+    pluralLabels: { es: "Botellas", en: "Bottles" },
     aliases: ["botella", "botellas", "bottle", "bottles"],
     active: true,
   },
@@ -107,6 +113,7 @@ export const UNIT_CATALOG: readonly UnitCatalogEntry[] = [
     legacyValue: "frasco",
     labels: { es: "Frasco", en: "Jar" },
     shortLabels: { es: "frasco", en: "jar" },
+    pluralLabels: { es: "Frascos", en: "Jars" },
     aliases: ["frasco", "frascos", "jar", "jars"],
     active: true,
   },
@@ -115,6 +122,7 @@ export const UNIT_CATALOG: readonly UnitCatalogEntry[] = [
     legacyValue: "bote",
     labels: { es: "Bote", en: "Tub" },
     shortLabels: { es: "bote", en: "tub" },
+    pluralLabels: { es: "Botes", en: "Tubs" },
     aliases: ["bote", "botes", "tub", "tubs"],
     active: true,
   },
@@ -123,14 +131,34 @@ export const UNIT_CATALOG: readonly UnitCatalogEntry[] = [
     legacyValue: "sobre",
     labels: { es: "Sobre", en: "Packet" },
     shortLabels: { es: "sbre.", en: "pkt" },
+    pluralLabels: { es: "Sobres", en: "Packets" },
     aliases: ["sobre", "sobres", "sbre", "sbre.", "packet", "packets", "pkt"],
     active: true,
+  },
+  {
+    id: "carton",
+    legacyValue: "cartón",
+    labels: { es: "Cartón", en: "Carton" },
+    shortLabels: { es: "cartón", en: "carton" },
+    pluralLabels: { es: "Cartones", en: "Cartons" },
+    aliases: ["carton", "cartón", "cartones", "cartons"],
+    active: false,
+  },
+  {
+    id: "tray",
+    legacyValue: "charola",
+    labels: { es: "Charola", en: "Tray" },
+    shortLabels: { es: "charola", en: "tray" },
+    pluralLabels: { es: "Charolas", en: "Trays" },
+    aliases: ["charola", "charolas", "tray", "trays"],
+    active: false,
   },
   {
     id: "bag",
     legacyValue: "bolsa",
     labels: { es: "Bolsa", en: "Bag" },
     shortLabels: { es: "bolsa", en: "bag" },
+    pluralLabels: { es: "Bolsas", en: "Bags" },
     aliases: ["bolsa", "bolsas", "bag", "bags"],
     active: true,
   },
@@ -139,6 +167,7 @@ export const UNIT_CATALOG: readonly UnitCatalogEntry[] = [
     legacyValue: "rollo",
     labels: { es: "Rollo", en: "Roll" },
     shortLabels: { es: "rollo", en: "roll" },
+    pluralLabels: { es: "Rollos", en: "Rolls" },
     aliases: ["rollo", "rollos", "roll", "rolls"],
     active: true,
   },
@@ -147,6 +176,7 @@ export const UNIT_CATALOG: readonly UnitCatalogEntry[] = [
     legacyValue: "docena",
     labels: { es: "Docena", en: "Dozen" },
     shortLabels: { es: "docena", en: "dozen" },
+    pluralLabels: { es: "Docenas", en: "Dozens" },
     aliases: ["docena", "docenas", "dozen", "dozens"],
     active: true,
   },
@@ -203,6 +233,7 @@ export const UNIT_CATALOG: readonly UnitCatalogEntry[] = [
     legacyValue: "gal",
     labels: { es: "Galón", en: "Gallon" },
     shortLabels: { es: "gal", en: "gal" },
+    pluralLabels: { es: "Galones", en: "Gallons" },
     aliases: ["gal", "galon", "galones", "gallon", "gallons"],
     active: true,
   },
@@ -520,6 +551,34 @@ function formatUnitLabel(
   return shortLabel;
 }
 
+function shouldUsePluralQuantity(quantity: string) {
+  const parsed = Number(String(quantity ?? "").replace(",", "."));
+  return Number.isFinite(parsed) && parsed !== 1;
+}
+
+function formatQuantityAwareUnitLabel(
+  lang: CatalogLanguage,
+  row: UnitCatalogEntry,
+  quantity: string
+) {
+  if (
+    row.id === "gram" ||
+    row.id === "kilogram" ||
+    row.id === "ounce" ||
+    row.id === "pound" ||
+    row.id === "milliliter" ||
+    row.id === "liter"
+  ) {
+    return lang === "en" ? row.shortLabels.en : row.shortLabels.es;
+  }
+
+  if (shouldUsePluralQuantity(quantity) && row.pluralLabels) {
+    return lang === "en" ? row.pluralLabels.en : row.pluralLabels.es;
+  }
+
+  return lang === "en" ? row.labels.en : row.labels.es;
+}
+
 export { normalizeCatalogKey };
 
 export function resolveUnitCatalogEntry(value: unknown) {
@@ -553,6 +612,16 @@ export function unitCatalogLabel(
   const resolved = resolveUnitCatalogEntry(value);
   if (!resolved) return String(value ?? "").trim();
   return formatUnitLabel(lang, resolved, format);
+}
+
+export function unitCatalogQuantityLabel(
+  lang: CatalogLanguage,
+  value: unknown,
+  quantity: string
+) {
+  const resolved = resolveUnitCatalogEntry(value);
+  if (!resolved) return String(value ?? "").trim();
+  return formatQuantityAwareUnitLabel(lang, resolved, quantity);
 }
 
 export function categoryCatalogLabel(lang: CatalogLanguage, value: unknown) {

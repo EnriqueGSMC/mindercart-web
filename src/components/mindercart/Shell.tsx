@@ -6,6 +6,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import React from "react";
 import { useMinderCartState } from "@/lib/mindercart/hooks";
 import { t } from "@/lib/mindercart/i18n";
+import { unitCatalogQuantityLabel } from "@/lib/mindercart/catalog";
 
 export const MC_NAVY = "#12245E";
 export const MC_NAVY_TEXT = "#172554";
@@ -214,168 +215,12 @@ export function shellStyle(): React.CSSProperties {
   };
 }
 
-function normalizeUnitKey(unit: string): string {
-  return unit
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-}
-
-const UNIT_ALIAS_TO_CANONICAL: Record<string, string> = {
-  pieza: "piece",
-  piezas: "piece",
-  pza: "piece",
-  pzas: "piece",
-  piece: "piece",
-  pieces: "piece",
-  unidad: "unit",
-  unidades: "unit",
-  unit: "unit",
-  units: "unit",
-  bolsa: "bag",
-  bolsas: "bag",
-  bag: "bag",
-  bags: "bag",
-  paquete: "pack",
-  paquetes: "pack",
-  pack: "pack",
-  packs: "pack",
-  docena: "dozen",
-  docenas: "dozen",
-  dozen: "dozen",
-  dozens: "dozen",
-  botella: "bottle",
-  botellas: "bottle",
-  bottle: "bottle",
-  bottles: "bottle",
-  caja: "box",
-  cajas: "box",
-  box: "box",
-  boxes: "box",
-  lata: "can",
-  latas: "can",
-  can: "can",
-  cans: "can",
-  bote: "jar",
-  botes: "jar",
-  jar: "jar",
-  jars: "jar",
-  sobre: "sachet",
-  sobres: "sachet",
-  sachet: "sachet",
-  sachets: "sachet",
-  carton: "carton",
-  cartón: "carton",
-  cartones: "carton",
-  cartons: "carton",
-  rollo: "roll",
-  rollos: "roll",
-  roll: "roll",
-  rolls: "roll",
-  charola: "tray",
-  charolas: "tray",
-  tray: "tray",
-  trays: "tray",
-  kilo: "kilogram",
-  kilos: "kilogram",
-  kilogramo: "kilogram",
-  kilogramos: "kilogram",
-  kilogram: "kilogram",
-  kilograms: "kilogram",
-  kg: "kg",
-  gramo: "gram",
-  gramos: "gram",
-  gram: "gram",
-  grams: "gram",
-  g: "g",
-  litro: "liter",
-  litros: "liter",
-  liter: "liter",
-  liters: "liter",
-  l: "l",
-  mililitro: "milliliter",
-  mililitros: "milliliter",
-  milliliter: "milliliter",
-  milliliters: "milliliter",
-  ml: "ml",
-  libra: "pound",
-  libras: "pound",
-  pound: "pound",
-  pounds: "pound",
-  lb: "lb",
-  lbs: "lb",
-  onza: "ounce",
-  onzas: "ounce",
-  ounce: "ounce",
-  ounces: "ounce",
-  oz: "oz",
-  galon: "gallon",
-  galón: "gallon",
-  galones: "gallon",
-  gallon: "gallon",
-  gallons: "gallon",
-};
-
-const UNIT_DISPLAY: Record<
-  string,
-  { singular: { es: string; en: string }; plural: { es: string; en: string } }
-> = {
-  piece: { singular: { es: "pieza", en: "piece" }, plural: { es: "piezas", en: "pieces" } },
-  unit: { singular: { es: "unidad", en: "unit" }, plural: { es: "unidades", en: "units" } },
-  bag: { singular: { es: "bolsa", en: "bag" }, plural: { es: "bolsas", en: "bags" } },
-  pack: { singular: { es: "paquete", en: "pack" }, plural: { es: "paquetes", en: "packs" } },
-  dozen: { singular: { es: "docena", en: "dozen" }, plural: { es: "docenas", en: "dozens" } },
-  bottle: { singular: { es: "botella", en: "bottle" }, plural: { es: "botellas", en: "bottles" } },
-  box: { singular: { es: "caja", en: "box" }, plural: { es: "cajas", en: "boxes" } },
-  can: { singular: { es: "lata", en: "can" }, plural: { es: "latas", en: "cans" } },
-  jar: { singular: { es: "bote", en: "jar" }, plural: { es: "botes", en: "jars" } },
-  sachet: { singular: { es: "sobre", en: "sachet" }, plural: { es: "sobres", en: "sachets" } },
-  carton: { singular: { es: "cartón", en: "carton" }, plural: { es: "cartones", en: "cartons" } },
-  roll: { singular: { es: "rollo", en: "roll" }, plural: { es: "rollos", en: "rolls" } },
-  tray: { singular: { es: "charola", en: "tray" }, plural: { es: "charolas", en: "trays" } },
-  kilogram: { singular: { es: "kilogramo", en: "kilogram" }, plural: { es: "kilogramos", en: "kilograms" } },
-  gram: { singular: { es: "gramo", en: "gram" }, plural: { es: "gramos", en: "grams" } },
-  liter: { singular: { es: "litro", en: "liter" }, plural: { es: "litros", en: "liters" } },
-  milliliter: { singular: { es: "mililitro", en: "milliliter" }, plural: { es: "mililitros", en: "milliliters" } },
-  pound: { singular: { es: "libra", en: "pound" }, plural: { es: "libras", en: "pounds" } },
-  ounce: { singular: { es: "onza", en: "ounce" }, plural: { es: "onzas", en: "ounces" } },
-  gallon: { singular: { es: "galón", en: "gallon" }, plural: { es: "galones", en: "gallons" } },
-};
-
-function shouldUsePlural(quantity: string): boolean {
-  const parsed = Number(String(quantity).replace(",", "."));
-  return Number.isFinite(parsed) && parsed !== 1;
-}
-
-function formatLocalizedUnit(unit: string, quantity: string, language: string): string {
-  const lang = language === "en" ? "en" : "es";
-  const normalized = normalizeUnitKey(unit);
-  const canonical = UNIT_ALIAS_TO_CANONICAL[normalized];
-
-  if (!canonical) {
-    return unit;
-  }
-
-  if (canonical === "kg" || canonical === "g" || canonical === "l" || canonical === "ml" || canonical === "lb" || canonical === "oz") {
-    return canonical;
-  }
-
-  const labels = UNIT_DISPLAY[canonical];
-
-  if (!labels) {
-    return unit;
-  }
-
-  return shouldUsePlural(quantity) ? labels.plural[lang] : labels.singular[lang];
-}
-
 export function QtyUnitText(props: { quantity: string; unit: string }) {
   const { settings } = useMinderCartState();
   const [compact, setCompact] = React.useState(false);
   const language = settings?.language === "en" ? "en" : "es";
   const localizedUnit = React.useMemo(
-    () => formatLocalizedUnit(props.unit, props.quantity, language),
+    () => unitCatalogQuantityLabel(language, props.unit, props.quantity),
     [language, props.quantity, props.unit]
   );
 
