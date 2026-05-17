@@ -299,7 +299,10 @@ export function AppShell(props: {
               ? t(lang, "settingsTitle")
               : t(lang, "appName");
 
-  const title = props.title || props.sectionLabel || fallbackTitle;
+  const menuTitle = lang === "es" ? "Menú" : "Menu";
+  const menuSubtitle = lang === "es" ? "Selecciona una opción" : "Choose an option";
+  const title = menuOpen ? menuTitle : props.title || props.sectionLabel || fallbackTitle;
+  const subtitle = menuOpen ? menuSubtitle : props.subtitle;
   const settingsHref = `/settings?returnTo=${encodeURIComponent(pathname || "/")}`;
 
   const menuItems = [
@@ -425,7 +428,7 @@ export function AppShell(props: {
                 {title}
               </div>
 
-              {props.subtitle ? (
+              {subtitle ? (
                 <div
                   style={{
                     marginTop: 4,
@@ -434,7 +437,7 @@ export function AppShell(props: {
                     textAlign: "left",
                   }}
                 >
-                  {props.subtitle}
+                  {subtitle}
                 </div>
               ) : null}
             </div>
