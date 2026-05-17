@@ -12,7 +12,13 @@ import {
   scalePx,
 } from "@/components/mindercart/Shell";
 import { t } from "@/lib/mindercart/i18n";
-import { CATEGORY_CATALOG, UNIT_CATALOG, categoryCatalogLabel } from "@/lib/mindercart/catalog";
+import {
+  CATEGORY_CATALOG,
+  UNIT_CATALOG,
+  categoryCatalogLabel,
+  unitCatalogLabel,
+  unitCatalogQuantityLabel,
+} from "@/lib/mindercart/catalog";
 import {
   buildShoppingListHtmlForStore,
   closeShoppingForStore,
@@ -509,98 +515,16 @@ function translateCategoryLabel(category: string, language: string) {
   return categoryCatalogLabel(language === "en" ? "en" : "es", normalizeCategory(category));
 }
 
-const UNIT_OPTION_LABELS: Record<string, { es: string; en: string }> = {
-  pza: { es: "Pieza (pza)", en: "Piece (pc)" },
-  paquete: { es: "Paquete (paq.)", en: "Pack (pack)" },
-  caja: { es: "Caja (caja)", en: "Box (box)" },
-  lata: { es: "Lata (lata)", en: "Can (can)" },
-  botella: { es: "Botella (bot.)", en: "Bottle (btl)" },
-  frasco: { es: "Frasco (fras.)", en: "Jar (jar)" },
-  bote: { es: "Bote (bote)", en: "Tub (tub)" },
-  sobre: { es: "Sobre (sbre.)", en: "Packet (pkt)" },
-  bolsa: { es: "Bolsa (bolsa)", en: "Bag (bag)" },
-  rollo: { es: "Rollo (rollo)", en: "Roll (roll)" },
-  docena: { es: "Docena (doc.)", en: "Dozen (doz)" },
-  g: { es: "Gramo (g)", en: "Gram (g)" },
-  kg: { es: "Kilogramo (kg)", en: "Kilogram (kg)" },
-  oz: { es: "Onza (oz)", en: "Ounce (oz)" },
-  lb: { es: "Libra (lb)", en: "Pound (lb)" },
-  ml: { es: "Mililitro (mL)", en: "Milliliter (mL)" },
-  l: { es: "Litro (L)", en: "Liter (L)" },
-  gal: { es: "Galón (gal)", en: "Gallon (gal)" },
-};
-
 function formatUnitOptionLabel(unit: string, language: string) {
-  const normalizedUnit = OFFICIAL_UNIT_VALUES.find(
-    (option) => normalizeValue(option) === normalizeValue(unit)
-  );
-
-  if (!normalizedUnit) return unit;
-  const labels = UNIT_OPTION_LABELS[normalizedUnit];
-  if (!labels) return unit;
-  return language === "en" ? labels.en : labels.es;
-}
-
-const WHATSAPP_UNIT_META = {
-  pza: { esSingular: "pieza", esPlural: "piezas", enSingular: "piece", enPlural: "pieces" },
-  paquete: { esSingular: "paquete", esPlural: "paquetes", enSingular: "pack", enPlural: "packs" },
-  caja: { esSingular: "caja", esPlural: "cajas", enSingular: "box", enPlural: "boxes" },
-  lata: { esSingular: "lata", esPlural: "latas", enSingular: "can", enPlural: "cans" },
-  botella: { esSingular: "botella", esPlural: "botellas", enSingular: "bottle", enPlural: "bottles" },
-  frasco: { esSingular: "frasco", esPlural: "frascos", enSingular: "jar", enPlural: "jars" },
-  bote: { esSingular: "bote", esPlural: "botes", enSingular: "tub", enPlural: "tubs" },
-  sobre: { esSingular: "sobre", esPlural: "sobres", enSingular: "packet", enPlural: "packets" },
-  bolsa: { esSingular: "bolsa", esPlural: "bolsas", enSingular: "bag", enPlural: "bags" },
-  rollo: { esSingular: "rollo", esPlural: "rollos", enSingular: "roll", enPlural: "rolls" },
-  docena: { esSingular: "docena", esPlural: "docenas", enSingular: "dozen", enPlural: "dozens" },
-  g: { esSingular: "g", esPlural: "g", enSingular: "g", enPlural: "g" },
-  kg: { esSingular: "kg", esPlural: "kg", enSingular: "kg", enPlural: "kg" },
-  oz: { esSingular: "oz", esPlural: "oz", enSingular: "oz", enPlural: "oz" },
-  lb: { esSingular: "lb", esPlural: "lb", enSingular: "lb", enPlural: "lb" },
-  ml: { esSingular: "ml", esPlural: "ml", enSingular: "ml", enPlural: "ml" },
-  l: { esSingular: "l", esPlural: "l", enSingular: "l", enPlural: "l" },
-  gal: { esSingular: "gal", esPlural: "gal", enSingular: "gal", enPlural: "gal" },
-} as const;
-
-function normalizeWhatsAppUnit(value: unknown): keyof typeof WHATSAPP_UNIT_META | "" {
-  const raw = normalizeValue(value);
-  if (!raw) return "";
-
-  if (["pza", "pzas", "pieza", "piezas", "unidad", "unidades", "ea", "each", "unit", "units", "pc", "pcs", "piece", "pieces"].includes(raw)) return "pza";
-  if (["paquete", "paquetes", "pack", "packs", "pk", "pks"].includes(raw)) return "paquete";
-  if (["caja", "cajas", "box", "boxes"].includes(raw)) return "caja";
-  if (["lata", "latas", "can", "cans"].includes(raw)) return "lata";
-  if (["botella", "botellas", "bottle", "bottles", "btl", "btls"].includes(raw)) return "botella";
-  if (["frasco", "frascos", "jar", "jars"].includes(raw)) return "frasco";
-  if (["bote", "botes", "tub", "tubs"].includes(raw)) return "bote";
-  if (["sobre", "sobres", "packet", "packets", "pkt", "pkts"].includes(raw)) return "sobre";
-  if (["bolsa", "bolsas", "bag", "bags"].includes(raw)) return "bolsa";
-  if (["rollo", "rollos", "roll", "rolls"].includes(raw)) return "rollo";
-  if (["docena", "docenas", "dozen", "dozens", "doz"].includes(raw)) return "docena";
-  if (["g", "gr", "grs", "gramo", "gramos", "gram", "grams"].includes(raw)) return "g";
-  if (["kg", "kilo", "kilos", "kilogramo", "kilogramos", "kilogram", "kilograms"].includes(raw)) return "kg";
-  if (["oz", "onza", "onzas", "ounce", "ounces"].includes(raw)) return "oz";
-  if (["lb", "libra", "libras", "pound", "pounds"].includes(raw)) return "lb";
-  if (["ml", "mililitro", "mililitros", "milliliter", "milliliters"].includes(raw)) return "ml";
-  if (["l", "lt", "lts", "litro", "litros", "liter", "liters"].includes(raw)) return "l";
-  if (["gal", "galon", "galones", "gallon", "gallons"].includes(raw)) return "gal";
-
-  return "";
+  return unitCatalogLabel(language === "en" ? "en" : "es", unit, "long_with_short");
 }
 
 function formatWhatsAppUnit(value: unknown, quantity: unknown, language: string) {
-  const canonicalUnit = normalizeWhatsAppUnit(value);
-  if (!canonicalUnit) return toSafeText(value);
-
-  const meta = WHATSAPP_UNIT_META[canonicalUnit];
-  const numericQuantity = Number(String(quantity ?? "").replace(",", "."));
-  const usePlural = Number.isFinite(numericQuantity) ? Math.abs(numericQuantity) !== 1 : false;
-
-  if (language === "en") {
-    return usePlural ? meta.enPlural : meta.enSingular;
-  }
-
-  return usePlural ? meta.esPlural : meta.esSingular;
+  return unitCatalogQuantityLabel(
+    language === "en" ? "en" : "es",
+    value,
+    String(quantity ?? "")
+  );
 }
 
 function formatWhatsAppItemLine(item: Pick<DisplayListItem, "name" | "quantity" | "unit">, language: string) {
