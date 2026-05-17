@@ -216,6 +216,14 @@ function normalizeItemKey(name: string, category: string) {
   return `${String(name ?? "").trim().toLocaleLowerCase("es")}|${normalizeCategory(category).toLocaleLowerCase("es")}`;
 }
 
+function normalizeCatalogNameToken(value: string | null | undefined) {
+  return String(value ?? "")
+    .trim()
+    .toLocaleLowerCase("es")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
 function readSavedListsFromBrowser() {
   if (typeof window === "undefined") return [] as SavedListRecord[];
 
@@ -430,10 +438,28 @@ export default function NeedsPage() {
     [savedListItemsDraft]
   );
 
-  const activeShoppingListItemKeys = React.useMemo(
-    () => new Set(activeShoppingListItems.map((item) => normalizeItemKey(item.name, item.category))),
-    [activeShoppingListItems]
-  );
+  const catalogItemKeyByNormalizedName = React.useMemo(() => {
+    const state = readState();
+    const next = new Map<string, string>();
+
+    state.itemsMaster.forEach((item) => {
+      const itemKey = String(item.itemKey ?? "").trim();
+      if (!itemKey) return;
+
+      [
+        item.itemKey,
+        item.name,
+        (item as { nameEs?: string }).nameEs,
+        (item as { nameEn?: string }).nameEn,
+      ].forEach((value) => {
+        const normalized = normalizeCatalogNameToken(value);
+        if (!normalized || next.has(normalized)) return;
+        next.set(normalized, itemKey);
+      });
+    });
+
+    return next;
+  }, [activeShoppingListItems, hydrated, savedLists]);
 
   const openedSavedList = React.useMemo(
     () => savedLists.find((entry) => entry.id === selectedSavedListId) ?? null,
@@ -609,15 +635,25 @@ export default function NeedsPage() {
     router.push(`/?view=saved-lists&saved-list-mode=open&saved-list-id=${encodeURIComponent(nextRecord.id)}`);
   }
 
+  function resolveSavedListItemIdentity(item: { itemKey?: string; name: string; category: string }) {
+    const directItemKey = String(item.itemKey ?? "").trim();
+    if (directItemKey) return `catalog:${directItemKey}`;
+
+    const catalogItemKey = catalogItemKeyByNormalizedName.get(normalizeCatalogNameToken(item.name));
+    if (catalogItemKey) return `catalog:${catalogItemKey}`;
+
+    return `custom:${normalizeItemKey(item.name, item.category)}`;
+  }
+
   function isSavedListItemAlreadyInMyList(item: SavedListDraftItem) {
     if (!openedSavedList) return false;
 
-    const normalizedKey = normalizeItemKey(item.name, item.category);
+    const itemIdentity = resolveSavedListItemIdentity(item);
 
     return activeShoppingListItems.some(
       (activeItem) =>
-        normalizeItemKey(activeItem.name, activeItem.category) === normalizedKey
-        && (activeItem.sourceListName ?? null) === openedSavedList.name
+        (activeItem.sourceListName ?? null) === openedSavedList.name
+        && resolveSavedListItemIdentity(activeItem) === itemIdentity
     );
   }
 
