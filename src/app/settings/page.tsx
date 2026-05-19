@@ -13,9 +13,6 @@ import {
 import { t } from "@/lib/mindercart/i18n";
 import { listStoreProfiles, saveSettings, upsertStoreProfile } from "@/lib/mindercart/storage";
 import { useMinderCartState } from "@/lib/mindercart/hooks";
-import { useAuthSession } from "@/lib/firebase/auth-context";
-import { signInUser, signOutUser, signUpUser } from "@/lib/firebase/auth-actions";
-import { useUserBootstrap } from "@/lib/firebase/use-user-bootstrap";
 import type { FontScale, Language, StoreProfile } from "@/lib/mindercart/types";
 
 function withMenuOpen(pathname: string) {
@@ -81,13 +78,6 @@ export default function SettingsPage() {
   const [storeError, setStoreError] = React.useState("");
   const [storeDraft, setStoreDraft] = React.useState<StoreDraft>(emptyStoreDraft(settings.preferredStore));
   const storeEditorScrollRef = React.useRef<HTMLDivElement | null>(null);
-  const session = useAuthSession();
-  const bootstrap = useUserBootstrap();
-  const [accountEmail, setAccountEmail] = React.useState("");
-  const [accountPassword, setAccountPassword] = React.useState("");
-  const [accountBusy, setAccountBusy] = React.useState(false);
-  const [accountError, setAccountError] = React.useState("");
-
 
   React.useEffect(() => {
     setLanguage(settings.language);
@@ -188,69 +178,9 @@ export default function SettingsPage() {
     router.push(withMenuOpen(returnTo));
   }
 
-  async function onSignIn() {
-    setAccountError("");
-
-    try {
-      setAccountBusy(true);
-      await signInUser(accountEmail, accountPassword);
-      setAccountPassword("");
-    } catch (error) {
-      setAccountError(
-        error instanceof Error
-          ? error.message
-          : language === "en"
-            ? "Sign in failed"
-            : "No se pudo iniciar sesión"
-      );
-    } finally {
-      setAccountBusy(false);
-    }
-  }
-
-  async function onSignUp() {
-    setAccountError("");
-
-    try {
-      setAccountBusy(true);
-      await signUpUser(accountEmail, accountPassword);
-      setAccountPassword("");
-    } catch (error) {
-      setAccountError(
-        error instanceof Error
-          ? error.message
-          : language === "en"
-            ? "Sign up failed"
-            : "No se pudo crear la cuenta"
-      );
-    } finally {
-      setAccountBusy(false);
-    }
-  }
-
-  async function onSignOut() {
-    setAccountError("");
-
-    try {
-      setAccountBusy(true);
-      await signOutUser();
-      setAccountPassword("");
-    } catch (error) {
-      setAccountError(
-        error instanceof Error
-          ? error.message
-          : language === "en"
-            ? "Sign out failed"
-            : "No se pudo cerrar sesión"
-      );
-    } finally {
-      setAccountBusy(false);
-    }
-  }
-
   return (
     <AppShell title={t(language, "settingsTitle")} darkHero subtitle={t(language, "settingsSubtitle")} showCart={false}>
-      <section style={{ ...cardStyle(), padding: 14 }}>
+      <section style={{ ...cardStyle(), padding: 14, paddingBottom: "max(108px, env(safe-area-inset-bottom, 0px) + 88px)" }}>
         <form onSubmit={onSave} style={{ display: "grid", gap: 12 }}>
           <div>
             <div style={{ fontWeight: 900, marginBottom: 6, fontSize: s(15) }}>{t(language, "language")}</div>
@@ -342,162 +272,6 @@ export default function SettingsPage() {
               <option value="large">{t(language, "fontLarge")}</option>
               <option value="xlarge">{t(language, "fontXLarge")}</option>
             </select>
-          </div>
-
-          <div
-            style={{
-              display: "grid",
-              gap: 10,
-              padding: 14,
-              borderRadius: 14,
-              border: `1px solid ${MC_NAVY_LINE}`,
-              background: "#fff",
-            }}
-          >
-            <div style={{ fontWeight: 900, fontSize: s(15), color: MC_NAVY }}>
-              {language === "en" ? "Account" : "Cuenta"}
-            </div>
-
-            <div style={{ fontSize: s(13), color: MC_NAVY_MUTED }}>
-              {!session.enabled
-                ? language === "en"
-                  ? "Firebase auth is not available in this environment."
-                  : "Firebase auth no está disponible en este entorno."
-                : session.status === "loading"
-                  ? language === "en"
-                    ? "Checking session..."
-                    : "Revisando sesión..."
-                  : session.status === "authenticated"
-                    ? language === "en"
-                      ? "Signed in"
-                      : "Sesión iniciada"
-                    : language === "en"
-                      ? "Not signed in"
-                      : "No has iniciado sesión"}
-            </div>
-
-            {session.status === "authenticated" ? (
-              <div style={{ fontSize: s(14), color: MC_NAVY }}>
-                {session.user?.email || (language === "en" ? "Authenticated user" : "Usuario autenticado")}
-              </div>
-            ) : null}
-
-            {bootstrap.status === "ready" && bootstrap.resolution?.hasLocalDataToMigrate ? (
-              <div style={{ fontSize: s(12), color: MC_NAVY_MUTED }}>
-                {language === "en"
-                  ? `Local data detected: ${bootstrap.resolution.localSummary.generalListItemsCount} items in My List.`
-                  : `Se detectaron datos locales: ${bootstrap.resolution.localSummary.generalListItemsCount} artículos en Mi Lista.`}
-              </div>
-            ) : null}
-
-            {session.status !== "authenticated" ? (
-              <>
-                <input
-                  type="email"
-                  value={accountEmail}
-                  onChange={(e) => setAccountEmail(e.target.value)}
-                  placeholder={language === "en" ? "Email" : "Correo"}
-                  autoComplete="email"
-                  style={{
-                    width: "100%",
-                    padding: "12px 14px",
-                    borderRadius: 14,
-                    border: `1px solid ${MC_NAVY_LINE}`,
-                    boxSizing: "border-box",
-                    fontSize: s(15),
-                  }}
-                />
-
-                <input
-                  type="password"
-                  value={accountPassword}
-                  onChange={(e) => setAccountPassword(e.target.value)}
-                  placeholder={language === "en" ? "Password" : "Contraseña"}
-                  autoComplete="current-password"
-                  style={{
-                    width: "100%",
-                    padding: "12px 14px",
-                    borderRadius: 14,
-                    border: `1px solid ${MC_NAVY_LINE}`,
-                    boxSizing: "border-box",
-                    fontSize: s(15),
-                  }}
-                />
-
-                <div
-                  style={{
-                    display: "grid",
-                    gap: 10,
-                    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={onSignIn}
-                    disabled={accountBusy || !session.enabled}
-                    style={{
-                      width: "100%",
-                      padding: "12px 14px",
-                      borderRadius: 14,
-                      border: `1px solid ${MC_NAVY}`,
-                      background: MC_NAVY,
-                      color: "#fff",
-                      fontWeight: 900,
-                      fontSize: s(15),
-                      opacity: accountBusy || !session.enabled ? 0.6 : 1,
-                    }}
-                  >
-                    {language === "en" ? "Sign in" : "Iniciar sesión"}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={onSignUp}
-                    disabled={accountBusy || !session.enabled}
-                    style={{
-                      width: "100%",
-                      padding: "12px 14px",
-                      borderRadius: 14,
-                      border: `1px solid ${MC_NAVY_LINE}`,
-                      background: "#fff",
-                      color: MC_NAVY,
-                      fontWeight: 900,
-                      fontSize: s(15),
-                      opacity: accountBusy || !session.enabled ? 0.6 : 1,
-                    }}
-                  >
-                    {language === "en" ? "Create account" : "Crear cuenta"}
-                  </button>
-                </div>
-              </>
-            ) : (
-              <button
-                type="button"
-                onClick={onSignOut}
-                disabled={accountBusy || !session.enabled}
-                style={{
-                  width: "100%",
-                  padding: "12px 14px",
-                  borderRadius: 14,
-                  border: `1px solid ${MC_NAVY_LINE}`,
-                  background: "#fff",
-                  color: MC_NAVY,
-                  fontWeight: 900,
-                  fontSize: s(15),
-                  opacity: accountBusy || !session.enabled ? 0.6 : 1,
-                }}
-              >
-                {language === "en" ? "Sign out" : "Cerrar sesión"}
-              </button>
-            )}
-
-            {accountError ? (
-              <div style={{ fontSize: s(13), color: "#b42318", fontWeight: 800 }}>{accountError}</div>
-            ) : null}
-
-            {session.error ? (
-              <div style={{ fontSize: s(12), color: MC_NAVY_MUTED }}>{session.error}</div>
-            ) : null}
           </div>
 
           <button
