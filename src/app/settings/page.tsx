@@ -250,7 +250,7 @@ export default function SettingsPage() {
 
   return (
     <AppShell title={t(language, "settingsTitle")} darkHero subtitle={t(language, "settingsSubtitle")} showCart={false}>
-      <section style={{ ...cardStyle(), padding: 14 }}>
+      <section style={{ ...cardStyle(), padding: 14, paddingBottom: "max(108px, env(safe-area-inset-bottom, 0px) + 88px)" }}>
         <form onSubmit={onSave} style={{ display: "grid", gap: 12 }}>
           <div>
             <div style={{ fontWeight: 900, marginBottom: 6, fontSize: s(15) }}>{t(language, "language")}</div>
