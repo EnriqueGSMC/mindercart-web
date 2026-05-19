@@ -81,6 +81,40 @@ export const CATEGORY_OPTIONS = [...CATEGORY_LEGACY_VALUES];
 export const UNIT_OPTIONS = [...UNIT_LEGACY_VALUES];
 export const STORE_OPTIONS = [...STORE_SEED_VALUES];
 
+export type LocalStateMigrationSummary = {
+  storageKey: string;
+  exists: boolean;
+  parseable: boolean;
+  hasDataToMigrate: boolean;
+  hasSettingsChanges: boolean;
+  itemsMasterCount: number;
+  customItemsMasterCount: number;
+  generalListItemsCount: number;
+  activeShoppingListItemsCount: number;
+  shoppingHistoryGroupsCount: number;
+  shoppingHistoryItemsCount: number;
+  storeProfilesCount: number;
+  customStoreProfilesCount: number;
+  language: Language;
+  preferredStore: string;
+  fontScale: FontScale;
+};
+
+export type LocalStateRawSnapshot = {
+  storageKey: string;
+  exportedAt: number;
+  raw: Partial<MinderCartState> | null;
+};
+
+export type InitialCloudBootstrapPayload = {
+  source: "local-storage";
+  storageKey: string;
+  exportedAt: number;
+  summary: LocalStateMigrationSummary;
+  state: Partial<MinderCartState> | null;
+};
+
+
 function emptyStoreProfile(name = ""): StoreProfile {
   return {
     id: uid(),
@@ -435,6 +469,169 @@ export function writeState(state: MinderCartState) {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   emitChange();
 }
+
+
+function readRawStoredStateString() {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(STORAGE_KEY);
+}
+
+function parseRawStoredState() {
+  const raw = readRawStoredStateString();
+  if (!raw) return null;
+
+  try {
+    return JSON.parse(raw) as Partial<MinderCartState>;
+  } catch {
+    return null;
+  }
+}
+
+function countShoppingHistoryItems(raw: Partial<MinderCartState> | null) {
+  if (!raw || !Array.isArray(raw.shoppingHistory)) return 0;
+
+  return raw.shoppingHistory.reduce((total, group) => {
+    if (!Array.isArray(group?.items)) return total;
+    return total + group.items.length;
+  }, 0);
+}
+
+function countCustomStoreProfiles(raw: Partial<MinderCartState> | null) {
+  if (!raw || !Array.isArray(raw.storeProfiles)) return 0;
+
+  const seedNames = new Set(STORE_OPTIONS.map((name) => normalize(name)));
+
+  return raw.storeProfiles.reduce((total, profile) => {
+    const name = normalize(profile?.name);
+    if (!name) return total;
+    return total + (seedNames.has(name) ? 0 : 1);
+  }, 0);
+}
+
+function buildLocalStateMigrationSummary(raw: Partial<MinderCartState> | null): LocalStateMigrationSummary {
+  const generalListItemsCount = Array.isArray(raw?.generalListItems) ? raw.generalListItems.length : 0;
+  const activeShoppingListItemsCount = Array.isArray(raw?.activeShoppingListItems)
+    ? raw.activeShoppingListItems.length
+    : 0;
+  const shoppingHistoryGroupsCount = Array.isArray(raw?.shoppingHistory) ? raw.shoppingHistory.length : 0;
+  const shoppingHistoryItemsCount = countShoppingHistoryItems(raw);
+  const itemsMasterCount = Array.isArray(raw?.itemsMaster) ? raw.itemsMaster.length : 0;
+  const customItemsMasterCount = Math.max(0, itemsMasterCount - SEED_GENERAL_ITEMS.length);
+  const storeProfilesCount = Array.isArray(raw?.storeProfiles) ? raw.storeProfiles.length : 0;
+  const customStoreProfilesCount = countCustomStoreProfiles(raw);
+  const language: Language = raw?.settings?.language === "en" ? "en" : "es";
+  const preferredStore = safe(raw?.settings?.preferredStore) || "HEB";
+  const fontScale: FontScale =
+    raw?.settings?.fontScale === "large" || raw?.settings?.fontScale === "xlarge"
+      ? raw.settings.fontScale
+      : "normal";
+  const hasSettingsChanges = language !== "es" || preferredStore !== "HEB" || fontScale !== "normal";
+  const hasDataToMigrate =
+    generalListItemsCount > 0 ||
+    activeShoppingListItemsCount > 0 ||
+    shoppingHistoryItemsCount > 0 ||
+    customItemsMasterCount > 0 ||
+    customStoreProfilesCount > 0 ||
+    hasSettingsChanges;
+
+  return {
+    storageKey: STORAGE_KEY,
+    exists: raw !== null,
+    parseable: raw !== null,
+    hasDataToMigrate,
+    hasSettingsChanges,
+    itemsMasterCount,
+    customItemsMasterCount,
+    generalListItemsCount,
+    activeShoppingListItemsCount,
+    shoppingHistoryGroupsCount,
+    shoppingHistoryItemsCount,
+    storeProfilesCount,
+    customStoreProfilesCount,
+    language,
+    preferredStore,
+    fontScale,
+  };
+}
+
+export function exportRawLocalStateSnapshot(): LocalStateRawSnapshot {
+  return {
+    storageKey: STORAGE_KEY,
+    exportedAt: now(),
+    raw: parseRawStoredState(),
+  };
+}
+
+export function getLocalStateSummary(): LocalStateMigrationSummary {
+  if (typeof window === "undefined") {
+    return {
+      storageKey: STORAGE_KEY,
+      exists: false,
+      parseable: false,
+      hasDataToMigrate: false,
+      hasSettingsChanges: false,
+      itemsMasterCount: 0,
+      customItemsMasterCount: 0,
+      generalListItemsCount: 0,
+      activeShoppingListItemsCount: 0,
+      shoppingHistoryGroupsCount: 0,
+      shoppingHistoryItemsCount: 0,
+      storeProfilesCount: 0,
+      customStoreProfilesCount: 0,
+      language: "es",
+      preferredStore: "HEB",
+      fontScale: "normal",
+    };
+  }
+
+  const rawString = readRawStoredStateString();
+  if (!rawString) {
+    return {
+      storageKey: STORAGE_KEY,
+      exists: false,
+      parseable: false,
+      hasDataToMigrate: false,
+      hasSettingsChanges: false,
+      itemsMasterCount: 0,
+      customItemsMasterCount: 0,
+      generalListItemsCount: 0,
+      activeShoppingListItemsCount: 0,
+      shoppingHistoryGroupsCount: 0,
+      shoppingHistoryItemsCount: 0,
+      storeProfilesCount: 0,
+      customStoreProfilesCount: 0,
+      language: "es",
+      preferredStore: "HEB",
+      fontScale: "normal",
+    };
+  }
+
+  const raw = parseRawStoredState();
+  const summary = buildLocalStateMigrationSummary(raw);
+
+  return {
+    ...summary,
+    exists: true,
+    parseable: raw !== null,
+  };
+}
+
+export function hasLocalStateToMigrate() {
+  return getLocalStateSummary().hasDataToMigrate;
+}
+
+export function buildInitialCloudBootstrapPayload(): InitialCloudBootstrapPayload {
+  const snapshot = exportRawLocalStateSnapshot();
+
+  return {
+    source: "local-storage",
+    storageKey: STORAGE_KEY,
+    exportedAt: snapshot.exportedAt,
+    summary: getLocalStateSummary(),
+    state: snapshot.raw,
+  };
+}
+
 
 function numericSum(a: string, b: string) {
   const na = Number(String(a).replace(",", "."));
