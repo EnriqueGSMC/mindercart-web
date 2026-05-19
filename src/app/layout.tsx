@@ -1,6 +1,7 @@
 /* FILE: src/app/layout.tsx */
 import type { Metadata } from "next";
 import React from "react";
+import { AuthProvider } from "@/lib/firebase/auth-context";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -463,8 +464,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="es">
       <body>
-        <div className="mc-app-frame">{children}</div>
-        <BottomNavigation />
+        <AuthProvider>
+          <div className="mc-app-frame">{children}</div>
+          <BottomNavigation />
+        </AuthProvider>
       </body>
     </html>
   );
