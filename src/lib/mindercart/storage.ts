@@ -470,6 +470,12 @@ export function writeState(state: MinderCartState) {
   emitChange();
 }
 
+export function resetStateForLogout() {
+  const initial = defaultState();
+  writeState(initial);
+  return initial;
+}
+
 
 function readRawStoredStateString() {
   if (typeof window === "undefined") return null;
