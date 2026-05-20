@@ -11,6 +11,9 @@ import {
   signOut,
 } from "firebase/auth";
 import { clientAuth } from "@/lib/firebase/client";
+import { CHANGE_EVENT, resetStateForLogout } from "@/lib/mindercart/storage";
+
+const SAVED_LISTS_STORAGE_KEY = "mindercart.savedLists.v1";
 
 export type AuthActionErrorCode =
   | "invalid-input"
@@ -46,6 +49,13 @@ function requireEmailAndPassword(email: string, password: string) {
   };
 }
 
+function clearSavedListsForLogout() {
+  if (typeof window === "undefined") return;
+
+  window.localStorage.removeItem(SAVED_LISTS_STORAGE_KEY);
+  window.dispatchEvent(new CustomEvent(CHANGE_EVENT));
+}
+
 export async function signInUser(email: string, password: string) {
   const credentials = requireEmailAndPassword(email, password);
 
@@ -74,6 +84,8 @@ export async function signOutUser() {
   try {
     const auth = clientAuth();
     await signOut(auth);
+    resetStateForLogout();
+    clearSavedListsForLogout();
   } catch (error) {
     const message = error instanceof Error ? error.message : "Sign out failed";
     throw new AuthActionError("sign-out-failed", message);
