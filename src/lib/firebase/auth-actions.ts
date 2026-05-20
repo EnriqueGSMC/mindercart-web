@@ -11,7 +11,8 @@ import {
   signOut,
 } from "firebase/auth";
 import { clientAuth } from "@/lib/firebase/client";
-import { CHANGE_EVENT, resetStateForLogout } from "@/lib/mindercart/storage";
+import { saveUserData } from "@/lib/firebase/save-user-data";
+import { CHANGE_EVENT, readState, resetStateForLogout } from "@/lib/mindercart/storage";
 
 const SAVED_LISTS_STORAGE_KEY = "mindercart.savedLists.v1";
 
@@ -49,6 +50,21 @@ function requireEmailAndPassword(email: string, password: string) {
   };
 }
 
+function readSavedListsForLogout() {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const raw = window.localStorage.getItem(SAVED_LISTS_STORAGE_KEY);
+
+    if (!raw) return [];
+
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 function clearSavedListsForLogout() {
   if (typeof window === "undefined") return;
 
@@ -83,6 +99,20 @@ export async function signUpUser(email: string, password: string) {
 export async function signOutUser() {
   try {
     const auth = clientAuth();
+    const uid = auth.currentUser?.uid ?? "";
+    const coreState = readState();
+    const savedLists = readSavedListsForLogout();
+
+    if (uid) {
+      await saveUserData({
+        uid,
+        data: {
+          coreState,
+          savedLists,
+        },
+      });
+    }
+
     await signOut(auth);
     resetStateForLogout();
     clearSavedListsForLogout();
