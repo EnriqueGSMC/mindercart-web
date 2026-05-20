@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import React from "react";
+import { useUserBootstrap } from "@/lib/firebase/use-user-bootstrap";
 import { useMinderCartState } from "@/lib/mindercart/hooks";
 import { t } from "@/lib/mindercart/i18n";
 import { unitCatalogQuantityLabel } from "@/lib/mindercart/catalog";
@@ -276,6 +277,7 @@ export function AppShell(props: {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { settings } = useMinderCartState();
+  useUserBootstrap();
   const [menuOpen, setMenuOpen] = React.useState(false);
 
   React.useEffect(() => {
