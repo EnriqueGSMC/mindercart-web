@@ -576,11 +576,6 @@ export default function NeedsPage() {
       return;
     }
 
-    if (savedListItemsDraft.length === 0) {
-      setSavedListsMessage(lang === "en" ? "Add at least one item." : "Agrega al menos un artículo.");
-      return;
-    }
-
     const now = new Date().toISOString();
     const existing = savedLists.find((entry) => entry.id === selectedSavedListId);
     const nextRecord: SavedListRecord = {
