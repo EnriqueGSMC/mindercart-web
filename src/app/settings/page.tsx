@@ -378,26 +378,7 @@ export default function SettingsPage() {
               </div>
             ) : null}
 
-            {session.status === "loading" ? null : session.status === "authenticated" ? (
-              <button
-                type="button"
-                onClick={onSignOut}
-                disabled={accountBusy || !session.enabled}
-                style={{
-                  width: "100%",
-                  padding: "12px 14px",
-                  borderRadius: 14,
-                  border: `1px solid ${MC_NAVY_LINE}`,
-                  background: "#fff",
-                  color: MC_NAVY,
-                  fontWeight: 900,
-                  fontSize: s(15),
-                  opacity: accountBusy || !session.enabled ? 0.6 : 1,
-                }}
-              >
-                {language === "en" ? "Sign out" : "Cerrar sesión"}
-              </button>
-            ) : (
+            {session.status !== "authenticated" ? (
               <>
                 <input
                   type="email"
@@ -477,6 +458,25 @@ export default function SettingsPage() {
                   </button>
                 </div>
               </>
+            ) : (
+              <button
+                type="button"
+                onClick={onSignOut}
+                disabled={accountBusy || !session.enabled}
+                style={{
+                  width: "100%",
+                  padding: "12px 14px",
+                  borderRadius: 14,
+                  border: `1px solid ${MC_NAVY_LINE}`,
+                  background: "#fff",
+                  color: MC_NAVY,
+                  fontWeight: 900,
+                  fontSize: s(15),
+                  opacity: accountBusy || !session.enabled ? 0.6 : 1,
+                }}
+              >
+                {language === "en" ? "Sign out" : "Cerrar sesión"}
+              </button>
             )}
 
             {accountError ? (
