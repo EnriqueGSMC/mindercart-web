@@ -15,6 +15,8 @@ import { listStoreProfiles, readState, saveSettings, upsertStoreProfile } from "
 import { useMinderCartState } from "@/lib/mindercart/hooks";
 import { useAuthSession } from "@/lib/firebase/auth-context";
 import { signInUser, signOutUser, signUpUser } from "@/lib/firebase/auth-actions";
+import { resolveUserBootstrap } from "@/lib/firebase/resolve-user-bootstrap";
+import { saveUserData } from "@/lib/firebase/save-user-data";
 import type { FontScale, Language, StoreProfile } from "@/lib/mindercart/types";
 
 function withMenuOpen(pathname: string) {
@@ -51,6 +53,24 @@ function emptyStoreDraft(name = ""): StoreDraft {
   };
 }
 
+
+const SAVED_LISTS_STORAGE_KEY = "mindercart.savedLists.v1";
+
+function readSavedListsForMigration() {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const raw = window.localStorage.getItem(SAVED_LISTS_STORAGE_KEY);
+
+    if (!raw) return [];
+
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 function draftFromProfile(profile: StoreProfile, preferredStore: string): StoreDraft {
   return {
     previousName: profile.name,
@@ -85,6 +105,12 @@ export default function SettingsPage() {
   const [accountPassword, setAccountPassword] = React.useState("");
   const [accountBusy, setAccountBusy] = React.useState(false);
   const [accountError, setAccountError] = React.useState("");
+  const [migrationBusy, setMigrationBusy] = React.useState(false);
+  const [migrationError, setMigrationError] = React.useState("");
+  const [migrationMessage, setMigrationMessage] = React.useState("");
+  const [migrationAvailable, setMigrationAvailable] = React.useState(false);
+  const [migrationLocalItemsCount, setMigrationLocalItemsCount] = React.useState(0);
+  const [migrationBootstrapPayload, setMigrationBootstrapPayload] = React.useState<unknown | null>(null);
 
   React.useEffect(() => {
     setLanguage(settings.language);
@@ -93,6 +119,46 @@ export default function SettingsPage() {
     setStoreProfiles(listStoreProfiles());
     setStoreDraft(emptyStoreDraft(settings.preferredStore));
   }, [settings.language, settings.preferredStore, settings.fontScale]);
+
+
+  React.useEffect(() => {
+    let cancelled = false;
+
+    async function run() {
+      if (session.status !== "authenticated" || !session.user?.uid) {
+        setMigrationAvailable(false);
+        setMigrationLocalItemsCount(0);
+        setMigrationBootstrapPayload(null);
+        setMigrationError("");
+        setMigrationMessage("");
+        return;
+      }
+
+      try {
+        const resolution = await resolveUserBootstrap(session.user.uid);
+
+        if (cancelled) return;
+
+        setMigrationAvailable(resolution.shouldOfferInitialMigration);
+        setMigrationLocalItemsCount(
+          resolution.localSummary.generalListItemsCount + resolution.localSummary.activeShoppingListItemsCount
+        );
+        setMigrationBootstrapPayload(resolution.bootstrapPayload ?? null);
+      } catch {
+        if (cancelled) return;
+
+        setMigrationAvailable(false);
+        setMigrationLocalItemsCount(0);
+        setMigrationBootstrapPayload(null);
+      }
+    }
+
+    void run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session.status, session.user?.uid]);
 
   const filteredStoreProfiles = React.useMemo(() => storeProfiles, [storeProfiles]);
 
@@ -244,6 +310,42 @@ export default function SettingsPage() {
     }
   }
 
+
+  async function onMigrateLocalData() {
+    if (!session.user?.uid) return;
+
+    setMigrationError("");
+    setMigrationMessage("");
+
+    try {
+      setMigrationBusy(true);
+
+      await saveUserData({
+        uid: session.user.uid,
+        data: {
+          coreState: readState(),
+          savedLists: readSavedListsForMigration(),
+        },
+        bootstrapPayload: migrationBootstrapPayload as never,
+      });
+
+      setMigrationAvailable(false);
+      setMigrationMessage(
+        language === "en" ? "Local data migrated to your account." : "Los datos locales se migraron a tu cuenta."
+      );
+    } catch (error) {
+      setMigrationError(
+        error instanceof Error
+          ? error.message
+          : language === "en"
+            ? "Could not migrate local data"
+            : "No se pudieron migrar los datos locales"
+      );
+    } finally {
+      setMigrationBusy(false);
+    }
+  }
+
   return (
     <AppShell title={t(language, "settingsTitle")} darkHero subtitle={t(language, "settingsSubtitle")} showCart={false}>
       <section style={{ ...cardStyle(), padding: 14, paddingBottom: "max(108px, env(safe-area-inset-bottom, 0px) + 88px)" }}>
@@ -376,6 +478,53 @@ export default function SettingsPage() {
               <div style={{ fontSize: s(14), color: MC_NAVY }}>
                 {session.user?.email || (language === "en" ? "Authenticated user" : "Usuario autenticado")}
               </div>
+            ) : null}
+
+
+            {session.status === "authenticated" && migrationAvailable ? (
+              <div
+                style={{
+                  display: "grid",
+                  gap: 10,
+                  padding: 12,
+                  borderRadius: 14,
+                  border: `1px solid ${MC_NAVY_LINE}`,
+                  background: "#fff",
+                }}
+              >
+                <div style={{ fontSize: s(13), color: MC_NAVY }}>
+                  {language === "en"
+                    ? `Local data detected on this device (${migrationLocalItemsCount} items). Do you want to migrate it to this account?`
+                    : `Se detectaron datos locales en este dispositivo (${migrationLocalItemsCount} artículos). ¿Quieres migrarlos a esta cuenta?`}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={onMigrateLocalData}
+                  disabled={migrationBusy || accountBusy || !session.enabled}
+                  style={{
+                    width: "100%",
+                    padding: "12px 14px",
+                    borderRadius: 14,
+                    border: `1px solid ${MC_NAVY}`,
+                    background: MC_NAVY,
+                    color: "#fff",
+                    fontWeight: 900,
+                    fontSize: s(15),
+                    opacity: migrationBusy || accountBusy || !session.enabled ? 0.6 : 1,
+                  }}
+                >
+                  {language === "en" ? "Migrate local data" : "Migrar datos locales"}
+                </button>
+              </div>
+            ) : null}
+
+            {migrationError ? (
+              <div style={{ fontSize: s(13), color: "#b42318", fontWeight: 800 }}>{migrationError}</div>
+            ) : null}
+
+            {migrationMessage ? (
+              <div style={{ fontSize: s(13), color: MC_NAVY, fontWeight: 800 }}>{migrationMessage}</div>
             ) : null}
 
             {session.status === "loading" ? null : session.status === "authenticated" ? (
