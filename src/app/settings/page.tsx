@@ -320,13 +320,22 @@ export default function SettingsPage() {
     try {
       setMigrationBusy(true);
 
+      const currentCoreState = readState();
+      const currentSavedLists = JSON.parse(JSON.stringify(readSavedListsForMigration()));
+
       await saveUserData({
         uid: session.user.uid,
         data: {
-          coreState: readState(),
-          savedLists: readSavedListsForMigration(),
+          coreState: currentCoreState,
         },
         bootstrapPayload: migrationBootstrapPayload as never,
+      });
+
+      await saveUserData({
+        uid: session.user.uid,
+        data: {
+          savedLists: currentSavedLists,
+        },
       });
 
       setMigrationAvailable(false);
