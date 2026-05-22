@@ -4,6 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import React from "react";
+import { useAuthSession } from "@/lib/firebase/auth-context";
+import { saveUserData } from "@/lib/firebase/save-user-data";
 import { useUserBootstrap } from "@/lib/firebase/use-user-bootstrap";
 import { useMinderCartState } from "@/lib/mindercart/hooks";
 import { t } from "@/lib/mindercart/i18n";
@@ -15,6 +17,29 @@ export const MC_NAVY_SOFT = "#EEF2FF";
 export const MC_NAVY_LINE = "#D7DFF5";
 export const MC_NAVY_MUTED = "#5C6EA6";
 const NAVY_BORDER = "rgba(255,255,255,0.18)";
+
+const SAVED_LISTS_STORAGE_KEY = "mindercart.savedLists.v1";
+const CLOUD_SYNC_DEBOUNCE_MS = 900;
+
+function readSavedListsSnapshot() {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const raw = window.localStorage.getItem(SAVED_LISTS_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function buildCloudSyncSignature(coreState: unknown, savedLists: unknown) {
+  return JSON.stringify({
+    coreState,
+    savedLists,
+  });
+}
 
 type FooterAction = {
   label: string;
@@ -276,13 +301,78 @@ export function AppShell(props: {
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { settings } = useMinderCartState();
-  useUserBootstrap();
+  const session = useAuthSession();
+  const bootstrap = useUserBootstrap();
+  const state = useMinderCartState();
+  const { settings } = state;
   const [menuOpen, setMenuOpen] = React.useState(false);
+  const syncTimeoutRef = React.useRef<number | null>(null);
+  const baselineSignatureRef = React.useRef("");
+  const lastSavedSignatureRef = React.useRef("");
+  const lastUidRef = React.useRef("");
 
   React.useEffect(() => {
     setMenuOpen(searchParams.get("menu") === "1");
   }, [searchParams]);
+
+
+  React.useEffect(() => {
+    const uid = String(session.user?.uid ?? "").trim();
+    const isReady = session.status === "authenticated" && bootstrap.status === "ready" && !!uid;
+
+    if (!isReady) {
+      if (syncTimeoutRef.current !== null) {
+        window.clearTimeout(syncTimeoutRef.current);
+        syncTimeoutRef.current = null;
+      }
+
+      baselineSignatureRef.current = "";
+      lastSavedSignatureRef.current = "";
+      lastUidRef.current = uid;
+      return;
+    }
+
+    const savedLists = readSavedListsSnapshot();
+    const signature = buildCloudSyncSignature(state, savedLists);
+
+    if (lastUidRef.current !== uid) {
+      lastUidRef.current = uid;
+      baselineSignatureRef.current = signature;
+      lastSavedSignatureRef.current = signature;
+      return;
+    }
+
+    if (signature === baselineSignatureRef.current || signature === lastSavedSignatureRef.current) {
+      return;
+    }
+
+    if (syncTimeoutRef.current !== null) {
+      window.clearTimeout(syncTimeoutRef.current);
+    }
+
+    syncTimeoutRef.current = window.setTimeout(() => {
+      syncTimeoutRef.current = null;
+
+      void saveUserData({
+        uid,
+        data: {
+          coreState: state as unknown as Record<string, unknown>,
+          savedLists,
+        },
+      }).then(() => {
+        lastSavedSignatureRef.current = signature;
+      }).catch(() => {
+        // Keep local work intact; user can still save on logout.
+      });
+    }, CLOUD_SYNC_DEBOUNCE_MS);
+
+    return () => {
+      if (syncTimeoutRef.current !== null) {
+        window.clearTimeout(syncTimeoutRef.current);
+        syncTimeoutRef.current = null;
+      }
+    };
+  }, [bootstrap.status, session.status, session.user?.uid, state]);
 
   const showCart = props.showCart !== false;
   const s = (px: number) => scalePx(settings?.fontScale, px);
