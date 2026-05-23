@@ -36,6 +36,13 @@ function getSourceListName(item: Record<string, unknown>) {
   return typeof raw === "string" && raw.trim() ? raw.trim() : "";
 }
 
+function sortHistoryItemsByName<T extends { name?: unknown }>(items: T[], lang: "es" | "en") {
+  const locale = lang === "en" ? "en" : "es";
+  return [...items].sort((left, right) =>
+    String(left.name ?? "").localeCompare(String(right.name ?? ""), locale, { sensitivity: "base" })
+  );
+}
+
 
 type HistoryLikeItem = {
   name: string;
@@ -337,7 +344,7 @@ export default function HistoryPage() {
                     </div>
 
                     <div style={{ display: "grid", gap: 8 }}>
-                      {row.items.map((item) => {
+                      {sortHistoryItemsByName(row.items, lang).map((item) => {
                         const alreadyInMyList = activeKeySet.has(
                           makeActiveKey({
                             ...item,
