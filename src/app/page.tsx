@@ -980,6 +980,9 @@ export default function NeedsPage() {
         : "Selecciona los artículos que quieras agregar.";
     const itemsCountLabel = (count: number) =>
       lang === "en" ? `${count} item${count === 1 ? "" : "s"}` : `${count} artículo${count === 1 ? "" : "s"}`;
+    const addItemTitle = lang === "en" ? "Add item" : "Agregar artículo";
+    const addItemHelpText =
+      lang === "en" ? "Write an item and tap Add." : "Escribe un artículo y toca Agregar.";
 
     return (
       <AppShell title={savedListsTitle} darkHero subtitle={savedListsSubtitle}>
@@ -1095,7 +1098,10 @@ export default function NeedsPage() {
 
             <section style={{ ...cardStyle(), padding: 14 }}>
               <div style={{ display: "grid", gap: 12 }}>
-                <div style={{ fontSize: s(16), fontWeight: 700 }}>{t(lang, "item")}</div>
+                <div style={{ display: "grid", gap: 6 }}>
+                  <div style={{ fontSize: s(16), fontWeight: 800 }}>{addItemTitle}</div>
+                  <div style={{ fontSize: s(13), color: MC_NAVY_MUTED }}>{addItemHelpText}</div>
+                </div>
 
                 <input
                   value={name}
@@ -1117,6 +1123,7 @@ export default function NeedsPage() {
                     border: `1px solid ${MC_NAVY_LINE}`,
                     fontSize: s(18),
                     boxSizing: "border-box",
+                    background: MC_NAVY_SOFT,
                   }}
                 />
 
