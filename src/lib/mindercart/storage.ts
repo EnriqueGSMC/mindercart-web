@@ -1115,9 +1115,10 @@ export function syncSavedListItemsToCatalog(
 
     const currentCategory = match ? canonicalizeCategory((match as { category?: string }).category) || DEFAULT_CATEGORY : "";
     const currentUnit = match ? canonicalizeUnit((match as { unit?: string }).unit) : "";
+    const currentStore = match ? cleanStore((match as { defaultStore?: string }).defaultStore) : "";
     const currentActive = match ? (match as { active?: boolean }).active !== false : false;
 
-    if (match && currentCategory === category && currentUnit === unit && currentActive) {
+    if (match && currentCategory === category && currentUnit === unit && currentStore === store && currentActive) {
       continue;
     }
 
@@ -1130,6 +1131,13 @@ export function syncSavedListItemsToCatalog(
   const next: MinderCartState = {
     ...state,
     itemsMaster: nextItemsMaster,
+    storeProfiles: mergeStoreProfiles(
+      state.storeProfiles,
+      collectKnownStoreNames({
+        ...state,
+        itemsMaster: nextItemsMaster,
+      })
+    ),
   };
 
   writeState(next);
