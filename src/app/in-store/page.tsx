@@ -1692,11 +1692,32 @@ export default function ShoppingPage() {
       ) : null}
 
       {moveStoreSelection ? (
-        <div style={modalOverlayStyle} onClick={closeMoveStoreSelection}>
+        <div
+          style={{
+            ...modalOverlayStyle,
+            alignItems: "flex-end",
+            paddingTop: "max(12px, env(safe-area-inset-top))",
+            paddingRight: 0,
+            paddingBottom: "max(12px, calc(12px + env(safe-area-inset-bottom)))",
+            paddingLeft: 0,
+          }}
+          onClick={closeMoveStoreSelection}
+        >
           <div
             style={{
-              ...modalCardStyle,
-              maxHeight: "min(420px, calc(100dvh - 56px))",
+              width: "100%",
+              maxHeight: "min(70dvh, calc(100dvh - 24px))",
+              overflow: "hidden",
+              background: "#fff",
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              borderBottomLeftRadius: 0,
+              borderBottomRightRadius: 0,
+              border: `1px solid ${MC_NAVY_LINE}`,
+              borderBottom: "none",
+              padding: 16,
+              paddingBottom: "max(16px, calc(16px + env(safe-area-inset-bottom)))",
+              boxShadow: "0 -12px 32px rgba(18,36,94,0.16)",
             }}
             onClick={(event) => event.stopPropagation()}
           >
@@ -1713,7 +1734,7 @@ export default function ShoppingPage() {
                   {lang === "en" ? "No other stores available." : "No hay otras tiendas disponibles."}
                 </div>
               ) : (
-                <div style={{ display: "grid", gap: 10, maxHeight: 240, overflowY: "auto", paddingRight: 2 }}>
+                <div style={{ display: "grid", gap: 10, maxHeight: "min(42dvh, 320px)", overflowY: "auto", paddingRight: 2 }}>
                   {moveStoreOptions.map((store) => (
                     <button
                       key={store}
