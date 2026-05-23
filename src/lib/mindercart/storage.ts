@@ -1275,6 +1275,7 @@ function groupStoreRowsForPdf<
   T extends { category?: unknown; name?: unknown }
 >(rows: T[], lang: Language) {
   const map = new Map<string, T[]>();
+  const locale = lang === "en" ? "en" : "es";
 
   for (const row of rows) {
     const category = canonicalizeCategory(row.category);
@@ -1287,7 +1288,9 @@ function groupStoreRowsForPdf<
     category,
     label: categoryLabelForLanguage(category, lang),
     items: sortRowsByLocalizedName(map.get(category) || [], lang),
-  })).filter((group) => group.items.length > 0);
+  }))
+    .filter((group) => group.items.length > 0)
+    .sort((left, right) => left.label.localeCompare(right.label, locale, { sensitivity: "base" }));
 }
 
 export function buildShoppingListTextForStore(storeName: string) {
