@@ -151,12 +151,8 @@ function normalizeCategory(value: string | null | undefined) {
   return ORDERED_CATEGORIES.includes(trimmed) ? trimmed : FALLBACK_CATEGORY;
 }
 
-function groupItemsByCategory<T extends { name: string; category?: string | null }>(
-  items: T[],
-  lang: "es" | "en"
-) {
+function groupItemsByCategory<T extends { name: string; category?: string | null }>(items: T[]) {
   const grouped = new Map<string, T[]>();
-  const locale = lang === "en" ? "en" : "es";
 
   for (const item of items) {
     const category = normalizeCategory(item.category);
@@ -168,18 +164,19 @@ function groupItemsByCategory<T extends { name: string; category?: string | null
     }
   }
 
-  return [...grouped.entries()]
-    .map(([category, categoryItems]) => ({
-      category,
-      items: [...categoryItems].sort((a, b) =>
-        String(a.name ?? "").localeCompare(String(b.name ?? ""), locale, { sensitivity: "base" })
-      ),
-    }))
-    .sort((left, right) =>
-      categoryLabel(lang, left.category).localeCompare(categoryLabel(lang, right.category), locale, {
-        sensitivity: "base",
-      })
-    );
+  return ORDERED_CATEGORIES.flatMap((category) => {
+    const categoryItems = grouped.get(category);
+    if (!categoryItems || categoryItems.length === 0) return [];
+
+    return [
+      {
+        category,
+        items: [...categoryItems].sort((a, b) =>
+          String(a.name ?? "").localeCompare(String(b.name ?? ""), "es", { sensitivity: "base" })
+        ),
+      },
+    ];
+  });
 }
 
 function normalizeUnit(value: string) {
@@ -424,18 +421,18 @@ export default function NeedsPage() {
   }, [customStores, lang, settings.preferredStore]);
 
   const groupedActiveShoppingListItems = React.useMemo(
-    () => groupItemsByCategory(activeShoppingListItems, lang),
-    [activeShoppingListItems, lang]
+    () => groupItemsByCategory(activeShoppingListItems),
+    [activeShoppingListItems]
   );
 
   const groupedSavedListItemsDraft = React.useMemo(
-    () => groupItemsByCategory(savedListItemsDraft, lang),
-    [savedListItemsDraft, lang]
+    () => groupItemsByCategory(savedListItemsDraft),
+    [savedListItemsDraft]
   );
 
   const activeShoppingListItemKeys = React.useMemo(
     () => new Set(activeShoppingListItems.map((item) => normalizeItemKey(item.name, item.category))),
-    [activeShoppingListItems, lang]
+    [activeShoppingListItems]
   );
 
   const openedSavedList = React.useMemo(
@@ -444,9 +441,18 @@ export default function NeedsPage() {
   );
 
   const groupedOpenedSavedListItems = React.useMemo(
-    () => groupItemsByCategory(openedSavedList?.items ?? [], lang),
-    [openedSavedList, lang]
+    () => groupItemsByCategory(openedSavedList?.items ?? []),
+    [openedSavedList]
   );
+
+  const selectableOpenedSavedListItems = React.useMemo(
+    () => (openedSavedList?.items ?? []).filter((item) => !isSavedListItemAlreadyInMyList(item)),
+    [openedSavedList, activeShoppingListItems]
+  );
+
+  const allOpenedSavedListItemsSelected =
+    selectableOpenedSavedListItems.length > 0
+    && selectableOpenedSavedListItems.every((item) => selectedOpenSavedListItemIds.includes(item.id));
 
   function resetInput() {
     setName("");
@@ -630,6 +636,15 @@ export default function NeedsPage() {
 
     setSelectedOpenSavedListItemIds((prev) =>
       prev.includes(itemId) ? prev.filter((entry) => entry !== itemId) : [...prev, itemId]
+    );
+    setSavedListsMessage("");
+  }
+
+  function toggleAllOpenedSavedListItems() {
+    if (selectableOpenedSavedListItems.length === 0) return;
+
+    setSelectedOpenSavedListItemIds(
+      allOpenedSavedListItemsSelected ? [] : selectableOpenedSavedListItems.map((item) => item.id)
     );
     setSavedListsMessage("");
   }
@@ -981,6 +996,8 @@ export default function NeedsPage() {
     const editLabel = lang === "en" ? "Edit" : "Editar";
     const deleteLabel = lang === "en" ? "Delete" : "Borrar";
     const addSelectedLabel = lang === "en" ? "Add selected to My List" : "Agregar seleccionados a Mi Lista";
+    const selectAllLabel = lang === "en" ? "Select all" : "Seleccionar todo";
+    const deselectAllLabel = lang === "en" ? "Deselect all" : "Deseleccionar todo";
     const openListNotFoundLabel = lang === "en" ? "Saved list not found." : "No se encontró la lista guardada.";
     const openListHelpText =
       lang === "en"
@@ -1338,14 +1355,44 @@ export default function NeedsPage() {
                 <section style={{ ...cardStyle(), padding: 14, paddingBottom: "calc(26px + env(safe-area-inset-bottom))", width: "100%", boxSizing: "border-box", overflow: "hidden" }}>
                   <div
                     style={{
-                      fontSize: s(12),
-                      color: MC_NAVY_MUTED,
-                      lineHeight: 1.2,
-                      fontWeight: 400,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 12,
                       marginBottom: 14,
                     }}
                   >
-                    {openListHelpText}
+                    <div
+                      style={{
+                        fontSize: s(12),
+                        color: MC_NAVY_MUTED,
+                        lineHeight: 1.2,
+                        fontWeight: 400,
+                      }}
+                    >
+                      {openListHelpText}
+                    </div>
+
+                    {selectableOpenedSavedListItems.length > 0 ? (
+                      <button
+                        type="button"
+                        onClick={toggleAllOpenedSavedListItems}
+                        style={{
+                          padding: "8px 10px",
+                          borderRadius: 12,
+                          border: `1px solid ${MC_NAVY_LINE}`,
+                          background: "#fff",
+                          color: MC_NAVY,
+                          fontSize: s(12),
+                          fontWeight: 800,
+                          cursor: "pointer",
+                          whiteSpace: "nowrap",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {allOpenedSavedListItemsSelected ? deselectAllLabel : selectAllLabel}
+                      </button>
+                    ) : null}
                   </div>
 
                   {groupedOpenedSavedListItems.length === 0 ? (
