@@ -153,8 +153,9 @@ function normalizeCategory(value: string | null | undefined) {
   return canonicalCategoryValue(value);
 }
 
-function groupActiveItemsByCategory(items: ActiveShoppingListItem[]) {
+function groupActiveItemsByCategory(items: ActiveShoppingListItem[], lang: "es" | "en") {
   const grouped = new Map<string, ActiveCategoryItem[]>();
+  const locale = lang === "en" ? "en" : "es";
 
   for (const item of items) {
     const normalizedCategory = normalizeCategory(item.category);
@@ -163,26 +164,16 @@ function groupActiveItemsByCategory(items: ActiveShoppingListItem[]) {
     grouped.set(normalizedCategory, current);
   }
 
-  const orderedGroups: ActiveCategoryGroup[] = [];
-
-  for (const category of CATEGORY_LEGACY_VALUES) {
-    const categoryItems = grouped.get(category) || [];
-    if (categoryItems.length === 0) continue;
-    orderedGroups.push({
+  return [...grouped.entries()]
+    .map(([category, categoryItems]) => ({
       category,
-      items: [...categoryItems].sort((a, b) => a.name.localeCompare(b.name)),
-    });
-    grouped.delete(category);
-  }
-
-  for (const [category, categoryItems] of [...grouped.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
-    orderedGroups.push({
-      category,
-      items: [...categoryItems].sort((a, b) => a.name.localeCompare(b.name)),
-    });
-  }
-
-  return orderedGroups;
+      items: [...categoryItems].sort((a, b) => a.name.localeCompare(b.name, locale, { sensitivity: "base" })),
+    }))
+    .sort((left, right) =>
+      categoryCatalogLabel(lang, left.category).localeCompare(categoryCatalogLabel(lang, right.category), locale, {
+        sensitivity: "base",
+      })
+    );
 }
 
 export default function CartPage() {
@@ -236,8 +227,8 @@ export default function CartPage() {
   );
 
   const activeCategoryGroups = React.useMemo<ActiveCategoryGroup[]>(
-    () => groupActiveItemsByCategory(activeShoppingListItems),
-    [activeShoppingListItems]
+    () => groupActiveItemsByCategory(activeShoppingListItems, lang),
+    [activeShoppingListItems, lang]
   );
 
   const activeIdByCatalogKey = React.useMemo(
@@ -287,7 +278,8 @@ export default function CartPage() {
   }, [generalListQuantityByCatalogKey, itemsMaster, settings.preferredStore]);
 
   const categoryGroups = React.useMemo<CatalogCategoryGroup[]>(() => {
-    const groups: CatalogCategoryGroup[] = [{ category: "Compras frecuentes", items: [] }];
+    const locale = lang === "en" ? "en" : "es";
+    const frequentPurchasesGroup: CatalogCategoryGroup = { category: "Compras frecuentes", items: [] };
     const grouped = new Map<string, CatalogCategoryItem[]>();
 
     for (const item of catalogItems) {
@@ -297,24 +289,19 @@ export default function CartPage() {
       grouped.set(category, current);
     }
 
-    for (const category of CATEGORY_LEGACY_VALUES) {
-      const items = grouped.get(category) || [];
-      groups.push({
+    const orderedGroups = [...grouped.entries()]
+      .map(([category, items]) => ({
         category,
-        items: [...items].sort((a, b) => a.name.localeCompare(b.name)),
-      });
-      grouped.delete(category);
-    }
+        items: [...items].sort((a, b) => a.name.localeCompare(b.name, locale, { sensitivity: "base" })),
+      }))
+      .sort((left, right) =>
+        categoryCatalogLabel(lang, left.category).localeCompare(categoryCatalogLabel(lang, right.category), locale, {
+          sensitivity: "base",
+        })
+      );
 
-    for (const [category, items] of [...grouped.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
-      groups.push({
-        category,
-        items: [...items].sort((a, b) => a.name.localeCompare(b.name)),
-      });
-    }
-
-    return groups;
-  }, [catalogItems]);
+    return [frequentPurchasesGroup, ...orderedGroups];
+  }, [catalogItems, lang]);
 
   const selectedCategoryGroup =
     categoryGroups.find((group) => group.category === openCategory) ?? null;
