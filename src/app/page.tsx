@@ -293,7 +293,7 @@ export default function NeedsPage() {
     lang === "en"
       ? "It is not in the list. You can add it."
       : "No está en la lista. Puedes agregarlo.";
-  const itemPlaceholder = lang === "en" ? "e.g. milk" : "ej. leche";
+  const itemPlaceholder = lang === "en" ? "Type the item here, e.g. milk" : "Escribe aquí el artículo, ej. leche";
 
   const [name, setName] = React.useState("");
   const [message, setMessage] = React.useState("");
