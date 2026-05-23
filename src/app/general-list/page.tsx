@@ -458,6 +458,7 @@ export default function CartPage() {
       title={t(lang, "cartTitle")}
       darkHero
       subtitle={t(lang, "cartSubtitle")}
+      secondaryAction={{ label: lang === "en" ? "Shop" : "Comprar", href: "/in-store" }}
       showCart={false}
       footerInset={selectedCategoryGroup ? CATEGORY_FOOTER_INSET : 0}
       footerActions={footerActions}
