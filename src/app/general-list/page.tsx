@@ -279,7 +279,6 @@ export default function CartPage() {
 
   const categoryGroups = React.useMemo<CatalogCategoryGroup[]>(() => {
     const locale = lang === "en" ? "en" : "es";
-    const frequentPurchasesGroup: CatalogCategoryGroup = { category: "Compras frecuentes", items: [] };
     const grouped = new Map<string, CatalogCategoryItem[]>();
 
     for (const item of catalogItems) {
@@ -289,7 +288,7 @@ export default function CartPage() {
       grouped.set(category, current);
     }
 
-    const orderedGroups = [...grouped.entries()]
+    return [...grouped.entries()]
       .map(([category, items]) => ({
         category,
         items: [...items].sort((a, b) => a.name.localeCompare(b.name, locale, { sensitivity: "base" })),
@@ -299,8 +298,6 @@ export default function CartPage() {
           sensitivity: "base",
         })
       );
-
-    return [frequentPurchasesGroup, ...orderedGroups];
   }, [catalogItems, lang]);
 
   const selectedCategoryGroup =
