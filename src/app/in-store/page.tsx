@@ -41,6 +41,8 @@ type MoveStoreSelection = {
   currentStore: string;
 } | null;
 
+const MOVE_STORE_ADD_VALUE = "__add_store__";
+
 type AddFlowStep = "search" | "editor";
 
 type CatalogSuggestion = {
@@ -612,6 +614,7 @@ export default function ShoppingPage() {
   const [openStore, setOpenStore] = React.useState<string | null>(null);
   const [removeAction, setRemoveAction] = React.useState<RemoveAction>(null);
   const [moveStoreSelection, setMoveStoreSelection] = React.useState<MoveStoreSelection>(null);
+  const [moveStoreTarget, setMoveStoreTarget] = React.useState("");
   const [deferredIdsByStore, setDeferredIdsByStore] = React.useState<Record<string, string[]>>({});
   const [isAddToPurchaseOpen, setIsAddToPurchaseOpen] = React.useState(false);
   const [addFlowStep, setAddFlowStep] = React.useState<AddFlowStep>("search");
@@ -653,6 +656,12 @@ export default function ShoppingPage() {
         : [],
     [selectedStoreGroup, activeShoppingListItems, storeProfiles]
   );
+
+  React.useEffect(() => {
+    if (!moveStoreSelection) return;
+    if (moveStoreTarget && moveStoreOptions.some((option) => option === moveStoreTarget)) return;
+    setMoveStoreTarget(moveStoreOptions[0] ?? "");
+  }, [moveStoreOptions, moveStoreSelection, moveStoreTarget]);
   const addPurchaseUnitOptions = React.useMemo(() => {
     const values: string[] = [...OFFICIAL_UNIT_VALUES];
     const currentUnit = String(draftPurchaseItem?.unit ?? "").trim();
@@ -717,6 +726,7 @@ export default function ShoppingPage() {
 
   function closeMoveStoreSelection() {
     setMoveStoreSelection(null);
+    setMoveStoreTarget("");
   }
 
   function openMoveStoreSelection() {
@@ -726,6 +736,7 @@ export default function ShoppingPage() {
       name: removeAction.name,
       currentStore: selectedStoreGroup.store,
     });
+    setMoveStoreTarget(moveStoreOptions[0] ?? "");
     closeRemoveMenu();
   }
 
@@ -752,7 +763,7 @@ export default function ShoppingPage() {
       notes: "",
     });
 
-    onMoveItemToStore(normalizedCreatedStore);
+    setMoveStoreTarget(normalizedCreatedStore);
   }
 
   function onMoveItemToStore(targetStore: string) {
@@ -1692,110 +1703,91 @@ export default function ShoppingPage() {
       ) : null}
 
       {moveStoreSelection ? (
-        <div
-          style={{
-            ...modalOverlayStyle,
-            alignItems: "flex-end",
-            paddingTop: "max(12px, env(safe-area-inset-top))",
-            paddingRight: 0,
-            paddingBottom: "max(12px, calc(12px + env(safe-area-inset-bottom)))",
-            paddingLeft: 0,
-          }}
-          onClick={closeMoveStoreSelection}
-        >
-          <div
+        <div style={modalOverlayStyle} onClick={closeMoveStoreSelection}>
+          <section
             style={{
-              width: "100%",
-              maxHeight: "min(70dvh, calc(100dvh - 24px))",
-              overflow: "hidden",
-              background: "#fff",
-              borderTopLeftRadius: 24,
-              borderTopRightRadius: 24,
-              borderBottomLeftRadius: 0,
-              borderBottomRightRadius: 0,
-              border: `1px solid ${MC_NAVY_LINE}`,
-              borderBottom: "none",
-              padding: 16,
-              paddingBottom: "max(16px, calc(16px + env(safe-area-inset-bottom)))",
-              boxShadow: "0 -12px 32px rgba(18,36,94,0.16)",
+              ...modalCardStyle,
+              width: "min(420px, 100%)",
+              padding: 14,
             }}
             onClick={(event) => event.stopPropagation()}
           >
-            <div style={{ fontSize: s(16), fontWeight: 900, color: MC_NAVY }}>
+            <div style={{ fontSize: s(20), fontWeight: 900 }}>
               {lang === "en" ? "Choose store" : "Escoge tienda"}
             </div>
-            <div style={{ marginTop: 6, fontSize: s(14), color: MC_NAVY_MUTED }}>
+            <div style={{ marginTop: 4, fontSize: s(13), color: MC_NAVY_MUTED }}>
               {moveStoreSelection.name}
             </div>
 
-            <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
-              {moveStoreOptions.length === 0 ? (
-                <div style={{ fontSize: s(14), color: MC_NAVY_MUTED }}>
-                  {lang === "en" ? "No other stores available." : "No hay otras tiendas disponibles."}
-                </div>
-              ) : (
-                <div style={{ display: "grid", gap: 10, maxHeight: "min(42dvh, 320px)", overflowY: "auto", paddingRight: 2 }}>
-                  {moveStoreOptions.map((store) => (
-                    <button
-                      key={store}
-                      type="button"
-                      onClick={() => onMoveItemToStore(store)}
-                      style={{
-                        width: "100%",
-                        minHeight: 48,
-                        padding: "12px 14px",
-                        borderRadius: 16,
-                        border: `1px solid ${MC_NAVY_LINE}`,
-                        background: "#fff",
-                        color: MC_NAVY,
-                        fontWeight: 900,
-                        fontSize: s(14),
-                        textAlign: "left",
-                      }}
-                    >
-                      {store}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              <button
-                type="button"
-                onClick={onAddMoveStore}
+            <div style={{ marginTop: 14 }}>
+              <div style={{ fontSize: s(12), fontWeight: 700, marginBottom: 5 }}>
+                {lang === "en" ? "Store" : "Tienda"}
+              </div>
+              <select
+                value={moveStoreTarget}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  if (value === MOVE_STORE_ADD_VALUE) {
+                    onAddMoveStore();
+                    return;
+                  }
+                  setMoveStoreTarget(value);
+                }}
                 style={{
                   width: "100%",
-                  minHeight: 48,
                   padding: "12px 14px",
-                  borderRadius: 16,
+                  borderRadius: 14,
                   border: `1px solid ${MC_NAVY_LINE}`,
+                  boxSizing: "border-box",
+                  fontSize: s(15),
                   background: "#fff",
-                  color: MC_NAVY,
-                  fontWeight: 900,
-                  fontSize: s(14),
                 }}
               >
-                {lang === "en" ? "Add store" : "Agregar tienda"}
-              </button>
+                {moveStoreOptions.map((store) => (
+                  <option key={store} value={store}>
+                    {store}
+                  </option>
+                ))}
+                <option value={MOVE_STORE_ADD_VALUE}>{lang === "en" ? "Add" : "Agregar"}</option>
+              </select>
+            </div>
 
+            <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
               <button
                 type="button"
                 onClick={closeMoveStoreSelection}
                 style={{
-                  width: "100%",
-                  minHeight: 48,
-                  padding: "12px 14px",
-                  borderRadius: 16,
+                  flex: 1,
+                  padding: "12px 12px",
+                  borderRadius: 12,
                   border: `1px solid ${MC_NAVY_LINE}`,
                   background: "#fff",
-                  color: MC_NAVY,
-                  fontWeight: 900,
-                  fontSize: s(14),
+                  fontWeight: 800,
+                  fontSize: s(13),
                 }}
               >
-                {lang === "en" ? "Cancel" : "Cancelar"}
+                {lang === "en" ? "Back" : "Regresar"}
+              </button>
+              <button
+                type="button"
+                onClick={() => onMoveItemToStore(moveStoreTarget)}
+                disabled={!moveStoreTarget}
+                style={{
+                  flex: 1,
+                  padding: "12px 12px",
+                  borderRadius: 12,
+                  border: `1px solid ${MC_NAVY}`,
+                  background: MC_NAVY,
+                  color: "#fff",
+                  fontWeight: 900,
+                  fontSize: s(13),
+                  opacity: moveStoreTarget ? 1 : 0.6,
+                }}
+              >
+                {lang === "en" ? "Move" : "Mover"}
               </button>
             </div>
-          </div>
+          </section>
         </div>
       ) : null}
     </AppShell>
