@@ -1123,7 +1123,7 @@ export default function NeedsPage() {
                     border: `1px solid ${MC_NAVY_LINE}`,
                     fontSize: s(18),
                     boxSizing: "border-box",
-                    background: MC_NAVY_SOFT,
+                    background: "#fff",
                   }}
                 />
 
