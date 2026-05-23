@@ -495,8 +495,12 @@ function sortItemsByName<T extends { name?: unknown }>(items: T[]) {
   );
 }
 
-function groupItemsByCategory<T extends { name?: unknown; category?: unknown }>(items: T[]) {
+function groupItemsByCategory<T extends { name?: unknown; category?: unknown }>(
+  items: T[],
+  language: "es" | "en"
+) {
   const itemsByCategory = new Map<string, T[]>();
+  const locale = language === "en" ? "en" : "es";
 
   items.forEach((item) => {
     const category = normalizeCategory(item.category);
@@ -505,10 +509,18 @@ function groupItemsByCategory<T extends { name?: unknown; category?: unknown }>(
     itemsByCategory.set(category, currentItems);
   });
 
-  return OFFICIAL_CATEGORY_VALUES.map((category) => ({
-    category,
-    items: sortItemsByName(itemsByCategory.get(category) ?? []),
-  })).filter((group) => group.items.length > 0);
+  return [...itemsByCategory.entries()]
+    .map(([category, categoryItems]) => ({
+      category,
+      items: sortItemsByName(categoryItems),
+    }))
+    .sort((left, right) =>
+      translateCategoryLabel(left.category, language).localeCompare(
+        translateCategoryLabel(right.category, language),
+        locale,
+        { sensitivity: "base" }
+      )
+    );
 }
 
 function translateCategoryLabel(category: string, language: string) {
@@ -540,7 +552,7 @@ function buildStoreWhatsAppText(
   items: Pick<DisplayListItem, "name" | "quantity" | "unit" | "category">[],
   language: string
 ) {
-  const groupedItems = groupItemsByCategory(items);
+  const groupedItems = groupItemsByCategory(items, language === "en" ? "en" : "es");
   if (!store || groupedItems.length === 0) return store;
 
   const groupedText = groupedItems
@@ -620,12 +632,12 @@ export default function ShoppingPage() {
       .slice(0, 8);
   }, [catalogSuggestions, normalizedAddSearch]);
   const groupedPendingItems = React.useMemo(
-    () => groupItemsByCategory(pendingItems as DisplayListItem[]),
-    [pendingItems]
+    () => groupItemsByCategory(pendingItems as DisplayListItem[], lang),
+    [pendingItems, lang]
   );
   const groupedAddedItems = React.useMemo(
-    () => groupItemsByCategory(addedItems as DisplayListItem[]),
-    [addedItems]
+    () => groupItemsByCategory(addedItems as DisplayListItem[], lang),
+    [addedItems, lang]
   );
   const moveStoreOptions = React.useMemo(
     () => (selectedStoreGroup ? buildMoveStoreOptions(selectedStoreGroup.store) : []),
