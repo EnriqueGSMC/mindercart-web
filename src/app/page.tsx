@@ -151,8 +151,12 @@ function normalizeCategory(value: string | null | undefined) {
   return ORDERED_CATEGORIES.includes(trimmed) ? trimmed : FALLBACK_CATEGORY;
 }
 
-function groupItemsByCategory<T extends { name: string; category?: string | null }>(items: T[]) {
+function groupItemsByCategory<T extends { name: string; category?: string | null }>(
+  items: T[],
+  lang: "es" | "en"
+) {
   const grouped = new Map<string, T[]>();
+  const locale = lang === "en" ? "en" : "es";
 
   for (const item of items) {
     const category = normalizeCategory(item.category);
@@ -164,19 +168,18 @@ function groupItemsByCategory<T extends { name: string; category?: string | null
     }
   }
 
-  return ORDERED_CATEGORIES.flatMap((category) => {
-    const categoryItems = grouped.get(category);
-    if (!categoryItems || categoryItems.length === 0) return [];
-
-    return [
-      {
-        category,
-        items: [...categoryItems].sort((a, b) =>
-          String(a.name ?? "").localeCompare(String(b.name ?? ""), "es", { sensitivity: "base" })
-        ),
-      },
-    ];
-  });
+  return [...grouped.entries()]
+    .map(([category, categoryItems]) => ({
+      category,
+      items: [...categoryItems].sort((a, b) =>
+        String(a.name ?? "").localeCompare(String(b.name ?? ""), locale, { sensitivity: "base" })
+      ),
+    }))
+    .sort((left, right) =>
+      categoryLabel(lang, left.category).localeCompare(categoryLabel(lang, right.category), locale, {
+        sensitivity: "base",
+      })
+    );
 }
 
 function normalizeUnit(value: string) {
@@ -293,7 +296,7 @@ export default function NeedsPage() {
     lang === "en"
       ? "It is not in the list. You can add it."
       : "No está en la lista. Puedes agregarlo.";
-  const itemPlaceholder = lang === "en" ? "Type the item here, e.g. milk" : "Escribe aquí el artículo, ej. leche";
+  const itemPlaceholder = lang === "en" ? "e.g. milk" : "ej. leche";
 
   const [name, setName] = React.useState("");
   const [message, setMessage] = React.useState("");
@@ -421,18 +424,18 @@ export default function NeedsPage() {
   }, [customStores, lang, settings.preferredStore]);
 
   const groupedActiveShoppingListItems = React.useMemo(
-    () => groupItemsByCategory(activeShoppingListItems),
-    [activeShoppingListItems]
+    () => groupItemsByCategory(activeShoppingListItems, lang),
+    [activeShoppingListItems, lang]
   );
 
   const groupedSavedListItemsDraft = React.useMemo(
-    () => groupItemsByCategory(savedListItemsDraft),
-    [savedListItemsDraft]
+    () => groupItemsByCategory(savedListItemsDraft, lang),
+    [savedListItemsDraft, lang]
   );
 
   const activeShoppingListItemKeys = React.useMemo(
     () => new Set(activeShoppingListItems.map((item) => normalizeItemKey(item.name, item.category))),
-    [activeShoppingListItems]
+    [activeShoppingListItems, lang]
   );
 
   const openedSavedList = React.useMemo(
@@ -441,8 +444,8 @@ export default function NeedsPage() {
   );
 
   const groupedOpenedSavedListItems = React.useMemo(
-    () => groupItemsByCategory(openedSavedList?.items ?? []),
-    [openedSavedList]
+    () => groupItemsByCategory(openedSavedList?.items ?? [], lang),
+    [openedSavedList, lang]
   );
 
   function resetInput() {
@@ -573,6 +576,11 @@ export default function NeedsPage() {
 
     if (!trimmedListName) {
       setSavedListsMessage(lang === "en" ? "Enter a name for the list." : "Escribe un nombre para la lista.");
+      return;
+    }
+
+    if (savedListItemsDraft.length === 0) {
+      setSavedListsMessage(lang === "en" ? "Add at least one item." : "Agrega al menos un artículo.");
       return;
     }
 
@@ -980,9 +988,6 @@ export default function NeedsPage() {
         : "Selecciona los artículos que quieras agregar.";
     const itemsCountLabel = (count: number) =>
       lang === "en" ? `${count} item${count === 1 ? "" : "s"}` : `${count} artículo${count === 1 ? "" : "s"}`;
-    const addItemTitle = lang === "en" ? "Add item" : "Agregar artículo";
-    const addItemHelpText =
-      lang === "en" ? "Write an item and tap Add." : "Escribe un artículo y toca Agregar.";
 
     return (
       <AppShell title={savedListsTitle} darkHero subtitle={savedListsSubtitle}>
@@ -1098,10 +1103,7 @@ export default function NeedsPage() {
 
             <section style={{ ...cardStyle(), padding: 14 }}>
               <div style={{ display: "grid", gap: 12 }}>
-                <div style={{ display: "grid", gap: 6 }}>
-                  <div style={{ fontSize: s(16), fontWeight: 800 }}>{addItemTitle}</div>
-                  <div style={{ fontSize: s(13), color: MC_NAVY_MUTED }}>{addItemHelpText}</div>
-                </div>
+                <div style={{ fontSize: s(16), fontWeight: 700 }}>{t(lang, "item")}</div>
 
                 <input
                   value={name}
@@ -1123,7 +1125,6 @@ export default function NeedsPage() {
                     border: `1px solid ${MC_NAVY_LINE}`,
                     fontSize: s(18),
                     boxSizing: "border-box",
-                    background: "#fff",
                   }}
                 />
 
