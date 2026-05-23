@@ -25,6 +25,7 @@ import {
   groupByStore,
   readState,
   toggleActiveItemChecked,
+  upsertStoreProfile,
   writeState,
 } from "@/lib/mindercart/storage";
 import { useMinderCartState } from "@/lib/mindercart/hooks";
@@ -206,7 +207,10 @@ function sameSourceAwareIdentity(
   );
 }
 
-function buildMoveStoreOptions(currentStore: string) {
+function buildMoveStoreOptions(
+  currentStore: string,
+  storeProfiles: Array<Record<string, unknown>> = []
+) {
   const state = readState() as Record<string, unknown>;
   const settings =
     state.settings && typeof state.settings === "object"
@@ -233,11 +237,14 @@ function buildMoveStoreOptions(currentStore: string) {
   };
 
   register(settings.preferredStore);
+  storeProfiles.forEach((profile) => register(profile.name));
   itemsMaster.forEach((item) => register(item.defaultStore ?? item.store));
   generalListItems.forEach((item) => register(item.store));
   activeShoppingListItems.forEach((item) => register(item.store));
 
-  return Array.from(values.values()).sort((left, right) => left.localeCompare(right, "es"));
+  return Array.from(values.values()).sort((left, right) =>
+    left.localeCompare(right, "es", { sensitivity: "base" })
+  );
 }
 
 function moveActiveItemToStore(id: string, targetStore: string) {
@@ -598,7 +605,7 @@ function circleBadgeStyle(active: boolean, fontSize: number): React.CSSPropertie
 }
 
 export default function ShoppingPage() {
-  const { activeShoppingListItems, settings, hydrated } = useMinderCartState();
+  const { activeShoppingListItems, settings, hydrated, storeProfiles } = useMinderCartState();
   const lang = settings.language;
   const s = (px: number) => scalePx(settings.fontScale, px);
   const [message, setMessage] = React.useState("");
@@ -640,8 +647,11 @@ export default function ShoppingPage() {
     [addedItems, lang]
   );
   const moveStoreOptions = React.useMemo(
-    () => (selectedStoreGroup ? buildMoveStoreOptions(selectedStoreGroup.store) : []),
-    [selectedStoreGroup, activeShoppingListItems]
+    () =>
+      selectedStoreGroup
+        ? buildMoveStoreOptions(selectedStoreGroup.store, storeProfiles as Array<Record<string, unknown>>)
+        : [],
+    [selectedStoreGroup, activeShoppingListItems, storeProfiles]
   );
   const addPurchaseUnitOptions = React.useMemo(() => {
     const values: string[] = [...OFFICIAL_UNIT_VALUES];
@@ -717,6 +727,32 @@ export default function ShoppingPage() {
       currentStore: selectedStoreGroup.store,
     });
     closeRemoveMenu();
+  }
+
+  function onAddMoveStore() {
+    if (!moveStoreSelection) return;
+
+    const createdStore = window.prompt(
+      lang === "en" ? "New store name" : "Nombre de la nueva tienda",
+      ""
+    );
+    const normalizedCreatedStore = toSafeText(createdStore);
+
+    if (!normalizedCreatedStore) return;
+
+    upsertStoreProfile({
+      name: normalizedCreatedStore,
+      addressLine1: "",
+      addressLine2: "",
+      city: "",
+      state: "",
+      postalCode: "",
+      country: "",
+      phone: "",
+      notes: "",
+    });
+
+    onMoveItemToStore(normalizedCreatedStore);
   }
 
   function onMoveItemToStore(targetStore: string) {
@@ -1701,6 +1737,24 @@ export default function ShoppingPage() {
                   ))}
                 </div>
               )}
+
+              <button
+                type="button"
+                onClick={onAddMoveStore}
+                style={{
+                  width: "100%",
+                  minHeight: 48,
+                  padding: "12px 14px",
+                  borderRadius: 16,
+                  border: `1px solid ${MC_NAVY_LINE}`,
+                  background: "#fff",
+                  color: MC_NAVY,
+                  fontWeight: 900,
+                  fontSize: s(14),
+                }}
+              >
+                {lang === "en" ? "Add store" : "Agregar tienda"}
+              </button>
 
               <button
                 type="button"
