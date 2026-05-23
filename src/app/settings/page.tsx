@@ -519,6 +519,13 @@ export default function SettingsPage() {
               </div>
             ) : null}
 
+            {accountError ? (
+              <div style={{ fontSize: s(13), color: "#b42318", fontWeight: 800 }}>{accountError}</div>
+            ) : null}
+
+            {accountMessage ? (
+              <div style={{ fontSize: s(13), color: MC_NAVY, fontWeight: 800 }}>{accountMessage}</div>
+            ) : null}
 
             {session.status === "authenticated" && migrationAvailable ? (
               <div
@@ -686,14 +693,6 @@ export default function SettingsPage() {
                 </div>
               </>
             )}
-
-            {accountError ? (
-              <div style={{ fontSize: s(13), color: "#b42318", fontWeight: 800 }}>{accountError}</div>
-            ) : null}
-
-            {accountMessage ? (
-              <div style={{ fontSize: s(13), color: MC_NAVY, fontWeight: 800 }}>{accountMessage}</div>
-            ) : null}
 
             {session.error ? (
               <div style={{ fontSize: s(12), color: MC_NAVY_MUTED }}>{session.error}</div>
