@@ -689,28 +689,42 @@ export default function NeedsPage() {
 
     if (isSavedListEditorView) {
       const normalizedKey = normalizeItemKey(draft.name, draft.category);
+      const existingIndex = editingSavedListItemId
+        ? savedListItemsDraft.findIndex((item) => item.id === editingSavedListItemId)
+        : savedListItemsDraft.findIndex((item) => normalizeItemKey(item.name, item.category) === normalizedKey);
+      const nextItem: SavedListDraftItem = {
+        id: existingIndex >= 0 ? savedListItemsDraft[existingIndex].id : buildLocalId("saved-list-item"),
+        name: draft.name.trim(),
+        category: normalizeCategory(draft.category),
+        unit: normalizeUnit(draft.unit),
+        quantity: String(draft.quantity ?? "1").trim() || "1",
+        store: draft.store || settings.preferredStore || "HEB",
+      };
 
-      setSavedListItemsDraft((prev) => {
-        const existingIndex = editingSavedListItemId
-          ? prev.findIndex((item) => item.id === editingSavedListItemId)
-          : prev.findIndex((item) => normalizeItemKey(item.name, item.category) === normalizedKey);
-        const nextItem: SavedListDraftItem = {
-          id: existingIndex >= 0 ? prev[existingIndex].id : buildLocalId("saved-list-item"),
-          name: draft.name.trim(),
-          category: normalizeCategory(draft.category),
-          unit: normalizeUnit(draft.unit),
-          quantity: String(draft.quantity ?? "1").trim() || "1",
-          store: draft.store || settings.preferredStore || "HEB",
-        };
+      const nextSavedListItemsDraft = existingIndex >= 0
+        ? savedListItemsDraft.map((item, index) => (index === existingIndex ? nextItem : item))
+        : [...savedListItemsDraft, nextItem];
 
-        if (existingIndex >= 0) {
-          const next = [...prev];
-          next[existingIndex] = nextItem;
-          return next;
+      setSavedListItemsDraft(nextSavedListItemsDraft);
+
+      if (isEditSavedListView) {
+        const existingSavedList = savedLists.find((entry) => entry.id === selectedSavedListId);
+
+        if (existingSavedList) {
+          const nextSavedListRecord: SavedListRecord = {
+            ...existingSavedList,
+            updatedAt: new Date().toISOString(),
+            items: nextSavedListItemsDraft.map((item) => ({ ...item })),
+          };
+
+          const nextSavedLists = savedLists.map((entry) =>
+            entry.id === existingSavedList.id ? nextSavedListRecord : entry
+          );
+
+          persistSavedLists(nextSavedLists);
+          syncSavedListItemsToCatalog(nextSavedListRecord.items);
         }
-
-        return [...prev, nextItem];
-      });
+      }
 
       setMessage(
         `✅ ${draft.name} ${lang === "en" ? "updated in this saved list." : "actualizado en esta lista guardada."}`
