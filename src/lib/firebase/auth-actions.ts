@@ -1,12 +1,13 @@
 // ============================================================================
 // FILE: src/lib/firebase/auth-actions.ts
-// AUTH ACTIONS v258
+// AUTH ACTIONS v259
 // ============================================================================
 
 "use client";
 
 import {
   createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut,
 } from "firebase/auth";
@@ -20,7 +21,8 @@ export type AuthActionErrorCode =
   | "invalid-input"
   | "sign-in-failed"
   | "sign-up-failed"
-  | "sign-out-failed";
+  | "sign-out-failed"
+  | "password-reset-failed";
 
 export class AuthActionError extends Error {
   code: AuthActionErrorCode;
@@ -34,6 +36,16 @@ export class AuthActionError extends Error {
 
 function cleanCredential(value: string) {
   return value.trim();
+}
+
+function requireEmail(email: string) {
+  const nextEmail = cleanCredential(email);
+
+  if (!nextEmail) {
+    throw new AuthActionError("invalid-input", "Email is required");
+  }
+
+  return nextEmail;
 }
 
 function requireEmailAndPassword(email: string, password: string) {
@@ -93,6 +105,18 @@ export async function signUpUser(email: string, password: string) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Sign up failed";
     throw new AuthActionError("sign-up-failed", message);
+  }
+}
+
+export async function resetPasswordForUser(email: string) {
+  const nextEmail = requireEmail(email);
+
+  try {
+    const auth = clientAuth();
+    await sendPasswordResetEmail(auth, nextEmail);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Password reset failed";
+    throw new AuthActionError("password-reset-failed", message);
   }
 }
 
