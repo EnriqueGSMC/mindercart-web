@@ -1667,12 +1667,17 @@ export default function NeedsPage() {
               }}
             >
               <div style={{ fontSize: s(15), fontWeight: 900, color: MC_NAVY }}>
-                {lang === "en" ? "Organize your shopping from here" : "Organiza tus compras desde aquí"}
+                {lang === "en" ? "Start here" : "Empieza aquí"}
               </div>
-              <div style={{ display: "grid", gap: 6, fontSize: s(13), color: MC_NAVY, lineHeight: 1.45 }}>
-                <div>{lang === "en" ? "1. Add what you need and build your list." : "1. Agrega lo que necesitas y arma tu lista."}</div>
-                <div>{lang === "en" ? "2. Create and save custom-fit lists in My Lists." : "2. Crea y guarda listas a la medida en Mis Listas."}</div>
-                <div>{lang === "en" ? "3. Your list is arranged automatically to make shopping easier." : "3. Tu lista se acomoda automáticamente para facilitar tu compra."}</div>
+              <div style={{ fontSize: s(14), color: MC_NAVY_MUTED, lineHeight: 1.45 }}>
+                {lang === "en"
+                  ? "Add what you need, keep it in your list, and when you are ready to shop use Buy / In-Store to organize everything better."
+                  : "Agrega lo que necesitas, guárdalo en tu lista y, cuando vayas a comprar, usa Comprar / De Compras para organizar todo mejor."}
+              </div>
+              <div style={{ display: "grid", gap: 6, fontSize: s(13), color: MC_NAVY }}>
+                <div>{lang === "en" ? "1. Write an item or choose a suggestion." : "1. Escribe un artículo o elige una sugerencia."}</div>
+                <div>{lang === "en" ? "2. Add it to My List or to a custom list." : "2. Agrégalo a Mi Lista o a una lista a la medida."}</div>
+                <div>{lang === "en" ? "3. Use categories to shop better in less time." : "3. Usa las categorías para comprar mejor en menos tiempo."}</div>
               </div>
             </div>
           ) : null}
