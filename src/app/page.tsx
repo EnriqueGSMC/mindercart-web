@@ -1655,6 +1655,33 @@ export default function NeedsPage() {
     >
       <section style={{ ...cardStyle(), padding: 14 }}>
         <div style={{ display: "grid", gap: 12 }}>
+          {groupedActiveShoppingListItems.length === 0 ? (
+            <div
+              style={{
+                display: "grid",
+                gap: 8,
+                padding: "14px 16px",
+                borderRadius: 18,
+                border: `1px solid ${MC_NAVY_LINE}`,
+                background: MC_NAVY_SOFT,
+              }}
+            >
+              <div style={{ fontSize: s(15), fontWeight: 900, color: MC_NAVY }}>
+                {lang === "en" ? "Start here" : "Empieza aquí"}
+              </div>
+              <div style={{ fontSize: s(14), color: MC_NAVY_MUTED, lineHeight: 1.45 }}>
+                {lang === "en"
+                  ? "Add what you need, keep it in your list, and when you are ready to shop use Buy / In-Store to organize everything better."
+                  : "Agrega lo que necesitas, guárdalo en tu lista y, cuando vayas a comprar, usa Comprar / De Compras para organizar todo mejor."}
+              </div>
+              <div style={{ display: "grid", gap: 6, fontSize: s(13), color: MC_NAVY }}>
+                <div>{lang === "en" ? "1. Write an item or choose a suggestion." : "1. Escribe un artículo o elige una sugerencia."}</div>
+                <div>{lang === "en" ? "2. Add it to My List or to a custom list." : "2. Agrégalo a Mi Lista o a una lista a la medida."}</div>
+                <div>{lang === "en" ? "3. Use categories to shop better in less time." : "3. Usa las categorías para comprar mejor en menos tiempo."}</div>
+              </div>
+            </div>
+          ) : null}
+
           <div style={{ fontSize: s(16), fontWeight: 700 }}>{lang === "en" ? "I need" : "Necesito"}</div>
 
           <input
@@ -1743,7 +1770,23 @@ export default function NeedsPage() {
         <div style={{ fontSize: s(16), fontWeight: 800, marginBottom: 10 }}>{t(lang, "cartSection")}</div>
 
         {groupedActiveShoppingListItems.length === 0 ? (
-          <div style={{ fontSize: s(14), color: MC_NAVY_MUTED }}>{t(lang, "noItemsYet")}</div>
+          <div
+            style={{
+              display: "grid",
+              gap: 8,
+              padding: "12px 2px 4px",
+              fontSize: s(14),
+              color: MC_NAVY_MUTED,
+              lineHeight: 1.45,
+            }}
+          >
+            <div>{t(lang, "noItemsYet")}</div>
+            <div>
+              {lang === "en"
+                ? "Add your first item above to start your shopping list and save time in the store."
+                : "Agrega tu primer artículo arriba para empezar tu lista y ahorrar tiempo en la tienda."}
+            </div>
+          </div>
         ) : (
           <div style={{ display: "grid", gap: 14, paddingBottom: 8 }}>
             {groupedActiveShoppingListItems.map((section) => (
