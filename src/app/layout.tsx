@@ -1,5 +1,6 @@
 /* FILE: src/app/layout.tsx */
 import type { Metadata } from "next";
+import Script from "next/script";
 import React from "react";
 import { AuthProvider } from "@/lib/firebase/auth-context";
 import "./globals.css";
@@ -327,9 +328,8 @@ function BottomNavigation() {
         </div>
       </nav>
 
-      <script
-        dangerouslySetInnerHTML={{
-          __html: `
+      <Script id="mc-bottom-nav-sync" strategy="afterInteractive">{`
+
             (function () {
               var STORAGE_KEY = "mindercart_state_v15";
               var CHANGE_EVENT = "mindercart:changed";
@@ -453,9 +453,8 @@ function BottomNavigation() {
                 }
               }, true);
             })();
-          `,
-        }}
-      />
+          
+        `}</Script>
     </>
   );
 }
