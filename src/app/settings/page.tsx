@@ -23,6 +23,7 @@ import {
   getFamilyMembers,
   getFamilyPendingInvites,
   inviteFamilyMember,
+  revokeFamilyInvite,
 } from "@/lib/firebase/shared-list-actions";
 import type { FamilyInviteRecord, FamilyMemberRecord, FamilyRecord } from "@/lib/firebase/shared-list-types";
 import type { FontScale, Language, StoreProfile } from "@/lib/mindercart/types";
@@ -128,6 +129,7 @@ export default function SettingsPage() {
   const [familyInviteOpen, setFamilyInviteOpen] = React.useState(false);
   const [familyMembersOpen, setFamilyMembersOpen] = React.useState(false);
   const [familyMembersBusy, setFamilyMembersBusy] = React.useState(false);
+  const [familyRevokeInviteBusyId, setFamilyRevokeInviteBusyId] = React.useState<string | null>(null);
   const [familyMembers, setFamilyMembers] = React.useState<FamilyMemberRecord[]>([]);
   const [familyPendingInvites, setFamilyPendingInvites] = React.useState<FamilyInviteRecord[]>([]);
 
@@ -552,6 +554,51 @@ export default function SettingsPage() {
       );
     } finally {
       setFamilyMembersBusy(false);
+    }
+  }
+
+  async function onRevokeFamilyInvite(inviteId: string) {
+    if (!familyRecord?.id) return;
+
+    const confirmed = window.confirm(
+      language === "en"
+        ? "Do you want to revoke this invitation?"
+        : "¿Quieres revocar esta invitación?"
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setFamilyRevokeInviteBusyId(inviteId);
+      setFamilyError("");
+      setFamilyMessage("");
+
+      await revokeFamilyInvite(familyRecord.id, inviteId);
+
+      if (familyMembersOpen) {
+        const [members, invites] = await Promise.all([
+          getFamilyMembers(familyRecord.id),
+          getFamilyPendingInvites(familyRecord.id),
+        ]);
+        setFamilyMembers(members);
+        setFamilyPendingInvites(invites);
+      }
+
+      setFamilyMessage(
+        language === "en"
+          ? "Invitation revoked successfully."
+          : "La invitación se revocó correctamente."
+      );
+    } catch (error) {
+      setFamilyError(
+        error instanceof Error
+          ? error.message
+          : language === "en"
+            ? "Could not revoke invitation"
+            : "No se pudo revocar la invitación"
+      );
+    } finally {
+      setFamilyRevokeInviteBusyId(null);
     }
   }
 
@@ -992,17 +1039,44 @@ export default function SettingsPage() {
                                 </div>
                               </div>
 
-                              <div
-                                style={{
-                                  padding: "4px 8px",
-                                  borderRadius: 999,
-                                  background: "#fff7ed",
-                                  color: "#b54708",
-                                  fontSize: s(12),
-                                  fontWeight: 800,
-                                }}
-                              >
-                                {language === "en" ? "Pending" : "Pendiente"}
+                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <button
+                                  type="button"
+                                  onClick={() => void onRevokeFamilyInvite(invite.id)}
+                                  disabled={familyRevokeInviteBusyId === invite.id}
+                                  style={{
+                                    border: `1px solid ${MC_NAVY_LINE}`,
+                                    background: "#fff",
+                                    color: MC_NAVY,
+                                    borderRadius: 999,
+                                    padding: "6px 10px",
+                                    fontSize: s(12),
+                                    fontWeight: 800,
+                                    cursor: familyRevokeInviteBusyId === invite.id ? "default" : "pointer",
+                                    opacity: familyRevokeInviteBusyId === invite.id ? 0.6 : 1,
+                                  }}
+                                >
+                                  {familyRevokeInviteBusyId === invite.id
+                                    ? language === "en"
+                                      ? "Revoking..."
+                                      : "Revocando..."
+                                    : language === "en"
+                                      ? "Revoke"
+                                      : "Revocar"}
+                                </button>
+
+                                <div
+                                  style={{
+                                    padding: "4px 8px",
+                                    borderRadius: 999,
+                                    background: "#fff7ed",
+                                    color: "#b54708",
+                                    fontSize: s(12),
+                                    fontWeight: 800,
+                                  }}
+                                >
+                                  {language === "en" ? "Pending" : "Pendiente"}
+                                </div>
                               </div>
                             </div>
                           ))

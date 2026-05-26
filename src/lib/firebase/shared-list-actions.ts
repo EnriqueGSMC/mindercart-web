@@ -465,3 +465,27 @@ export async function getFamilyPendingInvites(familyId: string): Promise<GetFami
 
   return records;
 }
+
+export async function revokeFamilyInvite(familyId: string, inviteId: string): Promise<void> {
+  const normalizedFamilyId = requireNonEmpty(familyId, "familyId");
+  const normalizedInviteId = requireNonEmpty(inviteId, "inviteId");
+
+  await requireFamilyExists(normalizedFamilyId);
+
+  const inviteRef = doc(invitesCollection(normalizedFamilyId), normalizedInviteId);
+  const inviteSnap = await getDoc(inviteRef);
+  if (!inviteSnap.exists()) {
+    throw new Error("Invite not found");
+  }
+
+  const invite = inviteSnap.data() as FamilyInviteRecord;
+  if (invite.status !== "pending") {
+    throw new Error("Invite is not pending");
+  }
+
+  await updateDoc(inviteRef, {
+    status: "revoked",
+    updatedAt: serverTimestamp(),
+  });
+}
+
