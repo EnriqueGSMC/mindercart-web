@@ -17,7 +17,7 @@ import { useAuthSession } from "@/lib/firebase/auth-context";
 import { signInUser, signOutUser, signUpUser } from "@/lib/firebase/auth-actions";
 import { resolveUserBootstrap } from "@/lib/firebase/resolve-user-bootstrap";
 import { saveUserData } from "@/lib/firebase/save-user-data";
-import { createFamily, getFamilyByOwnerUid } from "@/lib/firebase/shared-list-actions";
+import { createFamily, getFamilyByOwnerUid, inviteFamilyMember } from "@/lib/firebase/shared-list-actions";
 import type { FamilyRecord } from "@/lib/firebase/shared-list-types";
 import type { FontScale, Language, StoreProfile } from "@/lib/mindercart/types";
 
@@ -117,6 +117,8 @@ export default function SettingsPage() {
   const [familyError, setFamilyError] = React.useState("");
   const [familyMessage, setFamilyMessage] = React.useState("");
   const [familyRecord, setFamilyRecord] = React.useState<FamilyRecord | null>(null);
+  const [familyInviteEmail, setFamilyInviteEmail] = React.useState("");
+  const [familyInviteBusy, setFamilyInviteBusy] = React.useState(false);
 
   React.useEffect(() => {
     setLanguage(settings.language);
@@ -436,6 +438,50 @@ export default function SettingsPage() {
       setFamilyBusy(false);
     }
   }
+
+  async function onInviteFamilyMember() {
+    if (!familyRecord?.id || !session.user?.uid) return;
+
+    const normalizedEmail = familyInviteEmail.trim().toLowerCase();
+
+    if (!normalizedEmail) {
+      setFamilyError(language === "en" ? "Enter an email to invite" : "Escribe un correo para invitar");
+      setFamilyMessage("");
+      return;
+    }
+
+    setFamilyError("");
+    setFamilyMessage("");
+
+    try {
+      setFamilyInviteBusy(true);
+
+      await inviteFamilyMember({
+        familyId: familyRecord.id,
+        email: normalizedEmail,
+        invitedByUid: session.user.uid,
+        expiresAt: "",
+      });
+
+      setFamilyInviteEmail("");
+      setFamilyMessage(
+        language === "en"
+          ? "Invitation created successfully."
+          : "La invitación se creó correctamente."
+      );
+    } catch (error) {
+      setFamilyError(
+        error instanceof Error
+          ? error.message
+          : language === "en"
+            ? "Could not create invitation"
+            : "No se pudo crear la invitación"
+      );
+    } finally {
+      setFamilyInviteBusy(false);
+    }
+  }
+
 
   return (
     <AppShell title={t(language, "settingsTitle")} darkHero subtitle={t(language, "settingsSubtitle")} showCart={false}>
@@ -791,6 +837,28 @@ export default function SettingsPage() {
                 <div style={{ fontSize: s(13), color: "#b42318", fontWeight: 800 }}>{familyError}</div>
               ) : null}
 
+              {familyRecord ? (
+                <div style={{ display: "grid", gap: 6 }}>
+                  <div style={{ fontWeight: 900, fontSize: s(13), color: MC_NAVY }}>
+                    {language === "en" ? "Member email" : "Correo del miembro"}
+                  </div>
+                  <input
+                    type="email"
+                    value={familyInviteEmail}
+                    onChange={(e) => setFamilyInviteEmail(e.target.value)}
+                    placeholder={language === "en" ? "name@email.com" : "nombre@correo.com"}
+                    style={{
+                      width: "100%",
+                      padding: "12px 14px",
+                      borderRadius: 14,
+                      border: `1px solid ${MC_NAVY_LINE}`,
+                      fontSize: s(15),
+                      boxSizing: "border-box",
+                    }}
+                  />
+                </div>
+              ) : null}
+
               <div
                 style={{
                   display: "grid",
@@ -825,7 +893,8 @@ export default function SettingsPage() {
 
                 <button
                   type="button"
-                  disabled={!familyRecord}
+                  onClick={() => void onInviteFamilyMember()}
+                  disabled={!familyRecord || familyInviteBusy || !familyInviteEmail.trim()}
                   style={{
                     width: "100%",
                     padding: "12px 14px",
@@ -835,10 +904,16 @@ export default function SettingsPage() {
                     color: MC_NAVY,
                     fontWeight: 900,
                     fontSize: s(15),
-                    opacity: familyRecord ? 1 : 0.6,
+                    opacity: !familyRecord || familyInviteBusy || !familyInviteEmail.trim() ? 0.6 : 1,
                   }}
                 >
-                  {language === "en" ? "Invite member" : "Invitar miembro"}
+                  {familyInviteBusy
+                    ? language === "en"
+                      ? "Inviting..."
+                      : "Invitando..."
+                    : language === "en"
+                      ? "Invite member"
+                      : "Invitar miembro"}
                 </button>
               </div>
             </div>
