@@ -870,22 +870,6 @@ export default function SettingsPage() {
             </div>
           ) : null}
 
-          <button
-            type="submit"
-            style={{
-              width: "100%",
-              padding: "12px 14px",
-              borderRadius: 14,
-              border: `1px solid ${MC_NAVY}`,
-              background: MC_NAVY,
-              color: "#fff",
-              fontWeight: 900,
-              fontSize: s(15),
-            }}
-          >
-            {language === "en" ? "Sync now" : "Sincronizar ahora"}
-          </button>
-
           <div>
             <div style={{ fontWeight: 900, marginBottom: 6, fontSize: s(15) }}>{t(language, "language")}</div>
             <select
