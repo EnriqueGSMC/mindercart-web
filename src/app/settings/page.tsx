@@ -17,6 +17,8 @@ import { useAuthSession } from "@/lib/firebase/auth-context";
 import { signInUser, signOutUser, signUpUser } from "@/lib/firebase/auth-actions";
 import { resolveUserBootstrap } from "@/lib/firebase/resolve-user-bootstrap";
 import { saveUserData } from "@/lib/firebase/save-user-data";
+import { createFamily, getFamilyByOwnerUid } from "@/lib/firebase/shared-list-actions";
+import type { FamilyRecord } from "@/lib/firebase/shared-list-types";
 import type { FontScale, Language, StoreProfile } from "@/lib/mindercart/types";
 
 function withMenuOpen(pathname: string) {
@@ -111,6 +113,10 @@ export default function SettingsPage() {
   const [migrationAvailable, setMigrationAvailable] = React.useState(false);
   const [migrationLocalItemsCount, setMigrationLocalItemsCount] = React.useState(0);
   const [migrationBootstrapPayload, setMigrationBootstrapPayload] = React.useState<unknown | null>(null);
+  const [familyBusy, setFamilyBusy] = React.useState(false);
+  const [familyError, setFamilyError] = React.useState("");
+  const [familyMessage, setFamilyMessage] = React.useState("");
+  const [familyRecord, setFamilyRecord] = React.useState<FamilyRecord | null>(null);
 
   React.useEffect(() => {
     setLanguage(settings.language);
@@ -159,6 +165,45 @@ export default function SettingsPage() {
       cancelled = true;
     };
   }, [session.status, session.user?.uid]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+
+    async function run() {
+      if (session.status !== "authenticated" || !session.user?.uid) {
+        setFamilyRecord(null);
+        setFamilyError("");
+        setFamilyMessage("");
+        return;
+      }
+
+      try {
+        const family = await getFamilyByOwnerUid(session.user.uid);
+
+        if (cancelled) return;
+
+        setFamilyRecord(family);
+        setFamilyError("");
+      } catch (error) {
+        if (cancelled) return;
+
+        setFamilyRecord(null);
+        setFamilyError(
+          error instanceof Error
+            ? error.message
+            : language === "en"
+              ? "Could not load family status"
+              : "No se pudo cargar el estado familiar"
+        );
+      }
+    }
+
+    void run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [language, session.status, session.user?.uid]);
 
   const filteredStoreProfiles = React.useMemo(() => storeProfiles, [storeProfiles]);
 
@@ -352,6 +397,43 @@ export default function SettingsPage() {
       );
     } finally {
       setMigrationBusy(false);
+    }
+  }
+
+  async function onCreateFamily() {
+    if (!session.user?.uid || !session.user?.email) return;
+
+    setFamilyError("");
+    setFamilyMessage("");
+
+    try {
+      setFamilyBusy(true);
+
+      const existingFamily = await getFamilyByOwnerUid(session.user.uid);
+      if (existingFamily) {
+        setFamilyRecord(existingFamily);
+        setFamilyMessage(language === "en" ? "Family already created." : "La familia ya fue creada.");
+        return;
+      }
+
+      const createdFamily = await createFamily({
+        ownerUid: session.user.uid,
+        ownerEmail: session.user.email,
+        familyName: language === "en" ? "My Family" : "Mi familia",
+      });
+
+      setFamilyRecord(createdFamily);
+      setFamilyMessage(language === "en" ? "Family created successfully." : "La familia se creó correctamente.");
+    } catch (error) {
+      setFamilyError(
+        error instanceof Error
+          ? error.message
+          : language === "en"
+            ? "Could not create family"
+            : "No se pudo crear la familia"
+      );
+    } finally {
+      setFamilyBusy(false);
     }
   }
 
@@ -681,15 +763,33 @@ export default function SettingsPage() {
                     background: "#fff",
                   }}
                 >
-                  {language === "en" ? "Coming soon" : "Próximamente"}
+                  {familyRecord
+                    ? language === "en"
+                      ? "Family created"
+                      : "Familia creada"
+                    : language === "en"
+                      ? "Plan Family"
+                      : "Plan Familiar"}
                 </div>
               </div>
 
               <div style={{ fontSize: s(13), color: MC_NAVY_MUTED }}>
-                {language === "en"
-                  ? "Shared Lists for the Family plan will live here. You will be able to create a family, invite up to 4 more members, and manage shared lists from one place."
-                  : "Aquí vivirá Shared Lists para el plan Familiar. Desde aquí podrás crear tu familia, invitar hasta 4 miembros más y administrar listas compartidas en un solo lugar."}
+                {familyRecord
+                  ? language === "en"
+                    ? `Owner: ${familyRecord.name}`
+                    : `Titular: ${familyRecord.name}`
+                  : language === "en"
+                    ? "Create your Family space here. Later you will be able to invite up to 4 more members and manage Shared Lists from one place."
+                    : "Crea aquí tu espacio Familiar. Después podrás invitar hasta 4 miembros más y administrar Shared Lists desde un solo lugar."}
               </div>
+
+              {familyMessage ? (
+                <div style={{ fontSize: s(13), color: "#027a48", fontWeight: 800 }}>{familyMessage}</div>
+              ) : null}
+
+              {familyError ? (
+                <div style={{ fontSize: s(13), color: "#b42318", fontWeight: 800 }}>{familyError}</div>
+              ) : null}
 
               <div
                 style={{
@@ -700,7 +800,8 @@ export default function SettingsPage() {
               >
                 <button
                   type="button"
-                  disabled
+                  onClick={() => void onCreateFamily()}
+                  disabled={familyBusy || !!familyRecord || !session.enabled}
                   style={{
                     width: "100%",
                     padding: "12px 14px",
@@ -710,15 +811,21 @@ export default function SettingsPage() {
                     color: MC_NAVY,
                     fontWeight: 900,
                     fontSize: s(15),
-                    opacity: 0.6,
+                    opacity: familyBusy || !!familyRecord || !session.enabled ? 0.6 : 1,
                   }}
                 >
-                  {language === "en" ? "Create family" : "Crear familia"}
+                  {familyBusy
+                    ? language === "en"
+                      ? "Creating..."
+                      : "Creando..."
+                    : language === "en"
+                      ? "Create family"
+                      : "Crear familia"}
                 </button>
 
                 <button
                   type="button"
-                  disabled
+                  disabled={!familyRecord}
                   style={{
                     width: "100%",
                     padding: "12px 14px",
@@ -728,7 +835,7 @@ export default function SettingsPage() {
                     color: MC_NAVY,
                     fontWeight: 900,
                     fontSize: s(15),
-                    opacity: 0.6,
+                    opacity: familyRecord ? 1 : 0.6,
                   }}
                 >
                   {language === "en" ? "Invite member" : "Invitar miembro"}
