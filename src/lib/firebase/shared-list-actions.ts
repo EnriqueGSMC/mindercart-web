@@ -72,6 +72,45 @@ function buildInviteExpiryIso(days: number = INVITE_EXPIRATION_DAYS): string {
   return date.toISOString();
 }
 
+function toComparableTime(value: unknown): number {
+  if (typeof value === "string") {
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  if (!value || typeof value !== "object") {
+    return 0;
+  }
+
+  const candidate = value as {
+    toMillis?: () => number;
+    toDate?: () => Date;
+    seconds?: number;
+    nanoseconds?: number;
+  };
+
+  if (typeof candidate.toMillis === "function") {
+    const millis = candidate.toMillis();
+    return Number.isFinite(millis) ? millis : 0;
+  }
+
+  if (typeof candidate.toDate === "function") {
+    const date = candidate.toDate();
+    const millis = date instanceof Date ? date.getTime() : Number.NaN;
+    return Number.isFinite(millis) ? millis : 0;
+  }
+
+  if (typeof candidate.seconds === "number") {
+    const millisFromSeconds = candidate.seconds * 1000;
+    const millisFromNanos =
+      typeof candidate.nanoseconds === "number" ? Math.floor(candidate.nanoseconds / 1_000_000) : 0;
+    const total = millisFromSeconds + millisFromNanos;
+    return Number.isFinite(total) ? total : 0;
+  }
+
+  return 0;
+}
+
 function usersDoc(uid: string) {
   return doc(db(), "users", uid);
 }
@@ -404,10 +443,10 @@ export async function getFamilyMembers(familyId: string): Promise<GetFamilyMembe
       return a.role === "owner" ? -1 : 1;
     }
 
-    const aDate = a.joinedAt ?? "";
-    const bDate = b.joinedAt ?? "";
-    if (aDate !== bDate) {
-      return bDate.localeCompare(aDate);
+    const aTime = toComparableTime(a.joinedAt);
+    const bTime = toComparableTime(b.joinedAt);
+    if (aTime !== bTime) {
+      return bTime - aTime;
     }
 
     return a.email.localeCompare(b.email);
@@ -422,7 +461,7 @@ export async function getFamilyPendingInvites(familyId: string): Promise<GetFami
   const snap = await getDocs(q);
 
   const records = snap.docs.map((docSnap) => docSnap.data() as FamilyInviteRecord);
-  records.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  records.sort((a, b) => toComparableTime(b.createdAt) - toComparableTime(a.createdAt));
 
   return records;
 }
