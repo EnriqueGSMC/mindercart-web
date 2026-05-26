@@ -29,8 +29,6 @@ import {
   writeState,
 } from "@/lib/mindercart/storage";
 import { useMinderCartState } from "@/lib/mindercart/hooks";
-import { useAuthSession } from "@/lib/firebase/auth-context";
-import { saveHistoryEntryForUser } from "@/lib/firebase/save-history-entry";
 
 type RemoveAction = {
   id: string;
@@ -70,13 +68,6 @@ type DisplayListItem = {
   unit: string;
   category?: string;
   sourceListName?: string | null;
-};
-
-type ShoppingHistoryEntry = {
-  id: string;
-  closedAt: number;
-  store: string;
-  items: unknown[];
 };
 
 const OFFICIAL_CATEGORY_VALUES = CATEGORY_CATALOG.map((row) => row.legacyValue);
@@ -617,7 +608,6 @@ function circleBadgeStyle(active: boolean, fontSize: number): React.CSSPropertie
 
 export default function ShoppingPage() {
   const { activeShoppingListItems, settings, hydrated, storeProfiles } = useMinderCartState();
-  const session = useAuthSession();
   const lang = settings.language;
   const s = (px: number) => scalePx(settings.fontScale, px);
   const [message, setMessage] = React.useState("");
@@ -1062,19 +1052,7 @@ export default function ShoppingPage() {
     );
     if (!ok) return;
 
-    const nextState = closeShoppingForStore(store);
-    const latestHistoryEntry =
-      boughtCount > 0 ? ((nextState.shoppingHistory[0] ?? null) as ShoppingHistoryEntry | null) : null;
-
-    if (latestHistoryEntry && session.user?.uid) {
-      void saveHistoryEntryForUser({
-        uid: session.user.uid,
-        entry: latestHistoryEntry,
-      }).catch((error) => {
-        console.error("Failed to save history entry to Firestore", error);
-      });
-    }
-
+    closeShoppingForStore(store);
     setMessage(
       lang === "en"
         ? `${store}: ${boughtCount} item(s) sent to History, ${pendingCount} pending.`
