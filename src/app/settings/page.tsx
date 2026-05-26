@@ -17,8 +17,14 @@ import { useAuthSession } from "@/lib/firebase/auth-context";
 import { signInUser, signOutUser, signUpUser } from "@/lib/firebase/auth-actions";
 import { resolveUserBootstrap } from "@/lib/firebase/resolve-user-bootstrap";
 import { saveUserData } from "@/lib/firebase/save-user-data";
-import { createFamily, getFamilyByOwnerUid, inviteFamilyMember } from "@/lib/firebase/shared-list-actions";
-import type { FamilyRecord } from "@/lib/firebase/shared-list-types";
+import {
+  createFamily,
+  getFamilyByOwnerUid,
+  getFamilyMembers,
+  getFamilyPendingInvites,
+  inviteFamilyMember,
+} from "@/lib/firebase/shared-list-actions";
+import type { FamilyInviteRecord, FamilyMemberRecord, FamilyRecord } from "@/lib/firebase/shared-list-types";
 import type { FontScale, Language, StoreProfile } from "@/lib/mindercart/types";
 
 function withMenuOpen(pathname: string) {
@@ -120,6 +126,10 @@ export default function SettingsPage() {
   const [familyInviteEmail, setFamilyInviteEmail] = React.useState("");
   const [familyInviteBusy, setFamilyInviteBusy] = React.useState(false);
   const [familyInviteOpen, setFamilyInviteOpen] = React.useState(false);
+  const [familyMembersOpen, setFamilyMembersOpen] = React.useState(false);
+  const [familyMembersBusy, setFamilyMembersBusy] = React.useState(false);
+  const [familyMembers, setFamilyMembers] = React.useState<FamilyMemberRecord[]>([]);
+  const [familyPendingInvites, setFamilyPendingInvites] = React.useState<FamilyInviteRecord[]>([]);
 
   React.useEffect(() => {
     setLanguage(settings.language);
@@ -176,9 +186,11 @@ export default function SettingsPage() {
       if (session.status !== "authenticated" || !session.user?.uid) {
         setFamilyRecord(null);
         setFamilyInviteOpen(false);
+        setFamilyMembersOpen(false);
+        setFamilyMembers([]);
+        setFamilyPendingInvites([]);
         setFamilyError("");
         setFamilyMessage("");
-        setFamilyInviteOpen(false);
         return;
       }
 
@@ -190,10 +202,18 @@ export default function SettingsPage() {
         setFamilyRecord(family);
         setFamilyError("");
         setFamilyInviteOpen(false);
+        setFamilyMembersOpen(false);
+        if (!family) {
+          setFamilyMembers([]);
+          setFamilyPendingInvites([]);
+        }
       } catch (error) {
         if (cancelled) return;
 
         setFamilyRecord(null);
+        setFamilyMembers([]);
+        setFamilyPendingInvites([]);
+        setFamilyMembersOpen(false);
         setFamilyError(
           error instanceof Error
             ? error.message
@@ -471,6 +491,16 @@ export default function SettingsPage() {
 
       setFamilyInviteEmail("");
       setFamilyInviteOpen(false);
+
+      if (familyMembersOpen) {
+        const [members, invites] = await Promise.all([
+          getFamilyMembers(familyRecord.id),
+          getFamilyPendingInvites(familyRecord.id),
+        ]);
+        setFamilyMembers(members);
+        setFamilyPendingInvites(invites);
+      }
+
       setFamilyMessage(
         language === "en"
           ? "Invitation created successfully."
@@ -486,6 +516,42 @@ export default function SettingsPage() {
       );
     } finally {
       setFamilyInviteBusy(false);
+    }
+  }
+
+
+  async function onToggleFamilyMembers() {
+    if (!familyRecord?.id) return;
+
+    if (familyMembersOpen) {
+      setFamilyMembersOpen(false);
+      return;
+    }
+
+    setFamilyError("");
+    setFamilyMessage("");
+
+    try {
+      setFamilyMembersBusy(true);
+
+      const [members, invites] = await Promise.all([
+        getFamilyMembers(familyRecord.id),
+        getFamilyPendingInvites(familyRecord.id),
+      ]);
+
+      setFamilyMembers(members);
+      setFamilyPendingInvites(invites);
+      setFamilyMembersOpen(true);
+    } catch (error) {
+      setFamilyError(
+        error instanceof Error
+          ? error.message
+          : language === "en"
+            ? "Could not load family members"
+            : "No se pudieron cargar los miembros de la familia"
+      );
+    } finally {
+      setFamilyMembersBusy(false);
     }
   }
 
@@ -790,6 +856,167 @@ export default function SettingsPage() {
                       : "Invita a un miembro a tu plan Familiar."}
                   </div>
                 )
+              ) : null}
+
+
+              {familyRecord ? (
+                <div style={{ display: "grid", gap: 10 }}>
+                  <button
+                    type="button"
+                    onClick={() => void onToggleFamilyMembers()}
+                    disabled={familyMembersBusy}
+                    style={{
+                      width: "100%",
+                      padding: "12px 14px",
+                      borderRadius: 14,
+                      border: `1px solid ${MC_NAVY_LINE}`,
+                      background: "#f7faff",
+                      color: MC_NAVY,
+                      fontWeight: 900,
+                      fontSize: s(15),
+                      opacity: familyMembersBusy ? 0.6 : 1,
+                    }}
+                  >
+                    {familyMembersBusy
+                      ? language === "en"
+                        ? "Loading group..."
+                        : "Cargando grupo..."
+                      : familyMembersOpen
+                        ? language === "en"
+                          ? "Hide family group"
+                          : "Ocultar grupo familiar"
+                        : language === "en"
+                          ? "View family group"
+                          : "Ver grupo familiar"}
+                  </button>
+
+                  {familyMembersOpen ? (
+                    <div
+                      style={{
+                        display: "grid",
+                        gap: 10,
+                        padding: "12px 14px",
+                        borderRadius: 14,
+                        border: `1px solid ${MC_NAVY_LINE}`,
+                        background: "#f7faff",
+                      }}
+                    >
+                      <div style={{ display: "grid", gap: 6 }}>
+                        <div style={{ fontWeight: 900, fontSize: s(13), color: MC_NAVY }}>
+                          {language === "en" ? "Members" : "Miembros"}
+                        </div>
+
+                        {familyMembers.length ? (
+                          familyMembers.map((member) => (
+                            <div
+                              key={member.uid}
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                gap: 12,
+                                alignItems: "center",
+                                padding: "10px 12px",
+                                borderRadius: 12,
+                                background: "#fff",
+                                border: `1px solid ${MC_NAVY_LINE}`,
+                              }}
+                            >
+                              <div style={{ display: "grid", gap: 2 }}>
+                                <div style={{ fontWeight: 800, fontSize: s(13), color: MC_NAVY }}>
+                                  {member.email}
+                                </div>
+                                <div style={{ fontSize: s(12), color: MC_NAVY_MUTED }}>
+                                  {member.role === "owner"
+                                    ? language === "en"
+                                      ? "Owner"
+                                      : "Titular"
+                                    : language === "en"
+                                      ? "Member"
+                                      : "Miembro"}
+                                </div>
+                              </div>
+
+                              <div
+                                style={{
+                                  padding: "4px 8px",
+                                  borderRadius: 999,
+                                  background: "#eef4ff",
+                                  color: MC_NAVY,
+                                  fontSize: s(12),
+                                  fontWeight: 800,
+                                }}
+                              >
+                                {member.status === "active"
+                                  ? language === "en"
+                                    ? "Active"
+                                    : "Activo"
+                                  : language === "en"
+                                    ? "Invited"
+                                    : "Invitado"}
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div style={{ fontSize: s(13), color: MC_NAVY_MUTED }}>
+                            {language === "en" ? "No family members yet." : "Todavía no hay miembros en la familia."}
+                          </div>
+                        )}
+                      </div>
+
+                      <div style={{ display: "grid", gap: 6 }}>
+                        <div style={{ fontWeight: 900, fontSize: s(13), color: MC_NAVY }}>
+                          {language === "en" ? "Pending invites" : "Invitaciones pendientes"}
+                        </div>
+
+                        {familyPendingInvites.length ? (
+                          familyPendingInvites.map((invite) => (
+                            <div
+                              key={invite.id}
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                gap: 12,
+                                alignItems: "center",
+                                padding: "10px 12px",
+                                borderRadius: 12,
+                                background: "#fff",
+                                border: `1px solid ${MC_NAVY_LINE}`,
+                              }}
+                            >
+                              <div style={{ display: "grid", gap: 2 }}>
+                                <div style={{ fontWeight: 800, fontSize: s(13), color: MC_NAVY }}>
+                                  {invite.email}
+                                </div>
+                                <div style={{ fontSize: s(12), color: MC_NAVY_MUTED }}>
+                                  {language === "en" ? "Pending acceptance" : "Pendiente de aceptar"}
+                                </div>
+                              </div>
+
+                              <div
+                                style={{
+                                  padding: "4px 8px",
+                                  borderRadius: 999,
+                                  background: "#fff7ed",
+                                  color: "#b54708",
+                                  fontSize: s(12),
+                                  fontWeight: 800,
+                                }}
+                              >
+                                {language === "en" ? "Pending" : "Pendiente"}
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div style={{ fontSize: s(13), color: MC_NAVY_MUTED }}>
+                            {language === "en"
+                              ? "There are no pending invites."
+                              : "No hay invitaciones pendientes."}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
               ) : null}
 
               <div

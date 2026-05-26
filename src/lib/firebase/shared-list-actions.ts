@@ -42,6 +42,8 @@ type AcceptFamilyInviteInput = {
 
 type GetFamilyByOwnerUidResult = FamilyRecord | null;
 type GetFamilyListsResult = SharedListRecord[];
+type GetFamilyMembersResult = FamilyMemberRecord[];
+type GetFamilyPendingInvitesResult = FamilyInviteRecord[];
 
 function db() {
   return getFirestore(clientApp());
@@ -386,4 +388,41 @@ export async function getFamilyLists(familyId: string): Promise<GetFamilyListsRe
   const snap = await getDocs(q);
 
   return snap.docs.map((docSnap) => docSnap.data() as SharedListRecord);
+}
+
+
+export async function getFamilyMembers(familyId: string): Promise<GetFamilyMembersResult> {
+  const normalizedFamilyId = requireNonEmpty(familyId, "familyId");
+  const snap = await getDocs(membersCollection(normalizedFamilyId));
+
+  const records = snap.docs
+    .map((docSnap) => docSnap.data() as FamilyMemberRecord)
+    .filter((member) => member.status !== "removed");
+
+  records.sort((a, b) => {
+    if (a.role !== b.role) {
+      return a.role === "owner" ? -1 : 1;
+    }
+
+    const aDate = a.joinedAt ?? "";
+    const bDate = b.joinedAt ?? "";
+    if (aDate !== bDate) {
+      return bDate.localeCompare(aDate);
+    }
+
+    return a.email.localeCompare(b.email);
+  });
+
+  return records;
+}
+
+export async function getFamilyPendingInvites(familyId: string): Promise<GetFamilyPendingInvitesResult> {
+  const normalizedFamilyId = requireNonEmpty(familyId, "familyId");
+  const q = query(invitesCollection(normalizedFamilyId), where("status", "==", "pending"));
+  const snap = await getDocs(q);
+
+  const records = snap.docs.map((docSnap) => docSnap.data() as FamilyInviteRecord);
+  records.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
+  return records;
 }
