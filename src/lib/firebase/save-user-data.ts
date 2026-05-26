@@ -1,6 +1,6 @@
 // ============================================================================
 // FILE: src/lib/firebase/save-user-data.ts
-// FIRESTORE WRITE v262
+// FIRESTORE WRITE v302
 // ============================================================================
 
 "use client";
@@ -8,6 +8,10 @@
 import { doc, getFirestore, setDoc } from "firebase/firestore";
 import type { InitialCloudBootstrapPayload } from "@/lib/mindercart/storage";
 import { clientApp } from "./client";
+
+const REMOTE_HISTORY_LIMIT = 20;
+
+type UnknownRecord = Record<string, unknown>;
 
 export type SaveUserDataInput = {
   uid: string;
@@ -44,9 +48,39 @@ function requireData(data: Record<string, unknown>) {
   return data;
 }
 
+function isRecord(value: unknown): value is UnknownRecord {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function withLimitedRemoteHistory<T>(value: T): T {
+  if (!isRecord(value)) {
+    return value;
+  }
+
+  const coreState = value.coreState;
+
+  if (!isRecord(coreState)) {
+    return value;
+  }
+
+  const shoppingHistory = coreState.shoppingHistory;
+
+  if (!Array.isArray(shoppingHistory)) {
+    return value;
+  }
+
+  return {
+    ...value,
+    coreState: {
+      ...coreState,
+      shoppingHistory: shoppingHistory.slice(0, REMOTE_HISTORY_LIMIT),
+    },
+  } as T;
+}
+
 export async function saveUserData(input: SaveUserDataInput): Promise<SaveUserDataResult> {
   const uid = requireUid(input.uid);
-  const data = requireData(input.data);
+  const data = withLimitedRemoteHistory(requireData(input.data));
   const savedAt = Date.now();
   const db = getFirestore(clientApp());
 
@@ -56,7 +90,7 @@ export async function saveUserData(input: SaveUserDataInput): Promise<SaveUserDa
   };
 
   if (input.bootstrapPayload) {
-    payload.initialBootstrapPayload = input.bootstrapPayload;
+    payload.initialBootstrapPayload = withLimitedRemoteHistory(input.bootstrapPayload);
   }
 
   await setDoc(doc(db, "users", uid), payload, { merge: true });
