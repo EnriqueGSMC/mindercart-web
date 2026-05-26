@@ -119,6 +119,7 @@ export default function SettingsPage() {
   const [familyRecord, setFamilyRecord] = React.useState<FamilyRecord | null>(null);
   const [familyInviteEmail, setFamilyInviteEmail] = React.useState("");
   const [familyInviteBusy, setFamilyInviteBusy] = React.useState(false);
+  const [familyInviteOpen, setFamilyInviteOpen] = React.useState(false);
 
   React.useEffect(() => {
     setLanguage(settings.language);
@@ -174,8 +175,10 @@ export default function SettingsPage() {
     async function run() {
       if (session.status !== "authenticated" || !session.user?.uid) {
         setFamilyRecord(null);
+        setFamilyInviteOpen(false);
         setFamilyError("");
         setFamilyMessage("");
+        setFamilyInviteOpen(false);
         return;
       }
 
@@ -186,6 +189,7 @@ export default function SettingsPage() {
 
         setFamilyRecord(family);
         setFamilyError("");
+        setFamilyInviteOpen(false);
       } catch (error) {
         if (cancelled) return;
 
@@ -414,6 +418,7 @@ export default function SettingsPage() {
       const existingFamily = await getFamilyByOwnerUid(session.user.uid);
       if (existingFamily) {
         setFamilyRecord(existingFamily);
+        setFamilyInviteOpen(false);
         setFamilyMessage(language === "en" ? "Family already created." : "La familia ya fue creada.");
         return;
       }
@@ -425,6 +430,7 @@ export default function SettingsPage() {
       });
 
       setFamilyRecord(createdFamily);
+      setFamilyInviteOpen(false);
       setFamilyMessage(language === "en" ? "Family created successfully." : "La familia se creó correctamente.");
     } catch (error) {
       setFamilyError(
@@ -464,6 +470,7 @@ export default function SettingsPage() {
       });
 
       setFamilyInviteEmail("");
+      setFamilyInviteOpen(false);
       setFamilyMessage(
         language === "en"
           ? "Invitation created successfully."
@@ -838,25 +845,43 @@ export default function SettingsPage() {
               ) : null}
 
               {familyRecord ? (
-                <div style={{ display: "grid", gap: 6 }}>
-                  <div style={{ fontWeight: 900, fontSize: s(13), color: MC_NAVY }}>
-                    {language === "en" ? "Member email" : "Correo del miembro"}
+                familyInviteOpen ? (
+                  <div style={{ display: "grid", gap: 6 }}>
+                    <div style={{ fontWeight: 900, fontSize: s(13), color: MC_NAVY }}>
+                      {language === "en" ? "Member email" : "Correo del miembro"}
+                    </div>
+                    <input
+                      type="email"
+                      value={familyInviteEmail}
+                      onChange={(e) => setFamilyInviteEmail(e.target.value)}
+                      placeholder={language === "en" ? "name@email.com" : "nombre@correo.com"}
+                      style={{
+                        width: "100%",
+                        padding: "12px 14px",
+                        borderRadius: 14,
+                        border: `1px solid ${MC_NAVY_LINE}`,
+                        fontSize: s(15),
+                        boxSizing: "border-box",
+                      }}
+                    />
                   </div>
-                  <input
-                    type="email"
-                    value={familyInviteEmail}
-                    onChange={(e) => setFamilyInviteEmail(e.target.value)}
-                    placeholder={language === "en" ? "name@email.com" : "nombre@correo.com"}
+                ) : (
+                  <div
                     style={{
-                      width: "100%",
                       padding: "12px 14px",
                       borderRadius: 14,
                       border: `1px solid ${MC_NAVY_LINE}`,
-                      fontSize: s(15),
-                      boxSizing: "border-box",
+                      background: "#eef4ff",
+                      color: MC_NAVY,
+                      fontSize: s(13),
+                      fontWeight: 700,
                     }}
-                  />
-                </div>
+                  >
+                    {language === "en"
+                      ? "Invite a member to your Family plan."
+                      : "Invita a un miembro a tu plan Familiar."}
+                  </div>
+                )
               ) : null}
 
               <div
@@ -893,27 +918,45 @@ export default function SettingsPage() {
 
                 <button
                   type="button"
-                  onClick={() => void onInviteFamilyMember()}
-                  disabled={!familyRecord || familyInviteBusy || !familyInviteEmail.trim()}
+                  onClick={() => {
+                    if (!familyRecord) return;
+                    if (!familyInviteOpen) {
+                      setFamilyInviteOpen(true);
+                      setFamilyError("");
+                      setFamilyMessage("");
+                      return;
+                    }
+                    void onInviteFamilyMember();
+                  }}
+                  disabled={
+                    !familyRecord || familyInviteBusy || (familyInviteOpen && !familyInviteEmail.trim())
+                  }
                   style={{
                     width: "100%",
                     padding: "12px 14px",
                     borderRadius: 14,
-                    border: `1px solid ${MC_NAVY_LINE}`,
-                    background: "#fff",
-                    color: MC_NAVY,
+                    border: "1px solid transparent",
+                    background: MC_NAVY,
+                    color: "#fff",
                     fontWeight: 900,
                     fontSize: s(15),
-                    opacity: !familyRecord || familyInviteBusy || !familyInviteEmail.trim() ? 0.6 : 1,
+                    opacity:
+                      !familyRecord || familyInviteBusy || (familyInviteOpen && !familyInviteEmail.trim())
+                        ? 0.6
+                        : 1,
                   }}
                 >
                   {familyInviteBusy
                     ? language === "en"
                       ? "Inviting..."
                       : "Invitando..."
-                    : language === "en"
-                      ? "Invite member"
-                      : "Invitar miembro"}
+                    : !familyInviteOpen
+                      ? language === "en"
+                        ? "Invite member"
+                        : "Invitar miembro"
+                      : language === "en"
+                        ? "Send invite"
+                        : "Enviar invitación"}
                 </button>
               </div>
             </div>
