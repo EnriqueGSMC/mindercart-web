@@ -494,98 +494,6 @@ export default function SettingsPage() {
     <AppShell title={t(language, "settingsTitle")} darkHero subtitle={t(language, "settingsSubtitle")} showCart={false}>
       <section style={{ ...cardStyle(), padding: 14, paddingBottom: "max(108px, env(safe-area-inset-bottom, 0px) + 88px)" }}>
         <form onSubmit={onSave} style={{ display: "grid", gap: 12 }}>
-          <div>
-            <div style={{ fontWeight: 900, marginBottom: 6, fontSize: s(15) }}>{t(language, "language")}</div>
-            <select
-              value={language}
-              onChange={(e) => setLanguage(e.target.value === "en" ? "en" : "es")}
-              style={{
-                width: "100%",
-                padding: "12px 14px",
-                borderRadius: 14,
-                border: `1px solid ${MC_NAVY_LINE}`,
-                fontSize: s(15),
-                boxSizing: "border-box",
-              }}
-            >
-              <option value="es">Español</option>
-              <option value="en">English</option>
-            </select>
-          </div>
-
-          <div>
-            <div style={{ fontWeight: 900, marginBottom: 6, fontSize: s(15) }}>{language === "en" ? "Stores" : "Tiendas"}</div>
-            <div
-              style={{
-                position: "relative",
-                width: "100%",
-                borderRadius: 14,
-                border: `1px solid ${MC_NAVY_LINE}`,
-                background: "#fff",
-                boxSizing: "border-box",
-              }}
-            >
-              <div
-                style={{
-                  padding: "12px 14px",
-                  fontSize: s(15),
-                  textAlign: "left",
-                }}
-              >
-                <div style={{ fontWeight: 800, color: MC_NAVY }}>
-                  {preferredStore || t(language, "preferredStorePlaceholder")}
-                </div>
-                <div style={{ marginTop: 4, fontSize: s(13), color: MC_NAVY_MUTED }}>
-                  {t(language, "choosePreferredStore")}
-                </div>
-              </div>
-              <select
-                value={preferredStore}
-                onChange={(e) => onChooseStore(e.target.value)}
-                aria-label={language === "en" ? "Store" : "Tienda"}
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  width: "100%",
-                  height: "100%",
-                  opacity: 0,
-                  cursor: "pointer",
-                }}
-              >
-                {filteredStoreProfiles.map((profile) => (
-                  <option key={profile.id} value={profile.name}>
-                    {profile.name}
-                  </option>
-                ))}
-                <option value="__add__">{language === "en" ? "Add" : "Agregar"}</option>
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <div style={{ fontWeight: 900, marginBottom: 6, fontSize: s(15) }}>{t(language, "fontSize")}</div>
-            <select
-              value={fontScale}
-              onChange={(e) =>
-                setFontScale(
-                  e.target.value === "large" || e.target.value === "xlarge" ? e.target.value : "normal"
-                )
-              }
-              style={{
-                width: "100%",
-                padding: "12px 14px",
-                borderRadius: 14,
-                border: `1px solid ${MC_NAVY_LINE}`,
-                fontSize: s(15),
-                boxSizing: "border-box",
-              }}
-            >
-              <option value="normal">{t(language, "fontNormal")}</option>
-              <option value="large">{t(language, "fontLarge")}</option>
-              <option value="xlarge">{t(language, "fontXLarge")}</option>
-            </select>
-          </div>
-
           <div
             style={{
               display: "grid",
@@ -975,8 +883,101 @@ export default function SettingsPage() {
               fontSize: s(15),
             }}
           >
-            {t(language, "save")}
+            {language === "en" ? "Sync now" : "Sincronizar ahora"}
           </button>
+
+          <div>
+            <div style={{ fontWeight: 900, marginBottom: 6, fontSize: s(15) }}>{t(language, "language")}</div>
+            <select
+              value={language}
+              onChange={(e) => setLanguage(e.target.value === "en" ? "en" : "es")}
+              style={{
+                width: "100%",
+                padding: "12px 14px",
+                borderRadius: 14,
+                border: `1px solid ${MC_NAVY_LINE}`,
+                fontSize: s(15),
+                boxSizing: "border-box",
+              }}
+            >
+              <option value="es">Español</option>
+              <option value="en">English</option>
+            </select>
+          </div>
+
+          <div>
+            <div style={{ fontWeight: 900, marginBottom: 6, fontSize: s(15) }}>{language === "en" ? "Stores" : "Tiendas"}</div>
+            <div
+              style={{
+                position: "relative",
+                width: "100%",
+                borderRadius: 14,
+                border: `1px solid ${MC_NAVY_LINE}`,
+                background: "#fff",
+                boxSizing: "border-box",
+              }}
+            >
+              <div
+                style={{
+                  padding: "12px 14px",
+                  fontSize: s(15),
+                  textAlign: "left",
+                }}
+              >
+                <div style={{ fontWeight: 800, color: MC_NAVY }}>
+                  {preferredStore || t(language, "preferredStorePlaceholder")}
+                </div>
+                <div style={{ marginTop: 4, fontSize: s(13), color: MC_NAVY_MUTED }}>
+                  {t(language, "choosePreferredStore")}
+                </div>
+              </div>
+              <select
+                value={preferredStore}
+                onChange={(e) => onChooseStore(e.target.value)}
+                aria-label={language === "en" ? "Store" : "Tienda"}
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  width: "100%",
+                  height: "100%",
+                  opacity: 0,
+                  cursor: "pointer",
+                }}
+              >
+                {filteredStoreProfiles.map((profile) => (
+                  <option key={profile.id} value={profile.name}>
+                    {profile.name}
+                  </option>
+                ))}
+                <option value="__add__">{language === "en" ? "Add" : "Agregar"}</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <div style={{ fontWeight: 900, marginBottom: 6, fontSize: s(15) }}>{t(language, "fontSize")}</div>
+            <select
+              value={fontScale}
+              onChange={(e) =>
+                setFontScale(
+                  e.target.value === "large" || e.target.value === "xlarge" ? e.target.value : "normal"
+                )
+              }
+              style={{
+                width: "100%",
+                padding: "12px 14px",
+                borderRadius: 14,
+                border: `1px solid ${MC_NAVY_LINE}`,
+                fontSize: s(15),
+                boxSizing: "border-box",
+              }}
+            >
+              <option value="normal">{t(language, "fontNormal")}</option>
+              <option value="large">{t(language, "fontLarge")}</option>
+              <option value="xlarge">{t(language, "fontXLarge")}</option>
+            </select>
+          </div>
+
         </form>
       </section>
 
