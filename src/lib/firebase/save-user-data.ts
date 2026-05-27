@@ -1,12 +1,19 @@
 // ============================================================================
 // FILE: src/lib/firebase/save-user-data.ts
-// FIRESTORE WRITE v316
+// FIRESTORE WRITE v317
 // - Supports individual vs family workspace targets
+// - Resolves active family workspace automatically when caller does not specify
 // ============================================================================
 
 "use client";
 
-import { doc, getFirestore, setDoc, type DocumentReference } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  getFirestore,
+  setDoc,
+  type DocumentReference,
+} from "firebase/firestore";
 import type { InitialCloudBootstrapPayload } from "@/lib/mindercart/storage";
 import { clientApp } from "./client";
 
@@ -40,6 +47,11 @@ type WorkspaceTarget = {
   ref: DocumentReference;
   ownerUid?: string;
   familyId?: string;
+};
+
+type ActiveFamilyMembership = {
+  familyId: string;
+  role: string | null;
 };
 
 function safe(value: unknown) {
@@ -94,41 +106,111 @@ function withLimitedRemoteHistory<T>(value: T): T {
   } as T;
 }
 
-function resolveWorkspaceType(input: SaveUserDataInput): WorkspaceType {
+function usersDoc(uid: string) {
+  const db = getFirestore(clientApp());
+  return doc(db, "users", uid);
+}
+
+function familyWorkspaceDoc(familyId: string) {
+  const db = getFirestore(clientApp());
+  return doc(db, "families", familyId, "workspace", "core");
+}
+
+function resolveExplicitWorkspaceType(input: SaveUserDataInput): WorkspaceType | null {
   if (input.workspaceType === "family") {
     return "family";
   }
 
-  return "individual";
+  if (input.workspaceType === "individual") {
+    return "individual";
+  }
+
+  return null;
 }
 
-function resolveWorkspaceTarget(input: SaveUserDataInput): WorkspaceTarget {
-  const db = getFirestore(clientApp());
-  const uid = requireUid(input.uid);
-  const workspaceType = resolveWorkspaceType(input);
+function readActiveFamilyMembership(value: unknown): ActiveFamilyMembership | null {
+  if (!isRecord(value)) {
+    return null;
+  }
 
-  if (workspaceType === "family") {
+  const membership = value.familyMembership;
+
+  if (!isRecord(membership)) {
+    return null;
+  }
+
+  const familyId = safe(membership.familyId);
+  const status = safe(membership.status).toLowerCase();
+  const role = safe(membership.role) || null;
+
+  if (!familyId || status !== "active") {
+    return null;
+  }
+
+  return {
+    familyId,
+    role,
+  };
+}
+
+function buildFamilyWorkspaceTarget(
+  uid: string,
+  familyId: string,
+  ownerUid?: string | null,
+): WorkspaceTarget {
+  return {
+    workspaceType: "family",
+    familyId,
+    ownerUid: safe(ownerUid) || undefined,
+    targetPath: `families/${familyId}/workspace/core`,
+    ref: familyWorkspaceDoc(familyId),
+  };
+}
+
+function buildIndividualWorkspaceTarget(uid: string): WorkspaceTarget {
+  return {
+    workspaceType: "individual",
+    targetPath: `users/${uid}`,
+    ref: usersDoc(uid),
+  };
+}
+
+async function resolveWorkspaceTarget(input: SaveUserDataInput): Promise<WorkspaceTarget> {
+  const uid = requireUid(input.uid);
+  const explicitWorkspaceType = resolveExplicitWorkspaceType(input);
+
+  if (explicitWorkspaceType === "family") {
     const familyId = safe(input.familyId);
-    const ownerUid = safe(input.ownerUid) || uid;
 
     if (!familyId) {
       throw new Error("Family workspace requires familyId");
     }
 
-    return {
-      workspaceType,
-      familyId,
-      ownerUid,
-      targetPath: `families/${familyId}/workspace/core`,
-      ref: doc(db, "families", familyId, "workspace", "core"),
-    };
+    return buildFamilyWorkspaceTarget(uid, familyId, input.ownerUid ?? uid);
   }
 
-  return {
-    workspaceType,
-    targetPath: `users/${uid}`,
-    ref: doc(db, "users", uid),
-  };
+  if (explicitWorkspaceType === "individual") {
+    return buildIndividualWorkspaceTarget(uid);
+  }
+
+  const userSnap = await getDoc(usersDoc(uid));
+
+  if (userSnap.exists()) {
+    const activeMembership = readActiveFamilyMembership(userSnap.data());
+
+    if (activeMembership) {
+      const resolvedOwnerUid =
+        activeMembership.role === "owner" ? uid : input.ownerUid ?? null;
+
+      return buildFamilyWorkspaceTarget(
+        uid,
+        activeMembership.familyId,
+        resolvedOwnerUid,
+      );
+    }
+  }
+
+  return buildIndividualWorkspaceTarget(uid);
 }
 
 function buildPayload(input: SaveUserDataInput, savedAt: number, target: WorkspaceTarget) {
@@ -146,8 +228,11 @@ function buildPayload(input: SaveUserDataInput, savedAt: number, target: Workspa
   if (target.workspaceType === "family") {
     payload.workspaceType = "family";
     payload.familyId = target.familyId;
-    payload.ownerUid = target.ownerUid;
     payload.updatedByUid = requireUid(input.uid);
+
+    if (target.ownerUid) {
+      payload.ownerUid = target.ownerUid;
+    }
   }
 
   return payload;
@@ -156,7 +241,7 @@ function buildPayload(input: SaveUserDataInput, savedAt: number, target: Workspa
 export async function saveUserData(input: SaveUserDataInput): Promise<SaveUserDataResult> {
   const uid = requireUid(input.uid);
   const savedAt = Date.now();
-  const target = resolveWorkspaceTarget(input);
+  const target = await resolveWorkspaceTarget(input);
   const payload = buildPayload(input, savedAt, target);
 
   await setDoc(target.ref, payload, { merge: true });
