@@ -1,3 +1,4 @@
+// FILE: src/lib/firebase/resolve-user-bootstrap.ts
 "use client";
 
 import {
@@ -56,7 +57,9 @@ function readLocalSummarySafely() {
 }
 
 function buildBootstrapPayloadSafely(hasLocalDataToMigrate: boolean) {
-  if (!hasLocalDataToMigrate) return null;
+  if (!hasLocalDataToMigrate) {
+    return null;
+  }
 
   try {
     return buildInitialCloudBootstrapPayload();
@@ -72,14 +75,18 @@ function asCloudState(value: unknown): UserBootstrapCloudState {
 }
 
 function getActiveFamilyId(cloudState: UserBootstrapCloudState): string | null {
-  if (!cloudState) return null;
+  if (!cloudState) {
+    return null;
+  }
 
   const membership =
     cloudState.familyMembership && typeof cloudState.familyMembership === "object"
       ? (cloudState.familyMembership as Record<string, unknown>)
       : null;
 
-  if (!membership) return null;
+  if (!membership) {
+    return null;
+  }
 
   const familyId = safe(membership.familyId);
   const status = safe(membership.status).toLowerCase();
@@ -114,20 +121,20 @@ export async function resolveUserBootstrap(uid: string): Promise<UserBootstrapRe
   }
 
   try {
-    const individualRawCloudState = await loadUserData({
+    const rawIndividualState = await loadUserData({
       uid: normalizedUid,
       workspaceType: "individual",
     });
-    const individualCloudState = asCloudState(individualRawCloudState);
+    const individualCloudState = asCloudState(rawIndividualState);
     const activeFamilyId = getActiveFamilyId(individualCloudState);
 
     if (activeFamilyId) {
-      const familyRawCloudState = await loadUserData({
+      const rawFamilyState = await loadUserData({
         uid: normalizedUid,
         workspaceType: "family",
         familyId: activeFamilyId,
       });
-      const familyCloudState = asCloudState(familyRawCloudState);
+      const familyCloudState = asCloudState(rawFamilyState);
 
       if (familyCloudState) {
         return {
