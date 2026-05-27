@@ -18,10 +18,12 @@ import { signInUser, signOutUser, signUpUser } from "@/lib/firebase/auth-actions
 import { resolveUserBootstrap } from "@/lib/firebase/resolve-user-bootstrap";
 import { saveUserData } from "@/lib/firebase/save-user-data";
 import {
+  acceptFamilyInvite,
   createFamily,
   getFamilyByOwnerUid,
   getFamilyMembers,
   getFamilyPendingInvites,
+  getPendingFamilyInviteForEmail,
   inviteFamilyMember,
   removeFamilyMember,
   revokeFamilyInvite,
@@ -45,6 +47,12 @@ type StoreDraft = {
   phone: string;
   notes: string;
   preferred: boolean;
+};
+
+type PendingFamilyInviteMatch = {
+  familyId: string;
+  familyName: string;
+  invite: FamilyInviteRecord;
 };
 
 function emptyStoreDraft(name = ""): StoreDraft {
@@ -134,6 +142,8 @@ export default function SettingsPage() {
   const [familyRemoveMemberBusyId, setFamilyRemoveMemberBusyId] = React.useState<string | null>(null);
   const [familyMembers, setFamilyMembers] = React.useState<FamilyMemberRecord[]>([]);
   const [familyPendingInvites, setFamilyPendingInvites] = React.useState<FamilyInviteRecord[]>([]);
+  const [pendingFamilyInvite, setPendingFamilyInvite] = React.useState<PendingFamilyInviteMatch | null>(null);
+  const [familyAcceptInviteBusy, setFamilyAcceptInviteBusy] = React.useState(false);
 
   React.useEffect(() => {
     setLanguage(settings.language);
@@ -193,6 +203,8 @@ export default function SettingsPage() {
         setFamilyMembersOpen(false);
         setFamilyMembers([]);
         setFamilyPendingInvites([]);
+        setPendingFamilyInvite(null);
+        setFamilyAcceptInviteBusy(false);
         setFamilyError("");
         setFamilyMessage("");
         return;
@@ -203,18 +215,39 @@ export default function SettingsPage() {
 
         if (cancelled) return;
 
-        setFamilyRecord(family);
+        if (family) {
+          setFamilyRecord(family);
+          setPendingFamilyInvite(null);
+          setFamilyError("");
+          setFamilyInviteOpen(false);
+          setFamilyMembersOpen(false);
+          return;
+        }
+
+        let inviteMatch: PendingFamilyInviteMatch | null = null;
+
+        if (session.user.email) {
+          const pendingInvite = await getPendingFamilyInviteForEmail(session.user.email);
+
+          if (cancelled) return;
+
+          if (pendingInvite) {
+            inviteMatch = pendingInvite as PendingFamilyInviteMatch;
+          }
+        }
+
+        setFamilyRecord(null);
+        setPendingFamilyInvite(inviteMatch);
         setFamilyError("");
         setFamilyInviteOpen(false);
         setFamilyMembersOpen(false);
-        if (!family) {
-          setFamilyMembers([]);
-          setFamilyPendingInvites([]);
-        }
+        setFamilyMembers([]);
+        setFamilyPendingInvites([]);
       } catch (error) {
         if (cancelled) return;
 
         setFamilyRecord(null);
+        setPendingFamilyInvite(null);
         setFamilyMembers([]);
         setFamilyPendingInvites([]);
         setFamilyMembersOpen(false);
@@ -233,7 +266,7 @@ export default function SettingsPage() {
     return () => {
       cancelled = true;
     };
-  }, [language, session.status, session.user?.uid]);
+  }, [language, session.status, session.user?.email, session.user?.uid]);
 
   const filteredStoreProfiles = React.useMemo(() => storeProfiles, [storeProfiles]);
 
@@ -251,7 +284,42 @@ export default function SettingsPage() {
   const s = (px: number) => scalePx(fontScale, px);
 
   if (!hydrated) {
-    return (
+  
+  async function onAcceptFamilyInvite() {
+    if (!pendingFamilyInvite || !session.user?.uid || !session.user?.email) return;
+
+    try {
+      setFamilyAcceptInviteBusy(true);
+      setFamilyError("");
+      setFamilyMessage("");
+
+      await acceptFamilyInvite({
+        familyId: pendingFamilyInvite.familyId,
+        inviteId: pendingFamilyInvite.invite.id,
+        uid: session.user.uid,
+        email: session.user.email,
+      });
+
+      setPendingFamilyInvite(null);
+      setFamilyMessage(
+        language === "en"
+          ? "Invitation accepted successfully."
+          : "La invitación se aceptó correctamente."
+      );
+    } catch (error) {
+      setFamilyError(
+        error instanceof Error
+          ? error.message
+          : language === "en"
+            ? "Could not accept invitation"
+            : "No se pudo aceptar la invitación"
+      );
+    } finally {
+      setFamilyAcceptInviteBusy(false);
+    }
+  }
+
+  return (
       <AppShell title={t("es", "settingsTitle")} darkHero subtitle={t("es", "settingsSubtitle")} showCart={false}>
         <section style={{ ...cardStyle(), padding: 18 }}>
           <div style={{ fontSize: 14, color: MC_NAVY_MUTED }}>{t("es", "loading")}</div>
@@ -427,6 +495,54 @@ export default function SettingsPage() {
       );
     } finally {
       setMigrationBusy(false);
+    }
+  }
+
+
+  async function onAcceptFamilyInvite() {
+    if (!pendingFamilyInvite || !session.user?.uid || !session.user?.email) return;
+
+    setFamilyError("");
+    setFamilyMessage("");
+
+    try {
+      setFamilyAcceptInviteBusy(true);
+
+      await acceptFamilyInvite({
+        familyId: pendingFamilyInvite.familyId,
+        inviteId: pendingFamilyInvite.invite.id,
+        uid: session.user.uid,
+        email: session.user.email,
+      });
+
+      setPendingFamilyInvite(null);
+
+      const [refreshedFamily, members, invites] = await Promise.all([
+        getFamilyByOwnerUid(session.user.uid).catch(() => null),
+        getFamilyMembers(pendingFamilyInvite.familyId).catch(() => []),
+        getFamilyPendingInvites(pendingFamilyInvite.familyId).catch(() => []),
+      ]);
+
+      setFamilyRecord(refreshedFamily ?? null);
+      setFamilyMembers(members);
+      setFamilyPendingInvites(invites);
+      setFamilyMembersOpen(true);
+
+      setFamilyMessage(
+        language === "en"
+          ? "Invitation accepted successfully."
+          : "La invitación se aceptó correctamente."
+      );
+    } catch (error) {
+      setFamilyError(
+        error instanceof Error
+          ? error.message
+          : language === "en"
+            ? "Could not accept invitation"
+            : "No se pudo aceptar la invitación"
+      );
+    } finally {
+      setFamilyAcceptInviteBusy(false);
     }
   }
 
@@ -887,9 +1003,13 @@ export default function SettingsPage() {
                     ? language === "en"
                       ? "Family created"
                       : "Familia creada"
-                    : language === "en"
-                      ? "Plan Family"
-                      : "Plan Familiar"}
+                    : pendingFamilyInvite
+                      ? language === "en"
+                        ? "Pending invite"
+                        : "Invitación pendiente"
+                      : language === "en"
+                        ? "Plan Family"
+                        : "Plan Familiar"}
                 </div>
               </div>
 
@@ -898,9 +1018,13 @@ export default function SettingsPage() {
                   ? language === "en"
                     ? `Owner: ${familyRecord.name}`
                     : `Titular: ${familyRecord.name}`
-                  : language === "en"
-                    ? "Create your Family space here. Later you will be able to invite up to 4 more members and manage Shared Lists from one place."
-                    : "Crea aquí tu espacio Familiar. Después podrás invitar hasta 4 miembros más y administrar Shared Lists desde un solo lugar."}
+                  : pendingFamilyInvite
+                    ? language === "en"
+                      ? `You have a pending invitation to join ${pendingFamilyInvite.familyName}.`
+                      : `Tienes una invitación pendiente para unirte a ${pendingFamilyInvite.familyName}.`
+                    : language === "en"
+                      ? "Create your Family space here. Later you will be able to invite up to 4 more members and manage Shared Lists from one place."
+                      : "Crea aquí tu espacio Familiar. Después podrás invitar hasta 4 miembros más y administrar Shared Lists desde un solo lugar."}
               </div>
 
               {familyMessage ? (
@@ -909,6 +1033,28 @@ export default function SettingsPage() {
 
               {familyError ? (
                 <div style={{ fontSize: s(13), color: "#b42318", fontWeight: 800 }}>{familyError}</div>
+              ) : null}
+
+              {pendingFamilyInvite ? (
+                <div
+                  style={{
+                    display: "grid",
+                    gap: 8,
+                    padding: "12px 14px",
+                    borderRadius: 14,
+                    border: `1px solid ${MC_NAVY_LINE}`,
+                    background: "#f7faff",
+                  }}
+                >
+                  <div style={{ fontWeight: 900, fontSize: s(13), color: MC_NAVY }}>
+                    {language === "en" ? "Pending invitation" : "Invitación pendiente"}
+                  </div>
+                  <div style={{ fontSize: s(13), color: MC_NAVY_MUTED }}>
+                    {language === "en"
+                      ? `Accept the invitation to join ${pendingFamilyInvite.familyName}.`
+                      : `Acepta la invitación para unirte a ${pendingFamilyInvite.familyName}.`}
+                  </div>
+                </div>
               ) : null}
 
               {familyRecord ? (
@@ -1168,53 +1314,11 @@ export default function SettingsPage() {
                 </div>
               ) : null}
 
-              <div
-                style={{
-                  display: "grid",
-                  gap: 10,
-                  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-                }}
-              >
+              {pendingFamilyInvite ? (
                 <button
                   type="button"
-                  onClick={() => void onCreateFamily()}
-                  disabled={familyBusy || !!familyRecord || !session.enabled}
-                  style={{
-                    width: "100%",
-                    padding: "12px 14px",
-                    borderRadius: 14,
-                    border: `1px solid ${MC_NAVY_LINE}`,
-                    background: "#fff",
-                    color: MC_NAVY,
-                    fontWeight: 900,
-                    fontSize: s(15),
-                    opacity: familyBusy || !!familyRecord || !session.enabled ? 0.6 : 1,
-                  }}
-                >
-                  {familyBusy
-                    ? language === "en"
-                      ? "Creating..."
-                      : "Creando..."
-                    : language === "en"
-                      ? "Create family"
-                      : "Crear familia"}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!familyRecord) return;
-                    if (!familyInviteOpen) {
-                      setFamilyInviteOpen(true);
-                      setFamilyError("");
-                      setFamilyMessage("");
-                      return;
-                    }
-                    void onInviteFamilyMember();
-                  }}
-                  disabled={
-                    !familyRecord || familyInviteBusy || (familyInviteOpen && !familyInviteEmail.trim())
-                  }
+                  onClick={() => void onAcceptFamilyInvite()}
+                  disabled={familyAcceptInviteBusy}
                   style={{
                     width: "100%",
                     padding: "12px 14px",
@@ -1224,25 +1328,94 @@ export default function SettingsPage() {
                     color: "#fff",
                     fontWeight: 900,
                     fontSize: s(15),
-                    opacity:
-                      !familyRecord || familyInviteBusy || (familyInviteOpen && !familyInviteEmail.trim())
-                        ? 0.6
-                        : 1,
+                    opacity: familyAcceptInviteBusy ? 0.6 : 1,
                   }}
                 >
-                  {familyInviteBusy
+                  {familyAcceptInviteBusy
                     ? language === "en"
-                      ? "Inviting..."
-                      : "Invitando..."
-                    : !familyInviteOpen
-                      ? language === "en"
-                        ? "Invite member"
-                        : "Invitar miembro"
-                      : language === "en"
-                        ? "Send invite"
-                        : "Enviar invitación"}
+                      ? "Accepting..."
+                      : "Aceptando..."
+                    : language === "en"
+                      ? "Accept invitation"
+                      : "Aceptar invitación"}
                 </button>
-              </div>
+              ) : (
+                <div
+                  style={{
+                    display: "grid",
+                    gap: 10,
+                    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => void onCreateFamily()}
+                    disabled={familyBusy || !!familyRecord || !session.enabled}
+                    style={{
+                      width: "100%",
+                      padding: "12px 14px",
+                      borderRadius: 14,
+                      border: `1px solid ${MC_NAVY_LINE}`,
+                      background: "#fff",
+                      color: MC_NAVY,
+                      fontWeight: 900,
+                      fontSize: s(15),
+                      opacity: familyBusy || !!familyRecord || !session.enabled ? 0.6 : 1,
+                    }}
+                  >
+                    {familyBusy
+                      ? language === "en"
+                        ? "Creating..."
+                        : "Creando..."
+                      : language === "en"
+                        ? "Create family"
+                        : "Crear familia"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!familyRecord) return;
+                      if (!familyInviteOpen) {
+                        setFamilyInviteOpen(true);
+                        setFamilyError("");
+                        setFamilyMessage("");
+                        return;
+                      }
+                      void onInviteFamilyMember();
+                    }}
+                    disabled={
+                      !familyRecord || familyInviteBusy || (familyInviteOpen && !familyInviteEmail.trim())
+                    }
+                    style={{
+                      width: "100%",
+                      padding: "12px 14px",
+                      borderRadius: 14,
+                      border: "1px solid transparent",
+                      background: MC_NAVY,
+                      color: "#fff",
+                      fontWeight: 900,
+                      fontSize: s(15),
+                      opacity:
+                        !familyRecord || familyInviteBusy || (familyInviteOpen && !familyInviteEmail.trim())
+                          ? 0.6
+                          : 1,
+                    }}
+                  >
+                    {familyInviteBusy
+                      ? language === "en"
+                        ? "Inviting..."
+                        : "Invitando..."
+                      : !familyInviteOpen
+                        ? language === "en"
+                          ? "Invite member"
+                          : "Invitar miembro"
+                        : language === "en"
+                          ? "Send invite"
+                          : "Enviar invitación"}
+                  </button>
+                </div>
+              )}
             </div>
           ) : null}
 
