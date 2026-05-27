@@ -269,7 +269,16 @@ export async function getFamilyMembers(familyId: string): Promise<FamilyMemberRe
   const normalizedFamilyId = requireNonEmpty(familyId, "familyId");
   const snap = await getDocs(membersCollection(normalizedFamilyId));
   const members = snap.docs.map((docSnap) => docSnap.data() as FamilyMemberRecord);
-  return sortByNewest(members, (member) => member.joinedAt ?? member.updatedAt);
+
+  return [...members].sort((a, b) => {
+    if (a.role === "owner" && b.role !== "owner") {
+      return -1;
+    }
+    if (b.role === "owner" && a.role !== "owner") {
+      return 1;
+    }
+    return toMillis(b.joinedAt ?? b.updatedAt) - toMillis(a.joinedAt ?? a.updatedAt);
+  });
 }
 
 export async function getFamilyPendingInvites(familyId: string): Promise<FamilyInviteRecord[]> {
