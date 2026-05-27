@@ -102,6 +102,10 @@ function listsCollection(familyId: string) {
   return collection(db(), "families", familyId, "lists");
 }
 
+function workspaceCoreDoc(familyId: string) {
+  return doc(db(), "families", familyId, "workspace", "core");
+}
+
 function toMillis(value: unknown): number {
   if (!value) return 0;
   if (typeof value === "string") {
@@ -161,6 +165,25 @@ function membershipRecord(familyId: string, role: UserFamilyMembershipRecord["ro
   };
 }
 
+function buildFamilyWorkspaceSeed(
+  ownerData: Record<string, unknown> | null,
+  familyId: string,
+  ownerUid: string,
+) {
+  const seed = ownerData ? { ...ownerData } : {};
+
+  delete seed.familyMembership;
+
+  return {
+    ...seed,
+    workspaceType: "family",
+    familyId,
+    ownerUid,
+    updatedByUid: ownerUid,
+    updatedAt: serverTimestamp(),
+  };
+}
+
 function toSharedListItemRecord(
   input: CopyPersonalListToSharedListInput["items"][number],
   copiedByUid: string,
@@ -189,6 +212,10 @@ export async function createFamily(input: CreateFamilyInput): Promise<FamilyReco
 
   const familyRef = doc(collection(db(), "families"));
   const timestamp = nowIso();
+  const ownerUserSnap = await getDoc(usersDoc(ownerUid));
+  const ownerWorkspaceSeed = ownerUserSnap.exists()
+    ? (ownerUserSnap.data() as Record<string, unknown>)
+    : null;
 
   const record: FamilyRecord = {
     id: familyRef.id,
@@ -220,6 +247,11 @@ export async function createFamily(input: CreateFamilyInput): Promise<FamilyReco
     ...ownerMember,
     updatedAt: serverTimestamp(),
   });
+  batch.set(
+    workspaceCoreDoc(record.id),
+    buildFamilyWorkspaceSeed(ownerWorkspaceSeed, record.id, ownerUid),
+    { merge: true },
+  );
   batch.set(
     usersDoc(ownerUid),
     {
