@@ -18,17 +18,13 @@ import { signInUser, signOutUser, signUpUser } from "@/lib/firebase/auth-actions
 import { resolveUserBootstrap } from "@/lib/firebase/resolve-user-bootstrap";
 import { saveUserData } from "@/lib/firebase/save-user-data";
 import {
-  acceptFamilyInvite,
   createFamily,
-  getFamilyById,
   getFamilyByOwnerUid,
   getFamilyMembers,
   getFamilyPendingInvites,
-  getPendingFamilyInviteForEmail,
-  getUserFamilyMembership,
   inviteFamilyMember,
+  removeFamilyMember,
   revokeFamilyInvite,
-  type PendingFamilyInviteMatch,
 } from "@/lib/firebase/shared-list-actions";
 import type { FamilyInviteRecord, FamilyMemberRecord, FamilyRecord } from "@/lib/firebase/shared-list-types";
 import type { FontScale, Language, StoreProfile } from "@/lib/mindercart/types";
@@ -135,11 +131,9 @@ export default function SettingsPage() {
   const [familyMembersOpen, setFamilyMembersOpen] = React.useState(false);
   const [familyMembersBusy, setFamilyMembersBusy] = React.useState(false);
   const [familyRevokeInviteBusyId, setFamilyRevokeInviteBusyId] = React.useState<string | null>(null);
+  const [familyRemoveMemberBusyId, setFamilyRemoveMemberBusyId] = React.useState<string | null>(null);
   const [familyMembers, setFamilyMembers] = React.useState<FamilyMemberRecord[]>([]);
   const [familyPendingInvites, setFamilyPendingInvites] = React.useState<FamilyInviteRecord[]>([]);
-  const [familyRole, setFamilyRole] = React.useState<"owner" | "member" | null>(null);
-  const [familyPendingInviteMatch, setFamilyPendingInviteMatch] = React.useState<PendingFamilyInviteMatch | null>(null);
-  const [familyAcceptInviteBusy, setFamilyAcceptInviteBusy] = React.useState(false);
 
   React.useEffect(() => {
     setLanguage(settings.language);
@@ -195,8 +189,6 @@ export default function SettingsPage() {
     async function run() {
       if (session.status !== "authenticated" || !session.user?.uid) {
         setFamilyRecord(null);
-        setFamilyRole(null);
-        setFamilyPendingInviteMatch(null);
         setFamilyInviteOpen(false);
         setFamilyMembersOpen(false);
         setFamilyMembers([]);
@@ -207,62 +199,22 @@ export default function SettingsPage() {
       }
 
       try {
-        const ownerFamily = await getFamilyByOwnerUid(session.user.uid);
+        const family = await getFamilyByOwnerUid(session.user.uid);
 
         if (cancelled) return;
 
-        if (ownerFamily) {
-          setFamilyRecord(ownerFamily);
-          setFamilyRole("owner");
-          setFamilyPendingInviteMatch(null);
-          setFamilyError("");
-          setFamilyInviteOpen(false);
-          setFamilyMembersOpen(false);
-          return;
-        }
-
-        const membership = await getUserFamilyMembership(session.user.uid);
-
-        if (cancelled) return;
-
-        if (membership?.familyId) {
-          const memberFamily = await getFamilyById(membership.familyId);
-
-          if (cancelled) return;
-
-          setFamilyRecord(memberFamily);
-          setFamilyRole(membership.role);
-          setFamilyPendingInviteMatch(null);
-          setFamilyError("");
-          setFamilyInviteOpen(false);
-          setFamilyMembersOpen(false);
-          if (!memberFamily) {
-            setFamilyMembers([]);
-            setFamilyPendingInvites([]);
-          }
-          return;
-        }
-
-        const pendingInvite = session.user.email
-          ? await getPendingFamilyInviteForEmail(session.user.email)
-          : null;
-
-        if (cancelled) return;
-
-        setFamilyRecord(null);
-        setFamilyRole(null);
-        setFamilyPendingInviteMatch(pendingInvite);
-        setFamilyMembers([]);
-        setFamilyPendingInvites([]);
-        setFamilyMembersOpen(false);
-        setFamilyInviteOpen(false);
+        setFamilyRecord(family);
         setFamilyError("");
+        setFamilyInviteOpen(false);
+        setFamilyMembersOpen(false);
+        if (!family) {
+          setFamilyMembers([]);
+          setFamilyPendingInvites([]);
+        }
       } catch (error) {
         if (cancelled) return;
 
         setFamilyRecord(null);
-        setFamilyRole(null);
-        setFamilyPendingInviteMatch(null);
         setFamilyMembers([]);
         setFamilyPendingInvites([]);
         setFamilyMembersOpen(false);
@@ -281,7 +233,7 @@ export default function SettingsPage() {
     return () => {
       cancelled = true;
     };
-  }, [language, session.status, session.user?.email, session.user?.uid]);
+  }, [language, session.status, session.user?.uid]);
 
   const filteredStoreProfiles = React.useMemo(() => storeProfiles, [storeProfiles]);
 
@@ -607,56 +559,6 @@ export default function SettingsPage() {
     }
   }
 
-  async function onAcceptPendingFamilyInvite() {
-    if (!familyPendingInviteMatch || !session.user?.uid || !session.user?.email) return;
-
-    const confirmed = window.confirm(
-      language === "en"
-        ? `Do you want to join the family "${familyPendingInviteMatch.familyName}"?`
-        : `¿Quieres unirte a la familia "${familyPendingInviteMatch.familyName}"?`
-    );
-
-    if (!confirmed) return;
-
-    try {
-      setFamilyAcceptInviteBusy(true);
-      setFamilyError("");
-      setFamilyMessage("");
-
-      await acceptFamilyInvite({
-        familyId: familyPendingInviteMatch.familyId,
-        inviteId: familyPendingInviteMatch.invite.id,
-        uid: session.user.uid,
-        email: session.user.email,
-      });
-
-      const family = await getFamilyById(familyPendingInviteMatch.familyId);
-
-      setFamilyRecord(family);
-      setFamilyRole("member");
-      setFamilyPendingInviteMatch(null);
-      setFamilyMembers([]);
-      setFamilyPendingInvites([]);
-      setFamilyMembersOpen(false);
-      setFamilyInviteOpen(false);
-      setFamilyMessage(
-        language === "en"
-          ? "Invitation accepted successfully."
-          : "La invitación se aceptó correctamente."
-      );
-    } catch (error) {
-      setFamilyError(
-        error instanceof Error
-          ? error.message
-          : language === "en"
-            ? "Could not accept invitation"
-            : "No se pudo aceptar la invitación"
-      );
-    } finally {
-      setFamilyAcceptInviteBusy(false);
-    }
-  }
-
   async function onRevokeFamilyInvite(inviteId: string) {
     if (!familyRecord?.id) return;
 
@@ -702,6 +604,50 @@ export default function SettingsPage() {
     }
   }
 
+  async function onRemoveFamilyMember(memberUid: string) {
+    if (!familyRecord?.id) return;
+
+    const confirmed = window.confirm(
+      language === "en"
+        ? "Do you want to remove this family member?"
+        : "¿Quieres quitar a este miembro de la familia?"
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setFamilyRemoveMemberBusyId(memberUid);
+      setFamilyError("");
+      setFamilyMessage("");
+
+      await removeFamilyMember(familyRecord.id, memberUid);
+
+      if (familyMembersOpen) {
+        const [members, invites] = await Promise.all([
+          getFamilyMembers(familyRecord.id),
+          getFamilyPendingInvites(familyRecord.id),
+        ]);
+        setFamilyMembers(members);
+        setFamilyPendingInvites(invites);
+      }
+
+      setFamilyMessage(
+        language === "en"
+          ? "Family member removed successfully."
+          : "El miembro se quitó correctamente."
+      );
+    } catch (error) {
+      setFamilyError(
+        error instanceof Error
+          ? error.message
+          : language === "en"
+            ? "Could not remove family member"
+            : "No se pudo quitar al miembro de la familia"
+      );
+    } finally {
+      setFamilyRemoveMemberBusyId(null);
+    }
+  }
 
   return (
     <AppShell title={t(language, "settingsTitle")} darkHero subtitle={t(language, "settingsSubtitle")} showCart={false}>
@@ -938,39 +884,23 @@ export default function SettingsPage() {
                   }}
                 >
                   {familyRecord
-                    ? familyRole === "member"
-                      ? language === "en"
-                        ? "Family member"
-                        : "Miembro familiar"
-                      : language === "en"
-                        ? "Family created"
-                        : "Familia creada"
-                    : familyPendingInviteMatch
-                      ? language === "en"
-                        ? "Pending invite"
-                        : "Invitación pendiente"
-                      : language === "en"
-                        ? "Plan Family"
-                        : "Plan Familiar"}
+                    ? language === "en"
+                      ? "Family created"
+                      : "Familia creada"
+                    : language === "en"
+                      ? "Plan Family"
+                      : "Plan Familiar"}
                 </div>
               </div>
 
               <div style={{ fontSize: s(13), color: MC_NAVY_MUTED }}>
                 {familyRecord
-                  ? familyRole === "member"
-                    ? language === "en"
-                      ? `You are part of the family: ${familyRecord.name}`
-                      : `Formas parte de la familia: ${familyRecord.name}`
-                    : language === "en"
-                      ? `Owner: ${familyRecord.name}`
-                      : `Titular: ${familyRecord.name}`
-                  : familyPendingInviteMatch
-                    ? language === "en"
-                      ? `You have a pending invite to join the family "${familyPendingInviteMatch.familyName}".`
-                      : `Tienes una invitación pendiente para unirte a la familia "${familyPendingInviteMatch.familyName}".`
-                    : language === "en"
-                      ? "Create your Family space here. Later you will be able to invite up to 4 more members and manage Shared Lists from one place."
-                      : "Crea aquí tu espacio Familiar. Después podrás invitar hasta 4 miembros más y administrar Shared Lists desde un solo lugar."}
+                  ? language === "en"
+                    ? `Owner: ${familyRecord.name}`
+                    : `Titular: ${familyRecord.name}`
+                  : language === "en"
+                    ? "Create your Family space here. Later you will be able to invite up to 4 more members and manage Shared Lists from one place."
+                    : "Crea aquí tu espacio Familiar. Después podrás invitar hasta 4 miembros más y administrar Shared Lists desde un solo lugar."}
               </div>
 
               {familyMessage ? (
@@ -981,73 +911,44 @@ export default function SettingsPage() {
                 <div style={{ fontSize: s(13), color: "#b42318", fontWeight: 800 }}>{familyError}</div>
               ) : null}
 
-              {!familyRecord && familyPendingInviteMatch ? (
-                <button
-                  type="button"
-                  onClick={() => void onAcceptPendingFamilyInvite()}
-                  disabled={familyAcceptInviteBusy}
-                  style={{
-                    width: "100%",
-                    padding: "12px 14px",
-                    borderRadius: 14,
-                    border: `1px solid ${MC_NAVY}`,
-                    background: MC_NAVY,
-                    color: "#fff",
-                    fontWeight: 900,
-                    fontSize: s(15),
-                    opacity: familyAcceptInviteBusy ? 0.6 : 1,
-                  }}
-                >
-                  {familyAcceptInviteBusy
-                    ? language === "en"
-                      ? "Accepting..."
-                      : "Aceptando..."
-                    : language === "en"
-                      ? "Accept invitation"
-                      : "Aceptar invitación"}
-                </button>
-              ) : null}
-
               {familyRecord ? (
-                familyRole === "owner" ? (
-                  familyInviteOpen ? (
-                    <div style={{ display: "grid", gap: 6 }}>
-                      <div style={{ fontWeight: 900, fontSize: s(13), color: MC_NAVY }}>
-                        {language === "en" ? "Member email" : "Correo del miembro"}
-                      </div>
-                      <input
-                        type="email"
-                        value={familyInviteEmail}
-                        onChange={(e) => setFamilyInviteEmail(e.target.value)}
-                        placeholder={language === "en" ? "name@email.com" : "nombre@correo.com"}
-                        style={{
-                          width: "100%",
-                          padding: "12px 14px",
-                          borderRadius: 14,
-                          border: `1px solid ${MC_NAVY_LINE}`,
-                          fontSize: s(15),
-                          boxSizing: "border-box",
-                        }}
-                      />
+                familyInviteOpen ? (
+                  <div style={{ display: "grid", gap: 6 }}>
+                    <div style={{ fontWeight: 900, fontSize: s(13), color: MC_NAVY }}>
+                      {language === "en" ? "Member email" : "Correo del miembro"}
                     </div>
-                  ) : (
-                    <div
+                    <input
+                      type="email"
+                      value={familyInviteEmail}
+                      onChange={(e) => setFamilyInviteEmail(e.target.value)}
+                      placeholder={language === "en" ? "name@email.com" : "nombre@correo.com"}
                       style={{
+                        width: "100%",
                         padding: "12px 14px",
                         borderRadius: 14,
                         border: `1px solid ${MC_NAVY_LINE}`,
-                        background: "#eef4ff",
-                        color: MC_NAVY,
-                        fontSize: s(13),
-                        fontWeight: 700,
+                        fontSize: s(15),
+                        boxSizing: "border-box",
                       }}
-                    >
-                      {language === "en"
-                        ? "Invite a member to your Family plan."
-                        : "Invita a un miembro a tu plan Familiar."}
-                    </div>
-                  )
-                ) : null
+                    />
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      padding: "12px 14px",
+                      borderRadius: 14,
+                      border: `1px solid ${MC_NAVY_LINE}`,
+                      background: "#eef4ff",
+                      color: MC_NAVY,
+                      fontSize: s(13),
+                      fontWeight: 700,
+                    }}
+                  >
+                    {language === "en"
+                      ? "Invite a member to your Family plan."
+                      : "Invita a un miembro a tu plan Familiar."}
+                  </div>
+                )
               ) : null}
 
 
@@ -1128,23 +1029,52 @@ export default function SettingsPage() {
                                 </div>
                               </div>
 
-                              <div
-                                style={{
-                                  padding: "4px 8px",
-                                  borderRadius: 999,
-                                  background: "#eef4ff",
-                                  color: MC_NAVY,
-                                  fontSize: s(12),
-                                  fontWeight: 800,
-                                }}
-                              >
-                                {member.status === "active"
-                                  ? language === "en"
-                                    ? "Active"
-                                    : "Activo"
-                                  : language === "en"
-                                    ? "Invited"
-                                    : "Invitado"}
+                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                {member.role !== "owner" ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => void onRemoveFamilyMember(member.uid)}
+                                    disabled={familyRemoveMemberBusyId === member.uid}
+                                    style={{
+                                      border: `1px solid ${MC_NAVY_LINE}`,
+                                      background: "#fff",
+                                      color: MC_NAVY,
+                                      borderRadius: 999,
+                                      padding: "6px 10px",
+                                      fontSize: s(12),
+                                      fontWeight: 800,
+                                      cursor: familyRemoveMemberBusyId === member.uid ? "default" : "pointer",
+                                      opacity: familyRemoveMemberBusyId === member.uid ? 0.6 : 1,
+                                    }}
+                                  >
+                                    {familyRemoveMemberBusyId === member.uid
+                                      ? language === "en"
+                                        ? "Removing..."
+                                        : "Quitando..."
+                                      : language === "en"
+                                        ? "Remove"
+                                        : "Quitar"}
+                                  </button>
+                                ) : null}
+
+                                <div
+                                  style={{
+                                    padding: "4px 8px",
+                                    borderRadius: 999,
+                                    background: "#eef4ff",
+                                    color: MC_NAVY,
+                                    fontSize: s(12),
+                                    fontWeight: 800,
+                                  }}
+                                >
+                                  {member.status === "active"
+                                    ? language === "en"
+                                      ? "Active"
+                                      : "Activo"
+                                    : language === "en"
+                                      ? "Invited"
+                                      : "Invitado"}
+                                </div>
                               </div>
                             </div>
                           ))
@@ -1185,32 +1115,30 @@ export default function SettingsPage() {
                               </div>
 
                               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                {familyRole === "owner" ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => void onRevokeFamilyInvite(invite.id)}
-                                    disabled={familyRevokeInviteBusyId === invite.id}
-                                    style={{
-                                      border: `1px solid ${MC_NAVY_LINE}`,
-                                      background: "#fff",
-                                      color: MC_NAVY,
-                                      borderRadius: 999,
-                                      padding: "6px 10px",
-                                      fontSize: s(12),
-                                      fontWeight: 800,
-                                      cursor: familyRevokeInviteBusyId === invite.id ? "default" : "pointer",
-                                      opacity: familyRevokeInviteBusyId === invite.id ? 0.6 : 1,
-                                    }}
-                                  >
-                                    {familyRevokeInviteBusyId === invite.id
-                                      ? language === "en"
-                                        ? "Revoking..."
-                                        : "Revocando..."
-                                      : language === "en"
-                                        ? "Revoke"
-                                        : "Revocar"}
-                                  </button>
-                                ) : null}
+                                <button
+                                  type="button"
+                                  onClick={() => void onRevokeFamilyInvite(invite.id)}
+                                  disabled={familyRevokeInviteBusyId === invite.id}
+                                  style={{
+                                    border: `1px solid ${MC_NAVY_LINE}`,
+                                    background: "#fff",
+                                    color: MC_NAVY,
+                                    borderRadius: 999,
+                                    padding: "6px 10px",
+                                    fontSize: s(12),
+                                    fontWeight: 800,
+                                    cursor: familyRevokeInviteBusyId === invite.id ? "default" : "pointer",
+                                    opacity: familyRevokeInviteBusyId === invite.id ? 0.6 : 1,
+                                  }}
+                                >
+                                  {familyRevokeInviteBusyId === invite.id
+                                    ? language === "en"
+                                      ? "Revoking..."
+                                      : "Revocando..."
+                                    : language === "en"
+                                      ? "Revoke"
+                                      : "Revocar"}
+                                </button>
 
                                 <div
                                   style={{
@@ -1250,7 +1178,7 @@ export default function SettingsPage() {
                 <button
                   type="button"
                   onClick={() => void onCreateFamily()}
-                  disabled={familyBusy || !!familyRecord || !!familyPendingInviteMatch || familyRole === "member" || !session.enabled}
+                  disabled={familyBusy || !!familyRecord || !session.enabled}
                   style={{
                     width: "100%",
                     padding: "12px 14px",
@@ -1260,7 +1188,7 @@ export default function SettingsPage() {
                     color: MC_NAVY,
                     fontWeight: 900,
                     fontSize: s(15),
-                    opacity: familyBusy || !!familyRecord || !!familyPendingInviteMatch || familyRole === "member" || !session.enabled ? 0.6 : 1,
+                    opacity: familyBusy || !!familyRecord || !session.enabled ? 0.6 : 1,
                   }}
                 >
                   {familyBusy
@@ -1275,7 +1203,7 @@ export default function SettingsPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    if (!familyRecord || familyRole !== "owner") return;
+                    if (!familyRecord) return;
                     if (!familyInviteOpen) {
                       setFamilyInviteOpen(true);
                       setFamilyError("");
@@ -1285,7 +1213,7 @@ export default function SettingsPage() {
                     void onInviteFamilyMember();
                   }}
                   disabled={
-                    !familyRecord || familyRole !== "owner" || familyInviteBusy || (familyInviteOpen && !familyInviteEmail.trim())
+                    !familyRecord || familyInviteBusy || (familyInviteOpen && !familyInviteEmail.trim())
                   }
                   style={{
                     width: "100%",
@@ -1297,7 +1225,7 @@ export default function SettingsPage() {
                     fontWeight: 900,
                     fontSize: s(15),
                     opacity:
-                      !familyRecord || familyRole !== "owner" || familyInviteBusy || (familyInviteOpen && !familyInviteEmail.trim())
+                      !familyRecord || familyInviteBusy || (familyInviteOpen && !familyInviteEmail.trim())
                         ? 0.6
                         : 1,
                   }}

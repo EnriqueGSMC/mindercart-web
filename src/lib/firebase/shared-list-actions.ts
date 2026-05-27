@@ -15,6 +15,8 @@ import {
 import { clientApp } from "./client";
 import {
   collection,
+  deleteDoc,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -457,8 +459,40 @@ export async function acceptFamilyInvite(input: AcceptFamilyInviteInput): Promis
     { merge: true },
   );
 
+
   await batch.commit();
   return member;
+}
+
+export async function removeFamilyMember(familyId: string, memberUid: string): Promise<void> {
+  const normalizedFamilyId = requireNonEmpty(familyId, "familyId");
+  const normalizedMemberUid = requireNonEmpty(memberUid, "memberUid");
+
+  const family = await requireFamilyExists(normalizedFamilyId);
+  const memberRef = doc(membersCollection(normalizedFamilyId), normalizedMemberUid);
+  const memberSnap = await getDoc(memberRef);
+
+  if (!memberSnap.exists()) {
+    throw new Error("Family member not found");
+  }
+
+  const member = memberSnap.data() as FamilyMemberRecord;
+  if (member.role === "owner" || family.ownerUid === normalizedMemberUid) {
+    throw new Error("Owner cannot be removed");
+  }
+
+  const batch = writeBatch(db());
+  batch.delete(memberRef);
+  batch.set(
+    usersDoc(normalizedMemberUid),
+    {
+      familyMembership: deleteField(),
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true },
+  );
+
+  await batch.commit();
 }
 
 export async function createSharedList(input: CreateSharedListInput): Promise<SharedListRecord> {
