@@ -15,7 +15,6 @@ import {
 import { clientApp } from "./client";
 import {
   collection,
-  collectionGroup,
   doc,
   getDoc,
   getDocs,
@@ -45,12 +44,6 @@ type GetFamilyByOwnerUidResult = FamilyRecord | null;
 type GetFamilyListsResult = SharedListRecord[];
 type GetFamilyMembersResult = FamilyMemberRecord[];
 type GetFamilyPendingInvitesResult = FamilyInviteRecord[];
-export type PendingFamilyInviteMatch = {
-  familyId: string;
-  familyName: string;
-  invite: FamilyInviteRecord;
-};
-type GetPendingFamilyInviteForEmailResult = PendingFamilyInviteMatch | null;
 
 function db() {
   return getFirestore(clientApp());
@@ -124,10 +117,6 @@ function usersDoc(uid: string) {
 
 function familiesDoc(familyId: string) {
   return doc(db(), "families", familyId);
-}
-
-function invitesCollectionGroup() {
-  return collectionGroup(db(), "invites");
 }
 
 function membersCollection(familyId: string) {
@@ -261,55 +250,6 @@ export async function getFamilyByOwnerUid(ownerUid: string): Promise<GetFamilyBy
   }
 
   return snap.docs[0].data() as FamilyRecord;
-}
-
-export async function getFamilyById(familyId: string): Promise<FamilyRecord | null> {
-  const normalizedFamilyId = requireNonEmpty(familyId, "familyId");
-  const snap = await getDoc(familiesDoc(normalizedFamilyId));
-  return snap.exists() ? (snap.data() as FamilyRecord) : null;
-}
-
-export async function getUserFamilyMembership(uid: string): Promise<UserFamilyMembershipRecord | null> {
-  const normalizedUid = requireNonEmpty(uid, "uid");
-  const snap = await getDoc(usersDoc(normalizedUid));
-  if (!snap.exists()) {
-    return null;
-  }
-
-  const data = snap.data() as { familyMembership?: UserFamilyMembershipRecord | null };
-  return data.familyMembership ?? null;
-}
-
-export async function getPendingFamilyInviteForEmail(email: string): Promise<GetPendingFamilyInviteForEmailResult> {
-  const normalizedEmail = normalizeEmail(requireNonEmpty(email, "email"));
-  const q = query(
-    invitesCollectionGroup(),
-    where("email", "==", normalizedEmail),
-    where("status", "==", "pending"),
-    limit(1),
-  );
-
-  const snap = await getDocs(q);
-  if (snap.empty) {
-    return null;
-  }
-
-  const inviteDoc = snap.docs[0];
-  const familyId = inviteDoc.ref.parent.parent?.id;
-  if (!familyId) {
-    return null;
-  }
-
-  const family = await getFamilyById(familyId);
-  if (!family || family.status !== ACTIVE_FAMILY_STATUS) {
-    return null;
-  }
-
-  return {
-    familyId,
-    familyName: family.name,
-    invite: inviteDoc.data() as FamilyInviteRecord,
-  };
 }
 
 export async function inviteFamilyMember(input: CreateFamilyInviteInput): Promise<FamilyInviteRecord> {
