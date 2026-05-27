@@ -1,3 +1,4 @@
+// FILE: src/lib/firebase/resolve-user-bootstrap.ts
 "use client";
 
 import {
@@ -6,7 +7,7 @@ import {
   type InitialCloudBootstrapPayload,
   type LocalStateMigrationSummary,
 } from "@/lib/mindercart/storage";
-import { loadUserData } from "@/lib/firebase/load-user-data";
+import { loadUserData, type WorkspaceType } from "@/lib/firebase/load-user-data";
 
 export type UserBootstrapCloudState = Record<string, unknown> | null;
 
@@ -20,6 +21,8 @@ export type UserBootstrapResolution = {
   shouldOfferInitialMigration: boolean;
   bootstrapPayload: InitialCloudBootstrapPayload | null;
   error: string | null;
+  workspaceType: WorkspaceType;
+  familyId: string | null;
 };
 
 const EMPTY_LOCAL_SUMMARY: LocalStateMigrationSummary = {
@@ -63,6 +66,32 @@ function buildBootstrapPayloadSafely(hasLocalDataToMigrate: boolean) {
   }
 }
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
+}
+
+function resolveFamilyMembership(
+  cloudState: UserBootstrapCloudState,
+): { familyId: string | null; isActive: boolean } {
+  const root = asRecord(cloudState);
+  const membership = asRecord(root?.familyMembership);
+
+  if (!membership) {
+    return {
+      familyId: null,
+      isActive: false,
+    };
+  }
+
+  const familyId = safe(membership.familyId) || null;
+  const status = safe(membership.status).toLowerCase();
+
+  return {
+    familyId,
+    isActive: Boolean(familyId) && status === "active",
+  };
+}
+
 export async function resolveUserBootstrap(uid: string): Promise<UserBootstrapResolution> {
   const normalizedUid = safe(uid);
   const localSummary = readLocalSummarySafely();
@@ -80,15 +109,33 @@ export async function resolveUserBootstrap(uid: string): Promise<UserBootstrapRe
       shouldOfferInitialMigration: false,
       bootstrapPayload,
       error: null,
+      workspaceType: "individual",
+      familyId: null,
     };
   }
 
   try {
-    const rawCloudState = await loadUserData(normalizedUid);
-    const cloudState =
-      rawCloudState && typeof rawCloudState === "object"
-        ? (rawCloudState as Record<string, unknown>)
-        : null;
+    const rawIndividualCloudState = await loadUserData(normalizedUid);
+    const individualCloudState = asRecord(rawIndividualCloudState);
+    const { familyId, isActive } = resolveFamilyMembership(individualCloudState);
+
+    let workspaceType: WorkspaceType = "individual";
+    let cloudState: UserBootstrapCloudState = individualCloudState;
+
+    if (isActive && familyId) {
+      const rawFamilyCloudState = await loadUserData({
+        uid: normalizedUid,
+        workspaceType: "family",
+        familyId,
+      });
+      const familyCloudState = asRecord(rawFamilyCloudState);
+
+      if (familyCloudState) {
+        workspaceType = "family";
+        cloudState = familyCloudState;
+      }
+    }
+
     const hasCloudData = cloudState !== null;
 
     return {
@@ -101,6 +148,8 @@ export async function resolveUserBootstrap(uid: string): Promise<UserBootstrapRe
       shouldOfferInitialMigration: !hasCloudData && hasLocalDataToMigrate,
       bootstrapPayload,
       error: null,
+      workspaceType,
+      familyId: workspaceType === "family" ? familyId : null,
     };
   } catch (error) {
     return {
@@ -113,6 +162,8 @@ export async function resolveUserBootstrap(uid: string): Promise<UserBootstrapRe
       shouldOfferInitialMigration: false,
       bootstrapPayload,
       error: error instanceof Error ? error.message : "Cloud bootstrap error",
+      workspaceType: "individual",
+      familyId: null,
     };
   }
 }
