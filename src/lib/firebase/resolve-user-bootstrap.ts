@@ -1,4 +1,3 @@
-// FILE: src/lib/firebase/resolve-user-bootstrap.ts
 "use client";
 
 import {
@@ -7,13 +6,16 @@ import {
   type InitialCloudBootstrapPayload,
   type LocalStateMigrationSummary,
 } from "@/lib/mindercart/storage";
-import { loadUserData, type WorkspaceType } from "@/lib/firebase/load-user-data";
+import { loadUserData } from "@/lib/firebase/load-user-data";
 
 export type UserBootstrapCloudState = Record<string, unknown> | null;
+export type WorkspaceType = "individual" | "family";
 
 export type UserBootstrapResolution = {
   uid: string;
   hasUid: boolean;
+  workspaceType: WorkspaceType;
+  familyId: string | null;
   cloudState: UserBootstrapCloudState;
   hasCloudData: boolean;
   localSummary: LocalStateMigrationSummary;
@@ -21,8 +23,6 @@ export type UserBootstrapResolution = {
   shouldOfferInitialMigration: boolean;
   bootstrapPayload: InitialCloudBootstrapPayload | null;
   error: string | null;
-  workspaceType: WorkspaceType;
-  familyId: string | null;
 };
 
 const EMPTY_LOCAL_SUMMARY: LocalStateMigrationSummary = {
@@ -66,30 +66,29 @@ function buildBootstrapPayloadSafely(hasLocalDataToMigrate: boolean) {
   }
 }
 
-function asRecord(value: unknown): Record<string, unknown> | null {
+function getRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
 }
 
-function resolveFamilyMembership(
-  cloudState: UserBootstrapCloudState,
-): { familyId: string | null; isActive: boolean } {
-  const root = asRecord(cloudState);
-  const membership = asRecord(root?.familyMembership);
+function getActiveFamilyId(cloudState: UserBootstrapCloudState): string | null {
+  const rootMembership = getRecord(cloudState?.familyMembership);
+  const rootFamilyId = safe(rootMembership?.familyId);
+  const rootStatus = safe(rootMembership?.status).toLowerCase();
 
-  if (!membership) {
-    return {
-      familyId: null,
-      isActive: false,
-    };
+  if (rootFamilyId && rootStatus === "active") {
+    return rootFamilyId;
   }
 
-  const familyId = safe(membership.familyId) || null;
-  const status = safe(membership.status).toLowerCase();
+  const userRecord = getRecord(cloudState?.user);
+  const nestedMembership = getRecord(userRecord?.familyMembership);
+  const nestedFamilyId = safe(nestedMembership?.familyId);
+  const nestedStatus = safe(nestedMembership?.status).toLowerCase();
 
-  return {
-    familyId,
-    isActive: Boolean(familyId) && status === "active",
-  };
+  if (nestedFamilyId && nestedStatus === "active") {
+    return nestedFamilyId;
+  }
+
+  return null;
 }
 
 export async function resolveUserBootstrap(uid: string): Promise<UserBootstrapResolution> {
@@ -102,6 +101,8 @@ export async function resolveUserBootstrap(uid: string): Promise<UserBootstrapRe
     return {
       uid: "",
       hasUid: false,
+      workspaceType: "individual",
+      familyId: null,
       cloudState: null,
       hasCloudData: false,
       localSummary,
@@ -109,52 +110,72 @@ export async function resolveUserBootstrap(uid: string): Promise<UserBootstrapRe
       shouldOfferInitialMigration: false,
       bootstrapPayload,
       error: null,
-      workspaceType: "individual",
-      familyId: null,
     };
   }
 
   try {
-    const rawIndividualCloudState = await loadUserData(normalizedUid);
-    const individualCloudState = asRecord(rawIndividualCloudState);
-    const { familyId, isActive } = resolveFamilyMembership(individualCloudState);
+    const rawIndividualCloudState = await loadUserData({
+      uid: normalizedUid,
+      workspaceType: "individual",
+    });
 
-    let workspaceType: WorkspaceType = "individual";
-    let cloudState: UserBootstrapCloudState = individualCloudState;
+    const individualCloudState =
+      rawIndividualCloudState && typeof rawIndividualCloudState === "object"
+        ? (rawIndividualCloudState as Record<string, unknown>)
+        : null;
 
-    if (isActive && familyId) {
+    const activeFamilyId = getActiveFamilyId(individualCloudState);
+
+    if (activeFamilyId) {
       const rawFamilyCloudState = await loadUserData({
         uid: normalizedUid,
         workspaceType: "family",
-        familyId,
+        familyId: activeFamilyId,
       });
-      const familyCloudState = asRecord(rawFamilyCloudState);
+
+      const familyCloudState =
+        rawFamilyCloudState && typeof rawFamilyCloudState === "object"
+          ? (rawFamilyCloudState as Record<string, unknown>)
+          : null;
 
       if (familyCloudState) {
-        workspaceType = "family";
-        cloudState = familyCloudState;
+        return {
+          uid: normalizedUid,
+          hasUid: true,
+          workspaceType: "family",
+          familyId: activeFamilyId,
+          cloudState: familyCloudState,
+          hasCloudData: true,
+          localSummary,
+          hasLocalDataToMigrate,
+          shouldOfferInitialMigration: false,
+          bootstrapPayload,
+          error: null,
+        };
       }
     }
 
-    const hasCloudData = cloudState !== null;
+    const hasCloudData = individualCloudState !== null;
 
     return {
       uid: normalizedUid,
       hasUid: true,
-      cloudState,
+      workspaceType: "individual",
+      familyId: null,
+      cloudState: individualCloudState,
       hasCloudData,
       localSummary,
       hasLocalDataToMigrate,
       shouldOfferInitialMigration: !hasCloudData && hasLocalDataToMigrate,
       bootstrapPayload,
       error: null,
-      workspaceType,
-      familyId: workspaceType === "family" ? familyId : null,
     };
   } catch (error) {
     return {
       uid: normalizedUid,
       hasUid: true,
+      workspaceType: "individual",
+      familyId: null,
       cloudState: null,
       hasCloudData: false,
       localSummary,
@@ -162,8 +183,6 @@ export async function resolveUserBootstrap(uid: string): Promise<UserBootstrapRe
       shouldOfferInitialMigration: false,
       bootstrapPayload,
       error: error instanceof Error ? error.message : "Cloud bootstrap error",
-      workspaceType: "individual",
-      familyId: null,
     };
   }
 }
