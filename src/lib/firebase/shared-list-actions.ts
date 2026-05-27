@@ -40,10 +40,14 @@ type AcceptFamilyInviteInput = {
   email: string;
 };
 
+export type PendingFamilyInviteMatch = {
+  familyId: string;
+  familyName: string;
+  invite: FamilyInviteRecord;
+};
+
 type GetFamilyByOwnerUidResult = FamilyRecord | null;
 type GetFamilyListsResult = SharedListRecord[];
-type GetFamilyMembersResult = FamilyMemberRecord[];
-type GetFamilyPendingInvitesResult = FamilyInviteRecord[];
 
 function db() {
   return getFirestore(clientApp());
@@ -72,51 +76,16 @@ function buildInviteExpiryIso(days: number = INVITE_EXPIRATION_DAYS): string {
   return date.toISOString();
 }
 
-function toComparableTime(value: unknown): number {
-  if (typeof value === "string") {
-    const parsed = Date.parse(value);
-    return Number.isFinite(parsed) ? parsed : 0;
-  }
-
-  if (!value || typeof value !== "object") {
-    return 0;
-  }
-
-  const candidate = value as {
-    toMillis?: () => number;
-    toDate?: () => Date;
-    seconds?: number;
-    nanoseconds?: number;
-  };
-
-  if (typeof candidate.toMillis === "function") {
-    const millis = candidate.toMillis();
-    return Number.isFinite(millis) ? millis : 0;
-  }
-
-  if (typeof candidate.toDate === "function") {
-    const date = candidate.toDate();
-    const millis = date instanceof Date ? date.getTime() : Number.NaN;
-    return Number.isFinite(millis) ? millis : 0;
-  }
-
-  if (typeof candidate.seconds === "number") {
-    const millisFromSeconds = candidate.seconds * 1000;
-    const millisFromNanos =
-      typeof candidate.nanoseconds === "number" ? Math.floor(candidate.nanoseconds / 1_000_000) : 0;
-    const total = millisFromSeconds + millisFromNanos;
-    return Number.isFinite(total) ? total : 0;
-  }
-
-  return 0;
-}
-
 function usersDoc(uid: string) {
   return doc(db(), "users", uid);
 }
 
 function familiesDoc(familyId: string) {
   return doc(db(), "families", familyId);
+}
+
+function familiesCollection() {
+  return collection(db(), "families");
 }
 
 function membersCollection(familyId: string) {
@@ -129,6 +98,33 @@ function invitesCollection(familyId: string) {
 
 function listsCollection(familyId: string) {
   return collection(db(), "families", familyId, "lists");
+}
+
+function toMillis(value: unknown): number {
+  if (!value) return 0;
+  if (typeof value === "string") {
+    const ms = Date.parse(value);
+    return Number.isNaN(ms) ? 0 : ms;
+  }
+  if (typeof value === "object") {
+    const candidate = value as {
+      seconds?: unknown;
+      nanoseconds?: unknown;
+      toDate?: () => Date;
+    };
+    if (typeof candidate.toDate === "function") {
+      return candidate.toDate().getTime();
+    }
+    if (typeof candidate.seconds === "number") {
+      const nanos = typeof candidate.nanoseconds === "number" ? candidate.nanoseconds : 0;
+      return candidate.seconds * 1000 + Math.floor(nanos / 1_000_000);
+    }
+  }
+  return 0;
+}
+
+function sortByNewest<T>(items: T[], pickValue: (item: T) => unknown): T[] {
+  return [...items].sort((a, b) => toMillis(pickValue(b)) - toMillis(pickValue(a)));
 }
 
 async function requireFamilyExists(familyId: string): Promise<FamilyRecord> {
@@ -235,29 +231,89 @@ export async function createFamily(input: CreateFamilyInput): Promise<FamilyReco
   return record;
 }
 
+export async function getFamilyById(familyId: string): Promise<FamilyRecord | null> {
+  const normalizedFamilyId = requireNonEmpty(familyId, "familyId");
+  const snap = await getDoc(familiesDoc(normalizedFamilyId));
+  return snap.exists() ? (snap.data() as FamilyRecord) : null;
+}
+
 export async function getFamilyByOwnerUid(ownerUid: string): Promise<GetFamilyByOwnerUidResult> {
   const normalizedOwnerUid = requireNonEmpty(ownerUid, "ownerUid");
   const q = query(
-    collection(db(), "families"),
+    familiesCollection(),
     where("ownerUid", "==", normalizedOwnerUid),
     limit(10),
   );
 
   const snap = await getDocs(q);
-  if (snap.empty) {
-    return null;
-  }
-
-  const records = snap.docs
+  const matches = snap.docs
     .map((docSnap) => docSnap.data() as FamilyRecord)
     .filter((family) => family.status === ACTIVE_FAMILY_STATUS);
 
-  if (records.length === 0) {
+  return matches[0] ?? null;
+}
+
+export async function getUserFamilyMembership(uid: string): Promise<UserFamilyMembershipRecord | null> {
+  const normalizedUid = requireNonEmpty(uid, "uid");
+  const userSnap = await getDoc(usersDoc(normalizedUid));
+
+  if (!userSnap.exists()) {
     return null;
   }
 
-  records.sort((a, b) => toComparableTime(b.updatedAt) - toComparableTime(a.updatedAt));
-  return records[0];
+  const data = userSnap.data() as { familyMembership?: UserFamilyMembershipRecord | null };
+  return data.familyMembership ?? null;
+}
+
+export async function getFamilyMembers(familyId: string): Promise<FamilyMemberRecord[]> {
+  const normalizedFamilyId = requireNonEmpty(familyId, "familyId");
+  const snap = await getDocs(membersCollection(normalizedFamilyId));
+  const members = snap.docs.map((docSnap) => docSnap.data() as FamilyMemberRecord);
+  return sortByNewest(members, (member) => member.joinedAt ?? member.updatedAt);
+}
+
+export async function getFamilyPendingInvites(familyId: string): Promise<FamilyInviteRecord[]> {
+  const normalizedFamilyId = requireNonEmpty(familyId, "familyId");
+  const q = query(invitesCollection(normalizedFamilyId), where("status", "==", "pending"));
+  const snap = await getDocs(q);
+  const invites = snap.docs.map((docSnap) => docSnap.data() as FamilyInviteRecord);
+  return sortByNewest(invites, (invite) => invite.createdAt);
+}
+
+export async function getPendingFamilyInviteForEmail(email: string): Promise<PendingFamilyInviteMatch | null> {
+  const normalizedEmail = normalizeEmail(requireNonEmpty(email, "email"));
+  const familiesSnap = await getDocs(familiesCollection());
+
+  const activeFamilies = familiesSnap.docs
+    .map((docSnap) => docSnap.data() as FamilyRecord)
+    .filter((family) => family.status === ACTIVE_FAMILY_STATUS);
+
+  let bestMatch: PendingFamilyInviteMatch | null = null;
+  let bestTimestamp = 0;
+
+  for (const family of activeFamilies) {
+    const inviteSnap = await getDocs(
+      query(invitesCollection(family.id), where("email", "==", normalizedEmail), limit(10)),
+    );
+
+    for (const docSnap of inviteSnap.docs) {
+      const invite = docSnap.data() as FamilyInviteRecord;
+      if (invite.status !== "pending") {
+        continue;
+      }
+      const stamp = toMillis(invite.createdAt);
+      if (!bestMatch || stamp > bestTimestamp) {
+        bestMatch = {
+          familyId: family.id,
+          familyName: family.name,
+          invite,
+        };
+        bestTimestamp = stamp;
+      }
+    }
+  }
+
+  return bestMatch;
 }
 
 export async function inviteFamilyMember(input: CreateFamilyInviteInput): Promise<FamilyInviteRecord> {
@@ -273,24 +329,26 @@ export async function inviteFamilyMember(input: CreateFamilyInviteInput): Promis
   await ensureFamilyHasCapacity(familyId);
 
   const existingMembers = await getDocs(
-    query(membersCollection(familyId), where("email", "==", email), limit(1)),
+    query(membersCollection(familyId), where("email", "==", email), limit(10)),
   );
-  if (!existingMembers.empty) {
+  if (
+    existingMembers.docs.some((snap) => {
+      const member = snap.data() as FamilyMemberRecord;
+      return member.email === email && member.status === "active";
+    })
+  ) {
     throw new Error("This email is already a family member");
   }
 
-  const existingInvitesSnap = await getDocs(
-    query(
-      invitesCollection(familyId),
-      where("email", "==", email),
-      limit(10),
-    ),
+  const existingInvites = await getDocs(
+    query(invitesCollection(familyId), where("email", "==", email), limit(10)),
   );
-  const hasPendingInvite = existingInvitesSnap.docs.some((docSnap) => {
-    const invite = docSnap.data() as FamilyInviteRecord;
-    return invite.status === "pending";
-  });
-  if (hasPendingInvite) {
+  if (
+    existingInvites.docs.some((snap) => {
+      const invite = snap.data() as FamilyInviteRecord;
+      return invite.email === email && invite.status === "pending";
+    })
+  ) {
     throw new Error("There is already a pending invite for this email");
   }
 
@@ -313,6 +371,30 @@ export async function inviteFamilyMember(input: CreateFamilyInviteInput): Promis
   });
 
   return record;
+}
+
+export async function revokeFamilyInvite(familyId: string, inviteId: string): Promise<void> {
+  const normalizedFamilyId = requireNonEmpty(familyId, "familyId");
+  const normalizedInviteId = requireNonEmpty(inviteId, "inviteId");
+
+  await requireFamilyExists(normalizedFamilyId);
+
+  const inviteRef = doc(invitesCollection(normalizedFamilyId), normalizedInviteId);
+  const inviteSnap = await getDoc(inviteRef);
+
+  if (!inviteSnap.exists()) {
+    throw new Error("Invite not found");
+  }
+
+  const invite = inviteSnap.data() as FamilyInviteRecord;
+  if (invite.status !== "pending") {
+    throw new Error("Invite is not pending");
+  }
+
+  await updateDoc(inviteRef, {
+    status: "revoked",
+    updatedAt: serverTimestamp(),
+  });
 }
 
 export async function acceptFamilyInvite(input: AcceptFamilyInviteInput): Promise<FamilyMemberRecord> {
@@ -355,6 +437,7 @@ export async function acceptFamilyInvite(input: AcceptFamilyInviteInput): Promis
   });
   batch.update(inviteRef, {
     status: "accepted",
+    updatedAt: serverTimestamp(),
   });
   batch.set(
     usersDoc(uid),
@@ -439,64 +522,3 @@ export async function getFamilyLists(familyId: string): Promise<GetFamilyListsRe
 
   return snap.docs.map((docSnap) => docSnap.data() as SharedListRecord);
 }
-
-
-export async function getFamilyMembers(familyId: string): Promise<GetFamilyMembersResult> {
-  const normalizedFamilyId = requireNonEmpty(familyId, "familyId");
-  const snap = await getDocs(membersCollection(normalizedFamilyId));
-
-  const records = snap.docs
-    .map((docSnap) => docSnap.data() as FamilyMemberRecord)
-    .filter((member) => member.status !== "removed");
-
-  records.sort((a, b) => {
-    if (a.role !== b.role) {
-      return a.role === "owner" ? -1 : 1;
-    }
-
-    const aTime = toComparableTime(a.joinedAt);
-    const bTime = toComparableTime(b.joinedAt);
-    if (aTime !== bTime) {
-      return bTime - aTime;
-    }
-
-    return a.email.localeCompare(b.email);
-  });
-
-  return records;
-}
-
-export async function getFamilyPendingInvites(familyId: string): Promise<GetFamilyPendingInvitesResult> {
-  const normalizedFamilyId = requireNonEmpty(familyId, "familyId");
-  const q = query(invitesCollection(normalizedFamilyId), where("status", "==", "pending"));
-  const snap = await getDocs(q);
-
-  const records = snap.docs.map((docSnap) => docSnap.data() as FamilyInviteRecord);
-  records.sort((a, b) => toComparableTime(b.createdAt) - toComparableTime(a.createdAt));
-
-  return records;
-}
-
-export async function revokeFamilyInvite(familyId: string, inviteId: string): Promise<void> {
-  const normalizedFamilyId = requireNonEmpty(familyId, "familyId");
-  const normalizedInviteId = requireNonEmpty(inviteId, "inviteId");
-
-  await requireFamilyExists(normalizedFamilyId);
-
-  const inviteRef = doc(invitesCollection(normalizedFamilyId), normalizedInviteId);
-  const inviteSnap = await getDoc(inviteRef);
-  if (!inviteSnap.exists()) {
-    throw new Error("Invite not found");
-  }
-
-  const invite = inviteSnap.data() as FamilyInviteRecord;
-  if (invite.status !== "pending") {
-    throw new Error("Invite is not pending");
-  }
-
-  await updateDoc(inviteRef, {
-    status: "revoked",
-    updatedAt: serverTimestamp(),
-  });
-}
-
