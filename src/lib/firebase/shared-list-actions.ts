@@ -240,8 +240,7 @@ export async function getFamilyByOwnerUid(ownerUid: string): Promise<GetFamilyBy
   const q = query(
     collection(db(), "families"),
     where("ownerUid", "==", normalizedOwnerUid),
-    where("status", "==", ACTIVE_FAMILY_STATUS),
-    limit(1),
+    limit(10),
   );
 
   const snap = await getDocs(q);
@@ -249,7 +248,16 @@ export async function getFamilyByOwnerUid(ownerUid: string): Promise<GetFamilyBy
     return null;
   }
 
-  return snap.docs[0].data() as FamilyRecord;
+  const records = snap.docs
+    .map((docSnap) => docSnap.data() as FamilyRecord)
+    .filter((family) => family.status === ACTIVE_FAMILY_STATUS);
+
+  if (records.length === 0) {
+    return null;
+  }
+
+  records.sort((a, b) => toComparableTime(b.updatedAt) - toComparableTime(a.updatedAt));
+  return records[0];
 }
 
 export async function inviteFamilyMember(input: CreateFamilyInviteInput): Promise<FamilyInviteRecord> {
@@ -271,15 +279,18 @@ export async function inviteFamilyMember(input: CreateFamilyInviteInput): Promis
     throw new Error("This email is already a family member");
   }
 
-  const existingInvites = await getDocs(
+  const existingInvitesSnap = await getDocs(
     query(
       invitesCollection(familyId),
       where("email", "==", email),
-      where("status", "==", "pending"),
-      limit(1),
+      limit(10),
     ),
   );
-  if (!existingInvites.empty) {
+  const hasPendingInvite = existingInvitesSnap.docs.some((docSnap) => {
+    const invite = docSnap.data() as FamilyInviteRecord;
+    return invite.status === "pending";
+  });
+  if (hasPendingInvite) {
     throw new Error("There is already a pending invite for this email");
   }
 
