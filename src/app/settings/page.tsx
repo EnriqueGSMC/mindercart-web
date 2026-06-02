@@ -112,6 +112,7 @@ export default function SettingsPage() {
   const session = useAuthSession();
   const [accountEmail, setAccountEmail] = React.useState("");
   const [accountPassword, setAccountPassword] = React.useState("");
+  const [accountPasswordVisible, setAccountPasswordVisible] = React.useState(false);
   const [accountBusy, setAccountBusy] = React.useState(false);
   const [accountError, setAccountError] = React.useState("");
   const [migrationBusy, setMigrationBusy] = React.useState(false);
@@ -729,21 +730,44 @@ export default function SettingsPage() {
                   }}
                 />
 
-                <input
-                  type="password"
-                  value={accountPassword}
-                  onChange={(e) => setAccountPassword(e.target.value)}
-                  placeholder={language === "en" ? "Password" : "Contraseña"}
-                  autoComplete="current-password"
-                  style={{
-                    width: "100%",
-                    padding: "12px 14px",
-                    borderRadius: 14,
-                    border: `1px solid ${MC_NAVY_LINE}`,
-                    boxSizing: "border-box",
-                    fontSize: s(15),
-                  }}
-                />
+                <div style={{ position: "relative" }}>
+                  <input
+                    type={accountPasswordVisible ? "text" : "password"}
+                    value={accountPassword}
+                    onChange={(e) => setAccountPassword(e.target.value)}
+                    placeholder={language === "en" ? "Password" : "Contraseña"}
+                    autoComplete="current-password"
+                    style={{
+                      width: "100%",
+                      padding: "12px 88px 12px 14px",
+                      borderRadius: 14,
+                      border: `1px solid ${MC_NAVY_LINE}`,
+                      boxSizing: "border-box",
+                      fontSize: s(15),
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setAccountPasswordVisible((current) => !current)}
+                    aria-label={accountPasswordVisible ? (language === "en" ? "Hide password" : "Ocultar contraseña") : (language === "en" ? "Show password" : "Mostrar contraseña")}
+                    title={accountPasswordVisible ? (language === "en" ? "Hide" : "Ocultar") : (language === "en" ? "Show" : "Mostrar")}
+                    style={{
+                      position: "absolute",
+                      top: "50%",
+                      right: 12,
+                      transform: "translateY(-50%)",
+                      border: "none",
+                      background: "transparent",
+                      color: MC_NAVY,
+                      fontWeight: 800,
+                      fontSize: s(13),
+                      padding: 0,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {accountPasswordVisible ? (language === "en" ? "Hide" : "Ocultar") : (language === "en" ? "Show" : "Mostrar")}
+                  </button>
+                </div>
 
                 <div
                   style={{
