@@ -151,8 +151,11 @@ function normalizeCategory(value: string | null | undefined) {
   return ORDERED_CATEGORIES.includes(trimmed) ? trimmed : FALLBACK_CATEGORY;
 }
 
-function groupItemsByCategory<T extends { name: string; category?: string | null }>(items: T[]) {
+function groupItemsByCategory<T extends { name: string; category?: string | null }>(items: T[], lang: "es" | "en") {
   const grouped = new Map<string, T[]>();
+  const orderedCategories = [...ORDERED_CATEGORIES].sort((a, b) =>
+    categoryLabel(lang, a).localeCompare(categoryLabel(lang, b), lang, { sensitivity: "base" })
+  );
 
   for (const item of items) {
     const category = normalizeCategory(item.category);
@@ -164,7 +167,7 @@ function groupItemsByCategory<T extends { name: string; category?: string | null
     }
   }
 
-  return ORDERED_CATEGORIES.flatMap((category) => {
+  return orderedCategories.flatMap((category) => {
     const categoryItems = grouped.get(category);
     if (!categoryItems || categoryItems.length === 0) return [];
 
@@ -421,13 +424,13 @@ export default function NeedsPage() {
   }, [customStores, lang, settings.preferredStore]);
 
   const groupedActiveShoppingListItems = React.useMemo(
-    () => groupItemsByCategory(activeShoppingListItems),
-    [activeShoppingListItems]
+    () => groupItemsByCategory(activeShoppingListItems, lang),
+    [activeShoppingListItems, lang]
   );
 
   const groupedSavedListItemsDraft = React.useMemo(
-    () => groupItemsByCategory(savedListItemsDraft),
-    [savedListItemsDraft]
+    () => groupItemsByCategory(savedListItemsDraft, lang),
+    [savedListItemsDraft, lang]
   );
 
   const activeShoppingListItemKeys = React.useMemo(
@@ -441,8 +444,8 @@ export default function NeedsPage() {
   );
 
   const groupedOpenedSavedListItems = React.useMemo(
-    () => groupItemsByCategory(openedSavedList?.items ?? []),
-    [openedSavedList]
+    () => groupItemsByCategory(openedSavedList?.items ?? [], lang),
+    [openedSavedList, lang]
   );
 
   const selectableOpenedSavedListItems = React.useMemo(
