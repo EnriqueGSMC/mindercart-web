@@ -151,11 +151,8 @@ function normalizeCategory(value: string | null | undefined) {
   return ORDERED_CATEGORIES.includes(trimmed) ? trimmed : FALLBACK_CATEGORY;
 }
 
-function groupItemsByCategory<T extends { name: string; category?: string | null }>(items: T[], lang: "es" | "en") {
+function groupItemsByCategory<T extends { name: string; category?: string | null }>(items: T[]) {
   const grouped = new Map<string, T[]>();
-  const orderedCategories = [...ORDERED_CATEGORIES].sort((a, b) =>
-    categoryLabel(lang, a).localeCompare(categoryLabel(lang, b), lang, { sensitivity: "base" })
-  );
 
   for (const item of items) {
     const category = normalizeCategory(item.category);
@@ -167,7 +164,7 @@ function groupItemsByCategory<T extends { name: string; category?: string | null
     }
   }
 
-  return orderedCategories.flatMap((category) => {
+  return ORDERED_CATEGORIES.flatMap((category) => {
     const categoryItems = grouped.get(category);
     if (!categoryItems || categoryItems.length === 0) return [];
 
@@ -295,7 +292,7 @@ export default function NeedsPage() {
   const addArticleModalHelp =
     lang === "en"
       ? "It is not in the list. You can add it."
-      : "No está en la lista. Puedes agregarlo.";
+      : "Selecciona los detalles del artículo.";
   const itemPlaceholder = lang === "en" ? "e.g. milk" : "ej. leche";
 
   const [name, setName] = React.useState("");
@@ -424,13 +421,13 @@ export default function NeedsPage() {
   }, [customStores, lang, settings.preferredStore]);
 
   const groupedActiveShoppingListItems = React.useMemo(
-    () => groupItemsByCategory(activeShoppingListItems, lang),
-    [activeShoppingListItems, lang]
+    () => groupItemsByCategory(activeShoppingListItems),
+    [activeShoppingListItems]
   );
 
   const groupedSavedListItemsDraft = React.useMemo(
-    () => groupItemsByCategory(savedListItemsDraft, lang),
-    [savedListItemsDraft, lang]
+    () => groupItemsByCategory(savedListItemsDraft),
+    [savedListItemsDraft]
   );
 
   const activeShoppingListItemKeys = React.useMemo(
@@ -444,8 +441,8 @@ export default function NeedsPage() {
   );
 
   const groupedOpenedSavedListItems = React.useMemo(
-    () => groupItemsByCategory(openedSavedList?.items ?? [], lang),
-    [openedSavedList, lang]
+    () => groupItemsByCategory(openedSavedList?.items ?? []),
+    [openedSavedList]
   );
 
   const selectableOpenedSavedListItems = React.useMemo(
