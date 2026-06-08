@@ -168,6 +168,7 @@ export default function SettingsPage() {
   const [fontScale, setFontScale] = React.useState<FontScale>(settings.fontScale);
   const [storeProfiles, setStoreProfiles] = React.useState<StoreProfile[]>([]);
   const [customItems, setCustomItems] = React.useState<ItemMaster[]>([]);
+  const [customItemsExpanded, setCustomItemsExpanded] = React.useState(false);
   const [customItemsBusyId, setCustomItemsBusyId] = React.useState<string | null>(null);
   const [customItemsMessage, setCustomItemsMessage] = React.useState("");
   const [storeEditorOpen, setStoreEditorOpen] = React.useState(false);
@@ -387,8 +388,8 @@ export default function SettingsPage() {
   function onRemoveCustomItem(item: ItemMaster) {
     const confirmed = window.confirm(
       language === "en"
-        ? `Remove "${item.name}" from your custom items?`
-        : `¿Quitar "${item.name}" de tus artículos personalizados?`
+        ? `Delete "${item.name}" from your custom items?`
+        : `¿Eliminar "${item.name}" de tus artículos personalizados?`
     );
 
     if (!confirmed) return;
@@ -403,11 +404,11 @@ export default function SettingsPage() {
       setCustomItemsMessage(
         removedFromSavedLists > 0
           ? language === "en"
-            ? `"${item.name}" removed from your custom items and saved lists.`
-            : `"${item.name}" se quitó de tus artículos personalizados y de Mis Listas.`
+            ? `"${item.name}" was deleted from your custom items and saved lists.`
+            : `"${item.name}" se eliminó de tus artículos personalizados y de Mis Listas.`
           : language === "en"
-            ? `"${item.name}" removed from your custom items.`
-            : `"${item.name}" se quitó de tus artículos personalizados.`
+            ? `"${item.name}" was deleted from your custom items.`
+            : `"${item.name}" se eliminó de tus artículos personalizados.`
       );
     } finally {
       setCustomItemsBusyId(null);
@@ -1340,85 +1341,127 @@ export default function SettingsPage() {
           </div>
 
           <div>
-            <div style={{ fontWeight: 900, marginBottom: 6, fontSize: s(15) }}>
-              {language === "en" ? "Custom items" : "Artículos personalizados"}
-            </div>
-            <div
+            <button
+              type="button"
+              onClick={() => setCustomItemsExpanded((current) => !current)}
+              aria-expanded={customItemsExpanded}
               style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
+                padding: "12px 14px",
                 borderRadius: 14,
                 border: `1px solid ${MC_NAVY_LINE}`,
                 background: "#fff",
-                overflow: "hidden",
+                color: MC_NAVY,
+                fontSize: s(15),
+                fontWeight: 900,
+                cursor: "pointer",
+                textAlign: "left",
               }}
             >
-              {customItems.length === 0 ? (
+              <span>{language === "en" ? "Custom items" : "Artículos personalizados"}</span>
+              <span
+                aria-hidden="true"
+                style={{
+                  fontSize: s(13),
+                  color: MC_NAVY_MUTED,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {customItemsExpanded
+                  ? language === "en"
+                    ? "Hide"
+                    : "Ocultar"
+                  : language === "en"
+                    ? "View"
+                    : "Ver"}
+              </span>
+            </button>
+
+            {customItemsExpanded ? (
+              <>
                 <div
                   style={{
-                    padding: "12px 14px",
-                    fontSize: s(14),
-                    color: MC_NAVY_MUTED,
+                    marginTop: 8,
+                    borderRadius: 14,
+                    border: `1px solid ${MC_NAVY_LINE}`,
+                    background: "#fff",
+                    overflow: "hidden",
                   }}
                 >
-                  {language === "en"
-                    ? "You have no custom items."
-                    : "No tienes artículos personalizados."}
-                </div>
-              ) : (
-                customItems.map((item, index) => (
-                  <div
-                    key={item.id}
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "minmax(0, 1fr) auto",
-                      gap: 12,
-                      alignItems: "center",
-                      padding: "12px 14px",
-                      borderTop: index === 0 ? "none" : `1px solid ${MC_NAVY_LINE}`,
-                    }}
-                  >
-                    <div style={{ minWidth: 0 }}>
-                      <div
-                        style={{
-                          fontWeight: 800,
-                          color: MC_NAVY,
-                          fontSize: s(15),
-                          wordBreak: "break-word",
-                        }}
-                      >
-                        {item.name}
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => onRemoveCustomItem(item)}
-                      disabled={customItemsBusyId === item.id}
+                  {customItems.length === 0 ? (
+                    <div
                       style={{
-                        border: `1px solid ${MC_NAVY_LINE}`,
-                        background: "#fff",
-                        color: MC_NAVY,
-                        borderRadius: 12,
-                        padding: "8px 12px",
-                        fontWeight: 800,
-                        fontSize: s(13),
-                        cursor: customItemsBusyId === item.id ? "default" : "pointer",
-                        opacity: customItemsBusyId === item.id ? 0.7 : 1,
+                        padding: "12px 14px",
+                        fontSize: s(14),
+                        color: MC_NAVY_MUTED,
                       }}
                     >
-                      {customItemsBusyId === item.id
-                        ? language === "en"
-                          ? "Removing..."
-                          : "Quitando..."
-                        : language === "en"
-                          ? "Remove"
-                          : "Quitar"}
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-            {customItemsMessage ? (
-              <div style={{ marginTop: 6, fontSize: s(13), color: MC_NAVY_MUTED }}>{customItemsMessage}</div>
+                      {language === "en"
+                        ? "You have no custom items."
+                        : "No tienes artículos personalizados."}
+                    </div>
+                  ) : (
+                    customItems.map((item, index) => (
+                      <div
+                        key={item.id}
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "minmax(0, 1fr) auto",
+                          gap: 12,
+                          alignItems: "center",
+                          padding: "12px 14px",
+                          borderTop: index === 0 ? "none" : `1px solid ${MC_NAVY_LINE}`,
+                        }}
+                      >
+                        <div style={{ minWidth: 0 }}>
+                          <div
+                            style={{
+                              fontWeight: 800,
+                              color: MC_NAVY,
+                              fontSize: s(15),
+                              wordBreak: "break-word",
+                            }}
+                          >
+                            {item.name}
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => onRemoveCustomItem(item)}
+                          disabled={customItemsBusyId === item.id}
+                          style={{
+                            border: `1px solid ${MC_NAVY_LINE}`,
+                            background: "#fff",
+                            color: MC_NAVY,
+                            borderRadius: 12,
+                            padding: "8px 12px",
+                            fontWeight: 800,
+                            fontSize: s(13),
+                            cursor: customItemsBusyId === item.id ? "default" : "pointer",
+                            opacity: customItemsBusyId === item.id ? 0.7 : 1,
+                          }}
+                        >
+                          {customItemsBusyId === item.id
+                            ? language === "en"
+                              ? "Deleting..."
+                              : "Eliminando..."
+                            : language === "en"
+                              ? "Delete"
+                              : "Eliminar"}
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+                {customItemsMessage ? (
+                  <div style={{ marginTop: 6, fontSize: s(13), color: MC_NAVY_MUTED }}>{customItemsMessage}</div>
+                ) : null}
+              </>
             ) : null}
           </div>
 
