@@ -258,6 +258,21 @@ function getSeedItem(value: { itemKey?: unknown; name?: unknown } | string) {
   return null;
 }
 
+function isSeedCatalogItem(value: { itemKey?: unknown; name?: unknown }) {
+  return Boolean(getSeedItem({ itemKey: value.itemKey, name: value.name }));
+}
+
+function matchesCatalogIdentity(
+  row: { itemKey?: unknown; name?: unknown },
+  target: { itemKey?: unknown; name?: unknown }
+) {
+  const rowItemKey = safe(row.itemKey);
+  const targetItemKey = safe(target.itemKey);
+
+  if (rowItemKey && targetItemKey) return rowItemKey === targetItemKey;
+  return normalize(row.name) === normalize(target.name);
+}
+
 function localizedMasterName(
   item: Pick<ItemMaster, "name" | "nameEs" | "nameEn">,
   lang: Language
@@ -773,12 +788,13 @@ function findMatchingActiveItemByContext<
 }
 
 
-export function addQuickNeed(input: {
+function addQuickNeedInternal(input: {
   name: string;
   category: string;
   unit: string;
   quantity: string;
   store: string;
+  itemKey?: string;
   sourceListName?: string;
 }) {
   const state = readState();
@@ -787,12 +803,25 @@ export function addQuickNeed(input: {
   const unit = canonicalizeUnit(input.unit);
   const quantity = safe(input.quantity) || "1";
   const store = safe(input.store) || state.settings.preferredStore || "HEB";
-  const catalogMatch = resolveCatalogMatch(state.itemsMaster, name);
+  const requestedItemKey = safe(input.itemKey);
+  const requestedCatalogItem = requestedItemKey
+    ? state.itemsMaster.find((item) => safe(item.itemKey) === requestedItemKey)
+    : null;
+  const requestedSeedItem = requestedItemKey ? getSeedItem({ itemKey: requestedItemKey, name }) : null;
+  const catalogMatch = requestedCatalogItem || resolveCatalogMatch(state.itemsMaster, name);
   const catalogItemKey =
     "itemKey" in (catalogMatch || {}) ? safe((catalogMatch as { itemKey?: string }).itemKey) : "";
-  const trackedItemKey = catalogItemKey || makeItemKey(name);
+  const trackedItemKey = requestedItemKey || catalogItemKey || makeItemKey(name);
 
   if (!name) throw new Error("Artículo requerido");
+
+  if (requestedItemKey && !requestedCatalogItem && !requestedSeedItem) {
+    return {
+      state,
+      added: false,
+      skippedReason: "missing_custom_item" as const,
+    };
+  }
 
   const key = itemKey({ itemKey: trackedItemKey, name, unit, store });
   const existing = findMatchingActiveItemByContext(state.activeShoppingListItems, key, input.sourceListName);
@@ -842,7 +871,35 @@ export function addQuickNeed(input: {
   };
 
   writeState(next);
-  return next;
+  return {
+    state: next,
+    added: true,
+    skippedReason: null as null,
+  };
+}
+
+export function addQuickNeedWithResult(input: {
+  name: string;
+  category: string;
+  unit: string;
+  quantity: string;
+  store: string;
+  itemKey?: string;
+  sourceListName?: string;
+}) {
+  return addQuickNeedInternal(input);
+}
+
+export function addQuickNeed(input: {
+  name: string;
+  category: string;
+  unit: string;
+  quantity: string;
+  store: string;
+  itemKey?: string;
+  sourceListName?: string;
+}) {
+  return addQuickNeedInternal(input).state;
 }
 
 export function addGeneralSelections(ids: string[]) {
@@ -1027,6 +1084,30 @@ export function saveSettings(input: {
 
 export function listStoreProfiles() {
   return readState().storeProfiles;
+}
+
+export function listCustomItems() {
+  const state = readState();
+  const locale = state.settings.language === "en" ? "en" : "es";
+
+  return state.itemsMaster
+    .filter((item) => !isSeedCatalogItem(item))
+    .sort((left, right) => safe(left.name).localeCompare(safe(right.name), locale, { sensitivity: "base" }));
+}
+
+export function removeCustomItem(input: { itemKey?: string; name: string }) {
+  const state = readState();
+  if (isSeedCatalogItem(input)) return state;
+
+  const next: MinderCartState = {
+    ...state,
+    itemsMaster: state.itemsMaster.filter((item) => !matchesCatalogIdentity(item, input)),
+    generalListItems: state.generalListItems.filter((item) => !matchesCatalogIdentity(item, input)),
+    activeShoppingListItems: state.activeShoppingListItems.filter((item) => !matchesCatalogIdentity(item, input)),
+  };
+
+  writeState(next);
+  return next;
 }
 
 export function upsertStoreProfile(input: {

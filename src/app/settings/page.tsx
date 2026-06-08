@@ -11,7 +11,7 @@ import {
   scalePx,
 } from "@/components/mindercart/Shell";
 import { t } from "@/lib/mindercart/i18n";
-import { listStoreProfiles, readState, saveSettings, upsertStoreProfile } from "@/lib/mindercart/storage";
+import { listCustomItems, listStoreProfiles, readState, removeCustomItem, saveSettings, upsertStoreProfile } from "@/lib/mindercart/storage";
 import { useMinderCartState } from "@/lib/mindercart/hooks";
 import { useAuthSession } from "@/lib/firebase/auth-context";
 import { signInUser, signOutUser, signUpUser } from "@/lib/firebase/auth-actions";
@@ -26,7 +26,7 @@ import {
   revokeFamilyInvite,
 } from "@/lib/firebase/shared-list-actions";
 import type { FamilyInviteRecord, FamilyMemberRecord, FamilyRecord } from "@/lib/firebase/shared-list-types";
-import type { FontScale, Language, StoreProfile } from "@/lib/mindercart/types";
+import type { FontScale, ItemMaster, Language, StoreProfile } from "@/lib/mindercart/types";
 
 function withMenuOpen(pathname: string) {
   return pathname.includes("?") ? `${pathname}&menu=1` : `${pathname}?menu=1`;
@@ -80,6 +80,68 @@ function readSavedListsForMigration() {
   }
 }
 
+function writeSavedListsForMigration(savedLists: unknown[]) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(SAVED_LISTS_STORAGE_KEY, JSON.stringify(savedLists));
+}
+
+function normalizeText(value: unknown) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ");
+}
+
+function makeCustomItemKey(value: unknown) {
+  return normalizeText(value).replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-");
+}
+
+function removeCustomItemFromSavedLists(item: Pick<ItemMaster, "itemKey" | "name">) {
+  const savedLists = readSavedListsForMigration();
+  if (!Array.isArray(savedLists) || savedLists.length === 0) return 0;
+
+  const targetItemKey = String(item.itemKey ?? "").trim() || makeCustomItemKey(item.name);
+  const targetName = normalizeText(item.name);
+  let removedCount = 0;
+
+  const nextSavedLists = savedLists.map((entry) => {
+    if (!entry || typeof entry !== "object") return entry;
+
+    const record = entry as { items?: unknown[]; updatedAt?: string };
+    const currentItems = Array.isArray(record.items) ? record.items : [];
+
+    const nextItems = currentItems.filter((rawItem) => {
+      if (!rawItem || typeof rawItem !== "object") return true;
+
+      const candidate = rawItem as { name?: unknown };
+      const candidateName = String(candidate.name ?? "").trim();
+      if (!candidateName) return true;
+
+      const matches =
+        makeCustomItemKey(candidateName) === targetItemKey || normalizeText(candidateName) === targetName;
+
+      if (matches) removedCount += 1;
+      return !matches;
+    });
+
+    if (nextItems.length === currentItems.length) return entry;
+
+    return {
+      ...record,
+      items: nextItems,
+      updatedAt: new Date().toISOString(),
+    };
+  });
+
+  if (removedCount > 0) {
+    writeSavedListsForMigration(nextSavedLists);
+  }
+
+  return removedCount;
+}
+
 function draftFromProfile(profile: StoreProfile, preferredStore: string): StoreDraft {
   return {
     previousName: profile.name,
@@ -105,6 +167,9 @@ export default function SettingsPage() {
   const [preferredStore, setPreferredStore] = React.useState(settings.preferredStore);
   const [fontScale, setFontScale] = React.useState<FontScale>(settings.fontScale);
   const [storeProfiles, setStoreProfiles] = React.useState<StoreProfile[]>([]);
+  const [customItems, setCustomItems] = React.useState<ItemMaster[]>([]);
+  const [customItemsBusyId, setCustomItemsBusyId] = React.useState<string | null>(null);
+  const [customItemsMessage, setCustomItemsMessage] = React.useState("");
   const [storeEditorOpen, setStoreEditorOpen] = React.useState(false);
   const [storeError, setStoreError] = React.useState("");
   const [storeDraft, setStoreDraft] = React.useState<StoreDraft>(emptyStoreDraft(settings.preferredStore));
@@ -139,6 +204,7 @@ export default function SettingsPage() {
     setPreferredStore(settings.preferredStore);
     setFontScale(settings.fontScale);
     setStoreProfiles(listStoreProfiles());
+    setCustomItems(listCustomItems());
     setStoreDraft(emptyStoreDraft(settings.preferredStore));
   }, [settings.language, settings.preferredStore, settings.fontScale]);
 
@@ -316,6 +382,36 @@ export default function SettingsPage() {
     setStoreProfiles(next.storeProfiles);
     setPreferredStore(next.settings.preferredStore);
     closeStoreModal();
+  }
+
+  function onRemoveCustomItem(item: ItemMaster) {
+    const confirmed = window.confirm(
+      language === "en"
+        ? `Remove "${item.name}" from your custom items?`
+        : `¿Quitar "${item.name}" de tus artículos personalizados?`
+    );
+
+    if (!confirmed) return;
+
+    setCustomItemsBusyId(item.id);
+    setCustomItemsMessage("");
+
+    try {
+      removeCustomItem({ itemKey: item.itemKey, name: item.name });
+      const removedFromSavedLists = removeCustomItemFromSavedLists(item);
+      setCustomItems(listCustomItems());
+      setCustomItemsMessage(
+        removedFromSavedLists > 0
+          ? language === "en"
+            ? `"${item.name}" removed from your custom items and saved lists.`
+            : `"${item.name}" se quitó de tus artículos personalizados y de Mis Listas.`
+          : language === "en"
+            ? `"${item.name}" removed from your custom items.`
+            : `"${item.name}" se quitó de tus artículos personalizados.`
+      );
+    } finally {
+      setCustomItemsBusyId(null);
+    }
   }
 
   function onSave(e: React.FormEvent) {
@@ -1241,6 +1337,89 @@ export default function SettingsPage() {
                 <option value="__add__">{language === "en" ? "Add" : "Agregar"}</option>
               </select>
             </div>
+          </div>
+
+          <div>
+            <div style={{ fontWeight: 900, marginBottom: 6, fontSize: s(15) }}>
+              {language === "en" ? "Custom items" : "Artículos personalizados"}
+            </div>
+            <div
+              style={{
+                borderRadius: 14,
+                border: `1px solid ${MC_NAVY_LINE}`,
+                background: "#fff",
+                overflow: "hidden",
+              }}
+            >
+              {customItems.length === 0 ? (
+                <div
+                  style={{
+                    padding: "12px 14px",
+                    fontSize: s(14),
+                    color: MC_NAVY_MUTED,
+                  }}
+                >
+                  {language === "en"
+                    ? "You have no custom items."
+                    : "No tienes artículos personalizados."}
+                </div>
+              ) : (
+                customItems.map((item, index) => (
+                  <div
+                    key={item.id}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "minmax(0, 1fr) auto",
+                      gap: 12,
+                      alignItems: "center",
+                      padding: "12px 14px",
+                      borderTop: index === 0 ? "none" : `1px solid ${MC_NAVY_LINE}`,
+                    }}
+                  >
+                    <div style={{ minWidth: 0 }}>
+                      <div
+                        style={{
+                          fontWeight: 800,
+                          color: MC_NAVY,
+                          fontSize: s(15),
+                          wordBreak: "break-word",
+                        }}
+                      >
+                        {item.name}
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => onRemoveCustomItem(item)}
+                      disabled={customItemsBusyId === item.id}
+                      style={{
+                        border: `1px solid ${MC_NAVY_LINE}`,
+                        background: "#fff",
+                        color: MC_NAVY,
+                        borderRadius: 12,
+                        padding: "8px 12px",
+                        fontWeight: 800,
+                        fontSize: s(13),
+                        cursor: customItemsBusyId === item.id ? "default" : "pointer",
+                        opacity: customItemsBusyId === item.id ? 0.7 : 1,
+                      }}
+                    >
+                      {customItemsBusyId === item.id
+                        ? language === "en"
+                          ? "Removing..."
+                          : "Quitando..."
+                        : language === "en"
+                          ? "Remove"
+                          : "Quitar"}
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+            {customItemsMessage ? (
+              <div style={{ marginTop: 6, fontSize: s(13), color: MC_NAVY_MUTED }}>{customItemsMessage}</div>
+            ) : null}
           </div>
 
           <div>
