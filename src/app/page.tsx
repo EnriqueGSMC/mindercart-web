@@ -292,7 +292,7 @@ export default function NeedsPage() {
   const addArticleModalHelp =
     lang === "en"
       ? "It is not in the list. You can add it."
-      : "Selecciona los detalles del artículo.";
+      : "No está en la lista. Puedes agregarlo.";
   const itemPlaceholder = lang === "en" ? "e.g. milk" : "ej. leche";
 
   const [name, setName] = React.useState("");
@@ -389,8 +389,20 @@ export default function NeedsPage() {
   }, [isOpenSavedListView, selectedSavedListId]);
 
   const trimmedName = name.trim();
+  const normalizedDraftName = trimmedName
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("es");
+  const hasExactSuggestionMatch = suggestions.some(
+    (suggestion) =>
+      suggestion.name
+        .trim()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLocaleLowerCase("es") === normalizedDraftName
+  );
   const showSuggestions = trimmedName.length >= 2 && suggestions.length > 0;
-  const canOpenCustomDraft = trimmedName.length >= 3 && suggestions.length === 0;
+  const canOpenCustomDraft = trimmedName.length >= 3 && !hasExactSuggestionMatch;
 
   const draftSelectOptions = React.useMemo<DraftSelectOptions>(() => {
     const state = readState();
