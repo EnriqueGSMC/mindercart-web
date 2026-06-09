@@ -1420,7 +1420,7 @@ export default function SettingsPage() {
                         <div style={{ minWidth: 0 }}>
                           <div
                             style={{
-                              fontWeight: 800,
+                              fontWeight: 400,
                               color: MC_NAVY,
                               fontSize: s(15),
                               wordBreak: "break-word",
