@@ -14,7 +14,7 @@ import { t } from "@/lib/mindercart/i18n";
 import { listCustomItems, listStoreProfiles, readState, removeCustomItem, saveSettings, upsertStoreProfile } from "@/lib/mindercart/storage";
 import { useMinderCartState } from "@/lib/mindercart/hooks";
 import { useAuthSession } from "@/lib/firebase/auth-context";
-import { signInUser, signOutUser, signUpUser } from "@/lib/firebase/auth-actions";
+import { resetPasswordForUser, signInUser, signOutUser, signUpUser } from "@/lib/firebase/auth-actions";
 import { resolveUserBootstrap } from "@/lib/firebase/resolve-user-bootstrap";
 import { saveUserData } from "@/lib/firebase/save-user-data";
 import {
@@ -181,6 +181,7 @@ export default function SettingsPage() {
   const [accountPasswordVisible, setAccountPasswordVisible] = React.useState(false);
   const [accountBusy, setAccountBusy] = React.useState(false);
   const [accountError, setAccountError] = React.useState("");
+  const [accountMessage, setAccountMessage] = React.useState("");
   const [migrationBusy, setMigrationBusy] = React.useState(false);
   const [migrationError, setMigrationError] = React.useState("");
   const [migrationMessage, setMigrationMessage] = React.useState("");
@@ -423,6 +424,7 @@ export default function SettingsPage() {
 
   async function onSignIn() {
     setAccountError("");
+    setAccountMessage("");
 
     try {
       setAccountBusy(true);
@@ -443,6 +445,7 @@ export default function SettingsPage() {
 
   async function onSignUp() {
     setAccountError("");
+    setAccountMessage("");
 
     try {
       setAccountBusy(true);
@@ -461,8 +464,41 @@ export default function SettingsPage() {
     }
   }
 
+  async function onResetPassword() {
+    setAccountError("");
+    setAccountMessage("");
+
+    const email = accountEmail.trim();
+
+    if (!email) {
+      setAccountError(language === "en" ? "Enter your email to reset your password" : "Ingresa tu correo para recuperar tu contraseña");
+      return;
+    }
+
+    try {
+      setAccountBusy(true);
+      await resetPasswordForUser(email);
+      setAccountMessage(
+        language === "en"
+          ? "We sent you an email to reset your password"
+          : "Te enviamos un correo para restablecer tu contraseña"
+      );
+    } catch (error) {
+      setAccountError(
+        error instanceof Error
+          ? error.message
+          : language === "en"
+            ? "We could not send the reset email"
+            : "No se pudo enviar el correo de recuperación"
+      );
+    } finally {
+      setAccountBusy(false);
+    }
+  }
+
   async function onSignOut() {
     setAccountError("");
+    setAccountMessage("");
 
     try {
       setAccountBusy(true);
@@ -866,6 +902,26 @@ export default function SettingsPage() {
                   </button>
                 </div>
 
+                <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                  <button
+                    type="button"
+                    onClick={onResetPassword}
+                    disabled={accountBusy || !session.enabled}
+                    style={{
+                      border: "none",
+                      background: "transparent",
+                      color: MC_NAVY,
+                      fontWeight: 800,
+                      fontSize: s(13),
+                      padding: 0,
+                      cursor: accountBusy || !session.enabled ? "default" : "pointer",
+                      opacity: accountBusy || !session.enabled ? 0.6 : 1,
+                    }}
+                  >
+                    {language === "en" ? "Reset password" : "Recuperar contraseña"}
+                  </button>
+                </div>
+
                 <div
                   style={{
                     display: "grid",
@@ -916,6 +972,10 @@ export default function SettingsPage() {
 
             {accountError ? (
               <div style={{ fontSize: s(13), color: "#b42318", fontWeight: 800 }}>{accountError}</div>
+            ) : null}
+
+            {accountMessage ? (
+              <div style={{ fontSize: s(13), color: MC_NAVY, fontWeight: 800 }}>{accountMessage}</div>
             ) : null}
 
             {session.error ? (
