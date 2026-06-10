@@ -14,7 +14,7 @@ import { t } from "@/lib/mindercart/i18n";
 import { listCustomItems, listStoreProfiles, readState, removeCustomItem, saveSettings, upsertStoreProfile } from "@/lib/mindercart/storage";
 import { useMinderCartState } from "@/lib/mindercart/hooks";
 import { useAuthSession } from "@/lib/firebase/auth-context";
-import { resetPasswordForUser, signInUser, signOutUser, signUpUser } from "@/lib/firebase/auth-actions";
+import { signInUser, signOutUser, signUpUser } from "@/lib/firebase/auth-actions";
 import { resolveUserBootstrap } from "@/lib/firebase/resolve-user-bootstrap";
 import { saveUserData } from "@/lib/firebase/save-user-data";
 import {
@@ -181,7 +181,6 @@ export default function SettingsPage() {
   const [accountPasswordVisible, setAccountPasswordVisible] = React.useState(false);
   const [accountBusy, setAccountBusy] = React.useState(false);
   const [accountError, setAccountError] = React.useState("");
-  const [accountMessage, setAccountMessage] = React.useState("");
   const [migrationBusy, setMigrationBusy] = React.useState(false);
   const [migrationError, setMigrationError] = React.useState("");
   const [migrationMessage, setMigrationMessage] = React.useState("");
@@ -424,7 +423,6 @@ export default function SettingsPage() {
 
   async function onSignIn() {
     setAccountError("");
-    setAccountMessage("");
 
     try {
       setAccountBusy(true);
@@ -445,7 +443,6 @@ export default function SettingsPage() {
 
   async function onSignUp() {
     setAccountError("");
-    setAccountMessage("");
 
     try {
       setAccountBusy(true);
@@ -464,41 +461,8 @@ export default function SettingsPage() {
     }
   }
 
-  async function onResetPassword() {
-    setAccountError("");
-    setAccountMessage("");
-
-    const email = accountEmail.trim();
-
-    if (!email) {
-      setAccountError(language === "en" ? "Enter your email to reset your password" : "Ingresa tu correo para recuperar tu contraseña");
-      return;
-    }
-
-    try {
-      setAccountBusy(true);
-      await resetPasswordForUser(email);
-      setAccountMessage(
-        language === "en"
-          ? "We sent you an email to reset your password"
-          : "Te enviamos un correo para restablecer tu contraseña"
-      );
-    } catch (error) {
-      setAccountError(
-        error instanceof Error
-          ? error.message
-          : language === "en"
-            ? "We could not send the reset email"
-            : "No se pudo enviar el correo de recuperación"
-      );
-    } finally {
-      setAccountBusy(false);
-    }
-  }
-
   async function onSignOut() {
     setAccountError("");
-    setAccountMessage("");
 
     try {
       setAccountBusy(true);
@@ -902,26 +866,6 @@ export default function SettingsPage() {
                   </button>
                 </div>
 
-                <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                  <button
-                    type="button"
-                    onClick={onResetPassword}
-                    disabled={accountBusy || !session.enabled}
-                    style={{
-                      border: "none",
-                      background: "transparent",
-                      color: MC_NAVY,
-                      fontWeight: 800,
-                      fontSize: s(13),
-                      padding: 0,
-                      cursor: accountBusy || !session.enabled ? "default" : "pointer",
-                      opacity: accountBusy || !session.enabled ? 0.6 : 1,
-                    }}
-                  >
-                    {language === "en" ? "Reset password" : "Recuperar contraseña"}
-                  </button>
-                </div>
-
                 <div
                   style={{
                     display: "grid",
@@ -974,10 +918,6 @@ export default function SettingsPage() {
               <div style={{ fontSize: s(13), color: "#b42318", fontWeight: 800 }}>{accountError}</div>
             ) : null}
 
-            {accountMessage ? (
-              <div style={{ fontSize: s(13), color: MC_NAVY, fontWeight: 800 }}>{accountMessage}</div>
-            ) : null}
-
             {session.error ? (
               <div style={{ fontSize: s(12), color: MC_NAVY_MUTED }}>{session.error}</div>
             ) : null}
@@ -1004,7 +944,7 @@ export default function SettingsPage() {
                 }}
               >
                 <div style={{ fontWeight: 900, fontSize: s(15), color: MC_NAVY }}>
-                  {language === "en" ? "Family Plan" : "Plan Familiar"}
+                  {language === "en" ? "Family Plan" : "Plan grupal"}
                 </div>
               </div>
 
@@ -1015,7 +955,7 @@ export default function SettingsPage() {
                     : `Titular: ${familyRecord.name}`
                   : language === "en"
                     ? "Create your Family space here. Later you will be able to invite up to 4 more members and manage Shared Lists from one place."
-                    : "Crea aquí tu espacio Familiar. Después podrás invitar hasta 4 miembros más y administrar Shared Lists desde un solo lugar."}
+                    : "Crea aquí tu grupo compartido. Podrás invitar hasta 4 integrantes más y administrar listas entre todos."}
               </div>
 
               {familyMessage ? (
@@ -1283,7 +1223,7 @@ export default function SettingsPage() {
                       : "Creando..."
                     : language === "en"
                       ? "Create family"
-                      : "Crear familia"}
+                      : "Crear grupo"}
                 </button>
 
                 <button
@@ -1323,7 +1263,7 @@ export default function SettingsPage() {
                     : !familyInviteOpen
                       ? language === "en"
                         ? "Invite member"
-                        : "Invitar miembro"
+                        : "Invitar integrante"
                       : language === "en"
                         ? "Send invite"
                         : "Enviar invitación"}
@@ -1480,7 +1420,7 @@ export default function SettingsPage() {
                         <div style={{ minWidth: 0 }}>
                           <div
                             style={{
-                              fontWeight: 400,
+                              fontWeight: 800,
                               color: MC_NAVY,
                               fontSize: s(15),
                               wordBreak: "break-word",
