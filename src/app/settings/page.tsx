@@ -454,7 +454,7 @@ export default function SettingsPage() {
 
       setFamilyRecord(createdFamily);
       setFamilyInviteOpen(false);
-      setFamilyMessage(language === "en" ? "Family created successfully." : "Tu plan grupal se creó correctamente.");
+      setFamilyMessage(language === "en" ? "Your group plan was created successfully." : "Tu plan grupal se creó correctamente.");
     } catch (error) {
       setFamilyError(
         error instanceof Error
@@ -847,18 +847,18 @@ export default function SettingsPage() {
                 }}
               >
                 <div style={{ fontWeight: 900, fontSize: s(15), color: MC_NAVY }}>
-                  {language === "en" ? "Family Plan" : "Plan Familiar"}
+                  {language === "en" ? "Group plan" : "Plan grupal"}
                 </div>
               </div>
 
               <div style={{ fontSize: s(13), color: MC_NAVY_MUTED }}>
                 {familyRecord
                   ? language === "en"
-                    ? `Owner: ${familyRecord.name}`
+                    ? `Group: ${familyRecord.name}`
                     : `Grupo: ${familyRecord.name}`
                   : language === "en"
-                    ? "Create your Family space here. Later you will be able to invite up to 4 more members and manage Shared Lists from one place."
-                    : "Crea aquí tu espacio Familiar. Después podrás invitar hasta 4 miembros más y administrar Shared Lists desde un solo lugar."}
+                    ? "Create your shared group here. You can invite up to 4 more members and manage lists together."
+                    : "Crea aquí tu grupo compartido. Podrás invitar hasta 4 integrantes más y administrar listas entre todos."}
               </div>
 
               {familyMessage ? (
@@ -918,10 +918,10 @@ export default function SettingsPage() {
                         : "Cargando grupo..."
                       : familyMembersOpen
                         ? language === "en"
-                          ? "Hide family group"
+                          ? "Hide group"
                           : "Ocultar grupo"
                         : language === "en"
-                          ? "View family group"
+                          ? "View group"
                           : "Ver grupo"}
                   </button>
 
@@ -1109,8 +1109,8 @@ export default function SettingsPage() {
                       ? "Creating..."
                       : "Creando..."
                     : language === "en"
-                      ? "Create family"
-                      : "Crear familia"}
+                      ? "Create group"
+                      : "Crear grupo"}
                 </button>
 
                 <button
@@ -1150,7 +1150,7 @@ export default function SettingsPage() {
                     : !familyInviteOpen
                       ? language === "en"
                         ? "Invite member"
-                        : "Invitar miembro"
+                        : "Invitar integrante"
                       : language === "en"
                         ? "Send invite"
                         : "Enviar invitación"}
