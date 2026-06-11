@@ -11,10 +11,10 @@ import {
   scalePx,
 } from "@/components/mindercart/Shell";
 import { t } from "@/lib/mindercart/i18n";
-import { listStoreProfiles, readState, saveSettings, upsertStoreProfile } from "@/lib/mindercart/storage";
+import { listCustomItems, listStoreProfiles, readState, removeCustomItem, saveSettings, upsertStoreProfile } from "@/lib/mindercart/storage";
 import { useMinderCartState } from "@/lib/mindercart/hooks";
 import { useAuthSession } from "@/lib/firebase/auth-context";
-import { signInUser, signOutUser, signUpUser } from "@/lib/firebase/auth-actions";
+import { resetPasswordForUser, signInUser, signOutUser, signUpUser } from "@/lib/firebase/auth-actions";
 import { resolveUserBootstrap } from "@/lib/firebase/resolve-user-bootstrap";
 import { saveUserData } from "@/lib/firebase/save-user-data";
 import {
@@ -26,7 +26,7 @@ import {
   revokeFamilyInvite,
 } from "@/lib/firebase/shared-list-actions";
 import type { FamilyInviteRecord, FamilyMemberRecord, FamilyRecord } from "@/lib/firebase/shared-list-types";
-import type { FontScale, Language, StoreProfile } from "@/lib/mindercart/types";
+import type { FontScale, ItemMaster, Language, StoreProfile } from "@/lib/mindercart/types";
 
 function withMenuOpen(pathname: string) {
   return pathname.includes("?") ? `${pathname}&menu=1` : `${pathname}?menu=1`;
@@ -80,6 +80,68 @@ function readSavedListsForMigration() {
   }
 }
 
+function writeSavedListsForMigration(savedLists: unknown[]) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(SAVED_LISTS_STORAGE_KEY, JSON.stringify(savedLists));
+}
+
+function normalizeText(value: unknown) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ");
+}
+
+function makeCustomItemKey(value: unknown) {
+  return normalizeText(value).replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-");
+}
+
+function removeCustomItemFromSavedLists(item: Pick<ItemMaster, "itemKey" | "name">) {
+  const savedLists = readSavedListsForMigration();
+  if (!Array.isArray(savedLists) || savedLists.length === 0) return 0;
+
+  const targetItemKey = String(item.itemKey ?? "").trim() || makeCustomItemKey(item.name);
+  const targetName = normalizeText(item.name);
+  let removedCount = 0;
+
+  const nextSavedLists = savedLists.map((entry) => {
+    if (!entry || typeof entry !== "object") return entry;
+
+    const record = entry as { items?: unknown[]; updatedAt?: string };
+    const currentItems = Array.isArray(record.items) ? record.items : [];
+
+    const nextItems = currentItems.filter((rawItem) => {
+      if (!rawItem || typeof rawItem !== "object") return true;
+
+      const candidate = rawItem as { name?: unknown };
+      const candidateName = String(candidate.name ?? "").trim();
+      if (!candidateName) return true;
+
+      const matches =
+        makeCustomItemKey(candidateName) === targetItemKey || normalizeText(candidateName) === targetName;
+
+      if (matches) removedCount += 1;
+      return !matches;
+    });
+
+    if (nextItems.length === currentItems.length) return entry;
+
+    return {
+      ...record,
+      items: nextItems,
+      updatedAt: new Date().toISOString(),
+    };
+  });
+
+  if (removedCount > 0) {
+    writeSavedListsForMigration(nextSavedLists);
+  }
+
+  return removedCount;
+}
+
 function draftFromProfile(profile: StoreProfile, preferredStore: string): StoreDraft {
   return {
     previousName: profile.name,
@@ -105,6 +167,10 @@ export default function SettingsPage() {
   const [preferredStore, setPreferredStore] = React.useState(settings.preferredStore);
   const [fontScale, setFontScale] = React.useState<FontScale>(settings.fontScale);
   const [storeProfiles, setStoreProfiles] = React.useState<StoreProfile[]>([]);
+  const [customItems, setCustomItems] = React.useState<ItemMaster[]>([]);
+  const [customItemsExpanded, setCustomItemsExpanded] = React.useState(false);
+  const [customItemsBusyId, setCustomItemsBusyId] = React.useState<string | null>(null);
+  const [customItemsMessage, setCustomItemsMessage] = React.useState("");
   const [storeEditorOpen, setStoreEditorOpen] = React.useState(false);
   const [storeError, setStoreError] = React.useState("");
   const [storeDraft, setStoreDraft] = React.useState<StoreDraft>(emptyStoreDraft(settings.preferredStore));
@@ -115,6 +181,7 @@ export default function SettingsPage() {
   const [accountPasswordVisible, setAccountPasswordVisible] = React.useState(false);
   const [accountBusy, setAccountBusy] = React.useState(false);
   const [accountError, setAccountError] = React.useState("");
+  const [accountMessage, setAccountMessage] = React.useState("");
   const [migrationBusy, setMigrationBusy] = React.useState(false);
   const [migrationError, setMigrationError] = React.useState("");
   const [migrationMessage, setMigrationMessage] = React.useState("");
@@ -139,6 +206,7 @@ export default function SettingsPage() {
     setPreferredStore(settings.preferredStore);
     setFontScale(settings.fontScale);
     setStoreProfiles(listStoreProfiles());
+    setCustomItems(listCustomItems());
     setStoreDraft(emptyStoreDraft(settings.preferredStore));
   }, [settings.language, settings.preferredStore, settings.fontScale]);
 
@@ -318,6 +386,36 @@ export default function SettingsPage() {
     closeStoreModal();
   }
 
+  function onRemoveCustomItem(item: ItemMaster) {
+    const confirmed = window.confirm(
+      language === "en"
+        ? `Delete "${item.name}" from your custom items?`
+        : `¿Eliminar "${item.name}" de tus artículos personalizados?`
+    );
+
+    if (!confirmed) return;
+
+    setCustomItemsBusyId(item.id);
+    setCustomItemsMessage("");
+
+    try {
+      removeCustomItem({ itemKey: item.itemKey, name: item.name });
+      const removedFromSavedLists = removeCustomItemFromSavedLists(item);
+      setCustomItems(listCustomItems());
+      setCustomItemsMessage(
+        removedFromSavedLists > 0
+          ? language === "en"
+            ? `"${item.name}" was deleted from your custom items and saved lists.`
+            : `"${item.name}" se eliminó de tus artículos personalizados y de Mis Listas.`
+          : language === "en"
+            ? `"${item.name}" was deleted from your custom items.`
+            : `"${item.name}" se eliminó de tus artículos personalizados.`
+      );
+    } finally {
+      setCustomItemsBusyId(null);
+    }
+  }
+
   function onSave(e: React.FormEvent) {
     e.preventDefault();
     saveSettings({ language, preferredStore, fontScale });
@@ -326,6 +424,7 @@ export default function SettingsPage() {
 
   async function onSignIn() {
     setAccountError("");
+    setAccountMessage("");
 
     try {
       setAccountBusy(true);
@@ -346,6 +445,7 @@ export default function SettingsPage() {
 
   async function onSignUp() {
     setAccountError("");
+    setAccountMessage("");
 
     try {
       setAccountBusy(true);
@@ -364,8 +464,41 @@ export default function SettingsPage() {
     }
   }
 
+  async function onResetPassword() {
+    setAccountError("");
+    setAccountMessage("");
+
+    const email = accountEmail.trim();
+
+    if (!email) {
+      setAccountError(language === "en" ? "Enter your email to reset your password" : "Ingresa tu correo para recuperar tu contraseña");
+      return;
+    }
+
+    try {
+      setAccountBusy(true);
+      await resetPasswordForUser(email);
+      setAccountMessage(
+        language === "en"
+          ? "We sent you an email to reset your password"
+          : "Te enviamos un correo para restablecer tu contraseña"
+      );
+    } catch (error) {
+      setAccountError(
+        error instanceof Error
+          ? error.message
+          : language === "en"
+            ? "We could not send the reset email"
+            : "No se pudo enviar el correo de recuperación"
+      );
+    } finally {
+      setAccountBusy(false);
+    }
+  }
+
   async function onSignOut() {
     setAccountError("");
+    setAccountMessage("");
 
     try {
       setAccountBusy(true);
@@ -454,7 +587,7 @@ export default function SettingsPage() {
 
       setFamilyRecord(createdFamily);
       setFamilyInviteOpen(false);
-      setFamilyMessage(language === "en" ? "Your group plan was created successfully." : "Tu plan grupal se creó correctamente.");
+      setFamilyMessage(language === "en" ? "Family created successfully." : "La familia se creó correctamente.");
     } catch (error) {
       setFamilyError(
         error instanceof Error
@@ -769,6 +902,26 @@ export default function SettingsPage() {
                   </button>
                 </div>
 
+                <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                  <button
+                    type="button"
+                    onClick={onResetPassword}
+                    disabled={accountBusy || !session.enabled}
+                    style={{
+                      border: "none",
+                      background: "transparent",
+                      color: MC_NAVY,
+                      fontWeight: 800,
+                      fontSize: s(13),
+                      padding: 0,
+                      cursor: accountBusy || !session.enabled ? "default" : "pointer",
+                      opacity: accountBusy || !session.enabled ? 0.6 : 1,
+                    }}
+                  >
+                    {language === "en" ? "Reset password" : "Recuperar contraseña"}
+                  </button>
+                </div>
+
                 <div
                   style={{
                     display: "grid",
@@ -821,6 +974,10 @@ export default function SettingsPage() {
               <div style={{ fontSize: s(13), color: "#b42318", fontWeight: 800 }}>{accountError}</div>
             ) : null}
 
+            {accountMessage ? (
+              <div style={{ fontSize: s(13), color: MC_NAVY, fontWeight: 800 }}>{accountMessage}</div>
+            ) : null}
+
             {session.error ? (
               <div style={{ fontSize: s(12), color: MC_NAVY_MUTED }}>{session.error}</div>
             ) : null}
@@ -847,18 +1004,18 @@ export default function SettingsPage() {
                 }}
               >
                 <div style={{ fontWeight: 900, fontSize: s(15), color: MC_NAVY }}>
-                  {language === "en" ? "Group plan" : "Plan grupal"}
+                  {language === "en" ? "Family Plan" : "Plan Familiar"}
                 </div>
               </div>
 
               <div style={{ fontSize: s(13), color: MC_NAVY_MUTED }}>
                 {familyRecord
                   ? language === "en"
-                    ? `Group: ${familyRecord.name}`
-                    : `Grupo: ${familyRecord.name}`
+                    ? `Owner: ${familyRecord.name}`
+                    : `Titular: ${familyRecord.name}`
                   : language === "en"
-                    ? "Create your shared group here. You can invite up to 4 more members and manage lists together."
-                    : "Crea aquí tu grupo compartido. Podrás invitar hasta 4 integrantes más y administrar listas entre todos."}
+                    ? "Create your Family space here. Later you will be able to invite up to 4 more members and manage Shared Lists from one place."
+                    : "Crea aquí tu espacio Familiar. Después podrás invitar hasta 4 miembros más y administrar Shared Lists desde un solo lugar."}
               </div>
 
               {familyMessage ? (
@@ -890,7 +1047,23 @@ export default function SettingsPage() {
                       }}
                     />
                   </div>
-                ) : null
+                ) : (
+                  <div
+                    style={{
+                      padding: "12px 14px",
+                      borderRadius: 14,
+                      border: `1px solid ${MC_NAVY_LINE}`,
+                      background: "#eef4ff",
+                      color: MC_NAVY,
+                      fontSize: s(13),
+                      fontWeight: 700,
+                    }}
+                  >
+                    {language === "en"
+                      ? "Invite a member to your Family plan."
+                      : "Invita a un miembro a tu plan Familiar."}
+                  </div>
+                )
               ) : null}
 
 
@@ -918,11 +1091,11 @@ export default function SettingsPage() {
                         : "Cargando grupo..."
                       : familyMembersOpen
                         ? language === "en"
-                          ? "Hide group"
-                          : "Ocultar grupo"
+                          ? "Hide family group"
+                          : "Ocultar grupo familiar"
                         : language === "en"
-                          ? "View group"
-                          : "Ver grupo"}
+                          ? "View family group"
+                          : "Ver grupo familiar"}
                   </button>
 
                   {familyMembersOpen ? (
@@ -1109,8 +1282,8 @@ export default function SettingsPage() {
                       ? "Creating..."
                       : "Creando..."
                     : language === "en"
-                      ? "Create group"
-                      : "Crear grupo"}
+                      ? "Create family"
+                      : "Crear familia"}
                 </button>
 
                 <button
@@ -1132,9 +1305,9 @@ export default function SettingsPage() {
                     width: "100%",
                     padding: "12px 14px",
                     borderRadius: 14,
-                    border: "1px solid transparent",
-                    background: MC_NAVY,
-                    color: "#fff",
+                    border: `1px solid ${MC_NAVY_LINE}`,
+                    background: "#fff",
+                    color: MC_NAVY,
                     fontWeight: 900,
                     fontSize: s(15),
                     opacity:
@@ -1150,7 +1323,7 @@ export default function SettingsPage() {
                     : !familyInviteOpen
                       ? language === "en"
                         ? "Invite member"
-                        : "Invitar integrante"
+                        : "Invitar miembro"
                       : language === "en"
                         ? "Send invite"
                         : "Enviar invitación"}
@@ -1225,6 +1398,131 @@ export default function SettingsPage() {
                 <option value="__add__">{language === "en" ? "Add" : "Agregar"}</option>
               </select>
             </div>
+          </div>
+
+          <div>
+            <button
+              type="button"
+              onClick={() => setCustomItemsExpanded((current) => !current)}
+              aria-expanded={customItemsExpanded}
+              style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
+                padding: "12px 14px",
+                borderRadius: 14,
+                border: `1px solid ${MC_NAVY_LINE}`,
+                background: "#fff",
+                color: MC_NAVY,
+                fontSize: s(15),
+                fontWeight: 900,
+                cursor: "pointer",
+                textAlign: "left",
+              }}
+            >
+              <span>{language === "en" ? "Custom items" : "Artículos personalizados"}</span>
+              <span
+                aria-hidden="true"
+                style={{
+                  fontSize: s(13),
+                  color: MC_NAVY_MUTED,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {customItemsExpanded
+                  ? language === "en"
+                    ? "Hide"
+                    : "Ocultar"
+                  : language === "en"
+                    ? "View"
+                    : "Ver"}
+              </span>
+            </button>
+
+            {customItemsExpanded ? (
+              <>
+                <div
+                  style={{
+                    marginTop: 8,
+                    borderRadius: 14,
+                    border: `1px solid ${MC_NAVY_LINE}`,
+                    background: "#fff",
+                    overflow: "hidden",
+                  }}
+                >
+                  {customItems.length === 0 ? (
+                    <div
+                      style={{
+                        padding: "12px 14px",
+                        fontSize: s(14),
+                        color: MC_NAVY_MUTED,
+                      }}
+                    >
+                      {language === "en"
+                        ? "You have no custom items."
+                        : "No tienes artículos personalizados."}
+                    </div>
+                  ) : (
+                    customItems.map((item, index) => (
+                      <div
+                        key={item.id}
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "minmax(0, 1fr) auto",
+                          gap: 12,
+                          alignItems: "center",
+                          padding: "12px 14px",
+                          borderTop: index === 0 ? "none" : `1px solid ${MC_NAVY_LINE}`,
+                        }}
+                      >
+                        <div style={{ minWidth: 0 }}>
+                          <div
+                            style={{
+                              fontWeight: 400,
+                              color: MC_NAVY,
+                              fontSize: s(15),
+                              wordBreak: "break-word",
+                            }}
+                          >
+                            {item.name}
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => onRemoveCustomItem(item)}
+                          disabled={customItemsBusyId === item.id}
+                          style={{
+                            border: `1px solid ${MC_NAVY_LINE}`,
+                            background: "#fff",
+                            color: MC_NAVY,
+                            borderRadius: 12,
+                            padding: "8px 12px",
+                            fontWeight: 800,
+                            fontSize: s(13),
+                            cursor: customItemsBusyId === item.id ? "default" : "pointer",
+                            opacity: customItemsBusyId === item.id ? 0.7 : 1,
+                          }}
+                        >
+                          {customItemsBusyId === item.id
+                            ? language === "en"
+                              ? "Deleting..."
+                              : "Eliminando..."
+                            : language === "en"
+                              ? "Delete"
+                              : "Eliminar"}
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+                {customItemsMessage ? (
+                  <div style={{ marginTop: 6, fontSize: s(13), color: MC_NAVY_MUTED }}>{customItemsMessage}</div>
+                ) : null}
+              </>
+            ) : null}
           </div>
 
           <div>
