@@ -1047,23 +1047,7 @@ export default function SettingsPage() {
                       }}
                     />
                   </div>
-                ) : (
-                  <div
-                    style={{
-                      padding: "12px 14px",
-                      borderRadius: 14,
-                      border: `1px solid ${MC_NAVY_LINE}`,
-                      background: "#eef4ff",
-                      color: MC_NAVY,
-                      fontSize: s(13),
-                      fontWeight: 700,
-                    }}
-                  >
-                    {language === "en"
-                      ? "Invite a member to your Family plan."
-                      : "Invita a un miembro a tu plan Familiar."}
-                  </div>
-                )
+                ) : null
               ) : null}
 
 
@@ -1111,7 +1095,7 @@ export default function SettingsPage() {
                     >
                       <div style={{ display: "grid", gap: 6 }}>
                         <div style={{ fontWeight: 900, fontSize: s(13), color: MC_NAVY }}>
-                          {language === "en" ? "Members" : "Miembros"}
+                          {language === "en" ? "Members" : "Integrantes"}
                         </div>
 
                         {familyMembers.length ? (
@@ -1306,8 +1290,8 @@ export default function SettingsPage() {
                     padding: "12px 14px",
                     borderRadius: 14,
                     border: `1px solid ${MC_NAVY_LINE}`,
-                    background: "#fff",
-                    color: MC_NAVY,
+                    background: MC_NAVY,
+                    color: "#fff",
                     fontWeight: 900,
                     fontSize: s(15),
                     opacity:
