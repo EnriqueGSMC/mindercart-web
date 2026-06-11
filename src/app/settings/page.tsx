@@ -192,6 +192,7 @@ export default function SettingsPage() {
   const [familyError, setFamilyError] = React.useState("");
   const [familyMessage, setFamilyMessage] = React.useState("");
   const [familyRecord, setFamilyRecord] = React.useState<FamilyRecord | null>(null);
+  const [familyNameDraft, setFamilyNameDraft] = React.useState("");
   const [familyInviteEmail, setFamilyInviteEmail] = React.useState("");
   const [familyInviteBusy, setFamilyInviteBusy] = React.useState(false);
   const [familyInviteOpen, setFamilyInviteOpen] = React.useState(false);
@@ -579,13 +580,16 @@ export default function SettingsPage() {
         return;
       }
 
+      const trimmedFamilyName = familyNameDraft.trim();
+
       const createdFamily = await createFamily({
         ownerUid: session.user.uid,
         ownerEmail: session.user.email,
-        familyName: language === "en" ? "My Family" : "Mi familia",
+        familyName: trimmedFamilyName || (language === "en" ? "My Family" : "Mi familia"),
       });
 
       setFamilyRecord(createdFamily);
+      setFamilyNameDraft("");
       setFamilyInviteOpen(false);
       setFamilyMessage(language === "en" ? "Family created successfully." : "La familia se creó correctamente.");
     } catch (error) {
@@ -1017,6 +1021,28 @@ export default function SettingsPage() {
                     ? "Create your shared group here. You can invite up to 4 more members and manage lists together."
                     : "Crea aquí tu grupo compartido. Podrás invitar hasta 4 integrantes más y administrar listas entre todos."}
               </div>
+
+              {!familyRecord ? (
+                <div style={{ display: "grid", gap: 6 }}>
+                  <div style={{ fontWeight: 900, fontSize: s(13), color: MC_NAVY }}>
+                    {language === "en" ? "Group name" : "Nombre del grupo"}
+                  </div>
+                  <input
+                    type="text"
+                    value={familyNameDraft}
+                    onChange={(e) => setFamilyNameDraft(e.target.value)}
+                    placeholder={language === "en" ? "E.g. Diaz Family" : "Ej. Fam Díaz"}
+                    style={{
+                      width: "100%",
+                      padding: "12px 14px",
+                      borderRadius: 14,
+                      border: `1px solid ${MC_NAVY_LINE}`,
+                      fontSize: s(15),
+                      boxSizing: "border-box",
+                    }}
+                  />
+                </div>
+              ) : null}
 
               {familyMessage ? (
                 <div style={{ fontSize: s(13), color: "#027a48", fontWeight: 800 }}>{familyMessage}</div>
