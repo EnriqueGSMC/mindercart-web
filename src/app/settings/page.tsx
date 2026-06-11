@@ -191,8 +191,6 @@ export default function SettingsPage() {
   const [familyBusy, setFamilyBusy] = React.useState(false);
   const [familyError, setFamilyError] = React.useState("");
   const [familyMessage, setFamilyMessage] = React.useState("");
-  const [familyCreateOpen, setFamilyCreateOpen] = React.useState(false);
-  const [familyNameDraft, setFamilyNameDraft] = React.useState("");
   const [familyRecord, setFamilyRecord] = React.useState<FamilyRecord | null>(null);
   const [familyInviteEmail, setFamilyInviteEmail] = React.useState("");
   const [familyInviteBusy, setFamilyInviteBusy] = React.useState(false);
@@ -258,8 +256,6 @@ export default function SettingsPage() {
     async function run() {
       if (session.status !== "authenticated" || !session.user?.uid) {
         setFamilyRecord(null);
-        setFamilyCreateOpen(false);
-        setFamilyNameDraft("");
         setFamilyInviteOpen(false);
         setFamilyMembersOpen(false);
         setFamilyMembers([]);
@@ -569,14 +565,6 @@ export default function SettingsPage() {
   async function onCreateFamily() {
     if (!session.user?.uid || !session.user?.email) return;
 
-    const trimmedFamilyName = familyNameDraft.trim();
-
-    if (!trimmedFamilyName) {
-      setFamilyError(language === "en" ? "Enter a name for your group." : "Escribe un nombre para tu grupo.");
-      setFamilyMessage("");
-      return;
-    }
-
     setFamilyError("");
     setFamilyMessage("");
 
@@ -586,8 +574,6 @@ export default function SettingsPage() {
       const existingFamily = await getFamilyByOwnerUid(session.user.uid);
       if (existingFamily) {
         setFamilyRecord(existingFamily);
-        setFamilyCreateOpen(false);
-        setFamilyNameDraft("");
         setFamilyInviteOpen(false);
         setFamilyMessage(language === "en" ? "Family already created." : "La familia ya fue creada.");
         return;
@@ -596,12 +582,10 @@ export default function SettingsPage() {
       const createdFamily = await createFamily({
         ownerUid: session.user.uid,
         ownerEmail: session.user.email,
-        familyName: trimmedFamilyName,
+        familyName: language === "en" ? "My Family" : "Mi familia",
       });
 
       setFamilyRecord(createdFamily);
-      setFamilyCreateOpen(false);
-      setFamilyNameDraft("");
       setFamilyInviteOpen(false);
       setFamilyMessage(language === "en" ? "Family created successfully." : "La familia se creó correctamente.");
     } catch (error) {
@@ -1020,18 +1004,18 @@ export default function SettingsPage() {
                 }}
               >
                 <div style={{ fontWeight: 900, fontSize: s(15), color: MC_NAVY }}>
-                  {language === "en" ? "Family Plan" : "Plan Familiar"}
+                  {language === "en" ? "Group plan" : "Plan grupal"}
                 </div>
               </div>
 
               <div style={{ fontSize: s(13), color: MC_NAVY_MUTED }}>
                 {familyRecord
                   ? language === "en"
-                    ? `Owner: ${familyRecord.name}`
-                    : `Titular: ${familyRecord.name}`
+                    ? `Group: ${familyRecord.name}`
+                    : `Grupo: ${familyRecord.name}`
                   : language === "en"
-                    ? "Create your Family space here. Later you will be able to invite up to 4 more members and manage Shared Lists from one place."
-                    : "Crea aquí tu espacio Familiar. Después podrás invitar hasta 4 miembros más y administrar Shared Lists desde un solo lugar."}
+                    ? "Create your shared group here. You can invite up to 4 more members and manage lists together."
+                    : "Crea aquí tu grupo compartido. Podrás invitar hasta 4 integrantes más y administrar listas entre todos."}
               </div>
 
               {familyMessage ? (
@@ -1063,23 +1047,7 @@ export default function SettingsPage() {
                       }}
                     />
                   </div>
-                ) : (
-                  <div
-                    style={{
-                      padding: "12px 14px",
-                      borderRadius: 14,
-                      border: `1px solid ${MC_NAVY_LINE}`,
-                      background: "#eef4ff",
-                      color: MC_NAVY,
-                      fontSize: s(13),
-                      fontWeight: 700,
-                    }}
-                  >
-                    {language === "en"
-                      ? "Invite a member to your Family plan."
-                      : "Invita a un miembro a tu plan Familiar."}
-                  </div>
-                )
+                ) : null
               ) : null}
 
 
@@ -1107,11 +1075,11 @@ export default function SettingsPage() {
                         : "Cargando grupo..."
                       : familyMembersOpen
                         ? language === "en"
-                          ? "Hide family group"
-                          : "Ocultar grupo familiar"
+                          ? "Hide group"
+                          : "Ocultar grupo"
                         : language === "en"
-                          ? "View family group"
-                          : "Ver grupo familiar"}
+                          ? "View group"
+                          : "Ver grupo"}
                   </button>
 
                   {familyMembersOpen ? (
@@ -1127,7 +1095,7 @@ export default function SettingsPage() {
                     >
                       <div style={{ display: "grid", gap: 6 }}>
                         <div style={{ fontWeight: 900, fontSize: s(13), color: MC_NAVY }}>
-                          {language === "en" ? "Members" : "Miembros"}
+                          {language === "en" ? "Members" : "Integrantes"}
                         </div>
 
                         {familyMembers.length ? (
@@ -1279,12 +1247,7 @@ export default function SettingsPage() {
               >
                 <button
                   type="button"
-                  onClick={() => {
-                    setFamilyError("");
-                    setFamilyMessage("");
-                    setFamilyNameDraft("");
-                    setFamilyCreateOpen(true);
-                  }}
+                  onClick={() => void onCreateFamily()}
                   disabled={familyBusy || !!familyRecord || !session.enabled}
                   style={{
                     width: "100%",
@@ -1303,8 +1266,8 @@ export default function SettingsPage() {
                       ? "Creating..."
                       : "Creando..."
                     : language === "en"
-                      ? "Create family"
-                      : "Crear familia"}
+                      ? "Create group"
+                      : "Crear grupo"}
                 </button>
 
                 <button
@@ -1327,8 +1290,8 @@ export default function SettingsPage() {
                     padding: "12px 14px",
                     borderRadius: 14,
                     border: `1px solid ${MC_NAVY_LINE}`,
-                    background: "#fff",
-                    color: MC_NAVY,
+                    background: MC_NAVY,
+                    color: "#fff",
                     fontWeight: 900,
                     fontSize: s(15),
                     opacity:
@@ -1344,7 +1307,7 @@ export default function SettingsPage() {
                     : !familyInviteOpen
                       ? language === "en"
                         ? "Invite member"
-                        : "Invitar miembro"
+                        : "Invitar integrante"
                       : language === "en"
                         ? "Send invite"
                         : "Enviar invitación"}
@@ -1572,125 +1535,6 @@ export default function SettingsPage() {
 
         </form>
       </section>
-
-      {familyCreateOpen ? (
-        <div
-          style={{
-            position: "fixed",
-            top: "calc(env(safe-area-inset-top, 0px) + 144px)",
-            right: 0,
-            bottom: "calc(env(safe-area-inset-bottom, 0px) + 78px)",
-            left: 0,
-            background: "rgba(0, 0, 0, 0.35)",
-            padding: 12,
-            zIndex: 81,
-          }}
-        >
-          <div
-            style={{
-              width: "100%",
-              maxWidth: 560,
-              margin: "0 auto",
-              display: "grid",
-              gap: 14,
-              borderRadius: 18,
-              background: "#fff",
-              border: `1px solid ${MC_NAVY_LINE}`,
-              boxShadow: "0 18px 50px rgba(0, 0, 0, 0.16)",
-              padding: 14,
-            }}
-          >
-            <div style={{ display: "grid", gap: 6 }}>
-              <div style={{ fontWeight: 900, fontSize: s(16), color: MC_NAVY }}>
-                {language === "en" ? "What would you like to call your group?" : "¿Cómo quieres llamar a tu grupo?"}
-              </div>
-              <div style={{ fontSize: s(13), color: MC_NAVY_MUTED }}>
-                {language === "en" ? "Enter a name to identify it." : "Escribe un nombre para identificarlo."}
-              </div>
-            </div>
-
-            <div style={{ display: "grid", gap: 6 }}>
-              <div style={{ fontWeight: 900, fontSize: s(13), color: MC_NAVY }}>
-                {language === "en" ? "Group name" : "Nombre del grupo"}
-              </div>
-              <input
-                type="text"
-                value={familyNameDraft}
-                onChange={(e) => setFamilyNameDraft(e.target.value)}
-                placeholder={
-                  language === "en"
-                    ? "E.g. Diaz Family, Business, Restaurant"
-                    : "Ej. Fam Díaz, Negocio, Restaurante"
-                }
-                autoFocus
-                style={{
-                  width: "100%",
-                  padding: "12px 14px",
-                  borderRadius: 14,
-                  border: `1px solid ${MC_NAVY_LINE}`,
-                  fontSize: s(15),
-                  boxSizing: "border-box",
-                }}
-              />
-            </div>
-
-            <div
-              style={{
-                display: "grid",
-                gap: 10,
-                gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => {
-                  if (familyBusy) return;
-                  setFamilyCreateOpen(false);
-                  setFamilyNameDraft("");
-                  setFamilyError("");
-                }}
-                style={{
-                  width: "100%",
-                  padding: "12px 14px",
-                  borderRadius: 14,
-                  border: `1px solid ${MC_NAVY_LINE}`,
-                  background: "#fff",
-                  color: MC_NAVY,
-                  fontWeight: 900,
-                  fontSize: s(15),
-                }}
-              >
-                {language === "en" ? "Cancel" : "Cancelar"}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => void onCreateFamily()}
-                disabled={familyBusy}
-                style={{
-                  width: "100%",
-                  padding: "12px 14px",
-                  borderRadius: 14,
-                  border: "1px solid transparent",
-                  background: MC_NAVY,
-                  color: "#fff",
-                  fontWeight: 900,
-                  fontSize: s(15),
-                  opacity: familyBusy ? 0.6 : 1,
-                }}
-              >
-                {familyBusy
-                  ? language === "en"
-                    ? "Creating..."
-                    : "Creando..."
-                  : language === "en"
-                    ? "Create group"
-                    : "Crear grupo"}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
 
       {storeEditorOpen ? (
         <div
