@@ -1132,9 +1132,9 @@ export default function SettingsPage() {
                     width: "100%",
                     padding: "12px 14px",
                     borderRadius: 14,
-                    border: `1px solid ${MC_NAVY_LINE}`,
-                    background: "#fff",
-                    color: MC_NAVY,
+                    border: "1px solid transparent",
+                    background: MC_NAVY,
+                    color: "#fff",
                     fontWeight: 900,
                     fontSize: s(15),
                     opacity:
