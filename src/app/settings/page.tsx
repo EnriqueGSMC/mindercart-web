@@ -1004,18 +1004,18 @@ export default function SettingsPage() {
                 }}
               >
                 <div style={{ fontWeight: 900, fontSize: s(15), color: MC_NAVY }}>
-                  {language === "en" ? "Group plan" : "Plan grupal"}
+                  {language === "en" ? "Family Plan" : "Plan Familiar"}
                 </div>
               </div>
 
               <div style={{ fontSize: s(13), color: MC_NAVY_MUTED }}>
                 {familyRecord
                   ? language === "en"
-                    ? `Group: ${familyRecord.name}`
-                    : `Grupo: ${familyRecord.name}`
+                    ? `Owner: ${familyRecord.name}`
+                    : `Titular: ${familyRecord.name}`
                   : language === "en"
-                    ? "Create your shared group here. You can invite up to 4 more members and manage lists together."
-                    : "Crea aquí tu grupo compartido. Podrás invitar hasta 4 integrantes más y administrar listas entre todos."}
+                    ? "Create your Family space here. Later you will be able to invite up to 4 more members and manage Shared Lists from one place."
+                    : "Crea aquí tu espacio Familiar. Después podrás invitar hasta 4 miembros más y administrar Shared Lists desde un solo lugar."}
               </div>
 
               {familyMessage ? (
@@ -1091,11 +1091,11 @@ export default function SettingsPage() {
                         : "Cargando grupo..."
                       : familyMembersOpen
                         ? language === "en"
-                          ? "Hide group"
-                          : "Ocultar grupo"
+                          ? "Hide family group"
+                          : "Ocultar grupo familiar"
                         : language === "en"
-                          ? "View group"
-                          : "Ver grupo"}
+                          ? "View family group"
+                          : "Ver grupo familiar"}
                   </button>
 
                   {familyMembersOpen ? (
@@ -1282,8 +1282,8 @@ export default function SettingsPage() {
                       ? "Creating..."
                       : "Creando..."
                     : language === "en"
-                      ? "Create group"
-                      : "Crear grupo"}
+                      ? "Create family"
+                      : "Crear familia"}
                 </button>
 
                 <button
@@ -1323,7 +1323,7 @@ export default function SettingsPage() {
                     : !familyInviteOpen
                       ? language === "en"
                         ? "Invite member"
-                        : "Invitar integrante"
+                        : "Invitar miembro"
                       : language === "en"
                         ? "Send invite"
                         : "Enviar invitación"}
