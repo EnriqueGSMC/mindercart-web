@@ -603,7 +603,7 @@ export default function SettingsPage() {
       setFamilyInviteOpen(false);
       setCreateGroupModalOpen(false);
       setCreateGroupNameDraft("");
-      setFamilyMessage(language === "en" ? "Family created successfully." : "La familia se creó correctamente.");
+      setFamilyMessage(language === "en" ? "Your group plan was created successfully." : "Tu plan grupal se creó correctamente.");
     } catch (error) {
       setFamilyError(
         error instanceof Error
