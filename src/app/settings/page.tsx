@@ -195,6 +195,9 @@ export default function SettingsPage() {
   const [familyInviteEmail, setFamilyInviteEmail] = React.useState("");
   const [familyInviteBusy, setFamilyInviteBusy] = React.useState(false);
   const [familyInviteOpen, setFamilyInviteOpen] = React.useState(false);
+  const [createGroupModalOpen, setCreateGroupModalOpen] = React.useState(false);
+  const [createGroupNameDraft, setCreateGroupNameDraft] = React.useState("");
+  const [createGroupNameError, setCreateGroupNameError] = React.useState("");
   const [familyMembersOpen, setFamilyMembersOpen] = React.useState(false);
   const [familyMembersBusy, setFamilyMembersBusy] = React.useState(false);
   const [familyRevokeInviteBusyId, setFamilyRevokeInviteBusyId] = React.useState<string | null>(null);
@@ -565,6 +568,16 @@ export default function SettingsPage() {
   async function onCreateFamily() {
     if (!session.user?.uid || !session.user?.email) return;
 
+    const trimmedCreateGroupName = createGroupNameDraft.trim();
+
+    if (!trimmedCreateGroupName) {
+      setCreateGroupNameError(
+        language === "en" ? "Enter a name for your group." : "Escribe un nombre para tu grupo."
+      );
+      return;
+    }
+
+    setCreateGroupNameError("");
     setFamilyError("");
     setFamilyMessage("");
 
@@ -575,6 +588,7 @@ export default function SettingsPage() {
       if (existingFamily) {
         setFamilyRecord(existingFamily);
         setFamilyInviteOpen(false);
+        setCreateGroupModalOpen(false);
         setFamilyMessage(language === "en" ? "Family already created." : "La familia ya fue creada.");
         return;
       }
@@ -582,11 +596,13 @@ export default function SettingsPage() {
       const createdFamily = await createFamily({
         ownerUid: session.user.uid,
         ownerEmail: session.user.email,
-        familyName: language === "en" ? "My Family" : "Mi familia",
+        familyName: trimmedCreateGroupName,
       });
 
       setFamilyRecord(createdFamily);
       setFamilyInviteOpen(false);
+      setCreateGroupModalOpen(false);
+      setCreateGroupNameDraft("");
       setFamilyMessage(language === "en" ? "Family created successfully." : "La familia se creó correctamente.");
     } catch (error) {
       setFamilyError(
@@ -1247,7 +1263,13 @@ export default function SettingsPage() {
               >
                 <button
                   type="button"
-                  onClick={() => void onCreateFamily()}
+                  onClick={() => {
+                    setCreateGroupNameDraft("");
+                    setCreateGroupNameError("");
+                    setFamilyError("");
+                    setFamilyMessage("");
+                    setCreateGroupModalOpen(true);
+                  }}
                   disabled={familyBusy || !!familyRecord || !session.enabled}
                   style={{
                     width: "100%",
@@ -1312,6 +1334,135 @@ export default function SettingsPage() {
                         ? "Send invite"
                         : "Enviar invitación"}
                 </button>
+              </div>
+            </div>
+          ) : null}
+
+          {createGroupModalOpen ? (
+            <div
+              style={{
+                position: "fixed",
+                top: "calc(env(safe-area-inset-top, 0px) + 144px)",
+                right: 0,
+                bottom: "calc(env(safe-area-inset-bottom, 0px) + 78px)",
+                left: 0,
+                background: "rgba(0, 0, 0, 0.35)",
+                padding: 12,
+                zIndex: 70,
+              }}
+            >
+              <div
+                style={{
+                  width: "100%",
+                  maxWidth: 560,
+                  margin: "0 auto",
+                  borderRadius: 18,
+                  background: "#fff",
+                  border: `1px solid ${MC_NAVY_LINE}`,
+                  boxShadow: "0 18px 50px rgba(0, 0, 0, 0.16)",
+                  padding: 16,
+                  display: "grid",
+                  gap: 12,
+                }}
+              >
+                <div style={{ display: "grid", gap: 6 }}>
+                  <div style={{ fontWeight: 900, fontSize: s(16), color: MC_NAVY }}>
+                    {language === "en" ? "What would you like to call your group?" : "¿Cómo quieres llamar a tu grupo?"}
+                  </div>
+                  <div style={{ fontSize: s(13), color: MC_NAVY_MUTED }}>
+                    {language === "en" ? "Enter a name to identify it." : "Escribe un nombre para identificarlo."}
+                  </div>
+                </div>
+
+                <div style={{ display: "grid", gap: 6 }}>
+                  <div style={{ fontWeight: 900, fontSize: s(13), color: MC_NAVY }}>
+                    {language === "en" ? "Group name" : "Nombre del grupo"}
+                  </div>
+                  <input
+                    type="text"
+                    value={createGroupNameDraft}
+                    onChange={(e) => {
+                      setCreateGroupNameDraft(e.target.value);
+                      if (createGroupNameError) {
+                        setCreateGroupNameError("");
+                      }
+                    }}
+                    placeholder={
+                      language === "en"
+                        ? "E.g. Diaz Family, Business, Restaurant"
+                        : "Ej. Fam Díaz, Negocio, Restaurante"
+                    }
+                    autoFocus
+                    style={{
+                      width: "100%",
+                      padding: "12px 14px",
+                      borderRadius: 14,
+                      border: `1px solid ${MC_NAVY_LINE}`,
+                      fontSize: s(15),
+                      boxSizing: "border-box",
+                    }}
+                  />
+                </div>
+
+                {createGroupNameError ? (
+                  <div style={{ fontSize: s(13), color: "#b42318", fontWeight: 800 }}>{createGroupNameError}</div>
+                ) : null}
+
+                <div
+                  style={{
+                    display: "grid",
+                    gap: 10,
+                    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCreateGroupModalOpen(false);
+                      setCreateGroupNameDraft("");
+                      setCreateGroupNameError("");
+                    }}
+                    disabled={familyBusy}
+                    style={{
+                      width: "100%",
+                      padding: "12px 14px",
+                      borderRadius: 14,
+                      border: `1px solid ${MC_NAVY_LINE}`,
+                      background: "#fff",
+                      color: MC_NAVY,
+                      fontWeight: 900,
+                      fontSize: s(15),
+                      opacity: familyBusy ? 0.6 : 1,
+                    }}
+                  >
+                    {language === "en" ? "Cancel" : "Cancelar"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => void onCreateFamily()}
+                    disabled={familyBusy}
+                    style={{
+                      width: "100%",
+                      padding: "12px 14px",
+                      borderRadius: 14,
+                      border: "1px solid transparent",
+                      background: MC_NAVY,
+                      color: "#fff",
+                      fontWeight: 900,
+                      fontSize: s(15),
+                      opacity: familyBusy ? 0.6 : 1,
+                    }}
+                  >
+                    {familyBusy
+                      ? language === "en"
+                        ? "Creating..."
+                        : "Creando..."
+                      : language === "en"
+                        ? "Create group"
+                        : "Crear grupo"}
+                  </button>
+                </div>
               </div>
             </div>
           ) : null}
