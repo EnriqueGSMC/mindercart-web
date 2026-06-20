@@ -492,8 +492,8 @@ export default function SettingsPage() {
           error instanceof Error
             ? error.message
             : language === "en"
-              ? "Could not load family status"
-              : "No se pudo cargar el estado familiar"
+              ? "Could not load group status"
+              : "No se pudo cargar el estado del grupo"
         );
       }
     }
@@ -847,7 +847,7 @@ export default function SettingsPage() {
         setFamilyRecord(existingFamily);
         setFamilyInviteOpen(false);
         setCreateGroupModalOpen(false);
-        setFamilyMessage(language === "en" ? "Family already created." : "La familia ya fue creada.");
+        setFamilyMessage(language === "en" ? "Group already created." : "El grupo ya fue creado.");
         return;
       }
 
@@ -861,14 +861,14 @@ export default function SettingsPage() {
       setFamilyInviteOpen(false);
       setCreateGroupModalOpen(false);
       setCreateGroupNameDraft("");
-      setFamilyMessage(language === "en" ? "Family created successfully." : "La familia se creó correctamente.");
+      setFamilyMessage(language === "en" ? "Your group was created successfully." : "Tu grupo se creó correctamente.");
     } catch (error) {
       setFamilyError(
         error instanceof Error
           ? error.message
           : language === "en"
-            ? "Could not create family"
-            : "No se pudo crear la familia"
+            ? "Could not create group"
+            : "No se pudo crear el grupo"
       );
     } finally {
       setFamilyBusy(false);
@@ -957,8 +957,8 @@ export default function SettingsPage() {
         error instanceof Error
           ? error.message
           : language === "en"
-            ? "Could not load family members"
-            : "No se pudieron cargar los miembros de la familia"
+            ? "Could not load group members"
+            : "No se pudieron cargar los integrantes del grupo"
       );
     } finally {
       setFamilyMembersBusy(false);
@@ -1015,8 +1015,8 @@ export default function SettingsPage() {
 
     const confirmed = window.confirm(
       language === "en"
-        ? "Do you want to remove this family member?"
-        : "¿Quieres quitar a este miembro de la familia?"
+        ? "Do you want to remove this member from the group?"
+        : "¿Quieres quitar a este integrante del grupo?"
     );
 
     if (!confirmed) return;
@@ -1039,7 +1039,7 @@ export default function SettingsPage() {
 
       setFamilyMessage(
         language === "en"
-          ? "Family member removed successfully."
+          ? "Group member removed successfully."
           : "El miembro se quitó correctamente."
       );
     } catch (error) {
@@ -1047,8 +1047,8 @@ export default function SettingsPage() {
         error instanceof Error
           ? error.message
           : language === "en"
-            ? "Could not remove family member"
-            : "No se pudo quitar al miembro de la familia"
+            ? "Could not remove group member"
+            : "No se pudo quitar al integrante del grupo"
       );
     } finally {
       setFamilyRemoveMemberBusyId(null);
@@ -1774,10 +1774,10 @@ export default function SettingsPage() {
               >
                 <div style={{ display: "grid", gap: 6 }}>
                   <div style={{ fontWeight: 900, fontSize: s(16), color: MC_NAVY }}>
-                    {language === "en" ? "What would you like to call your group?" : "¿Cómo quieres llamar a tu grupo?"}
+                    {language === "en" ? "Name your group" : "Ponle nombre a tu grupo"}
                   </div>
                   <div style={{ fontSize: s(13), color: MC_NAVY_MUTED }}>
-                    {language === "en" ? "Enter a name to identify it." : "Escribe un nombre para identificarlo."}
+                    {language === "en" ? "Choose the name you want to see across the app." : "Escribe el nombre que quieres ver en toda la app."}
                   </div>
                 </div>
 
@@ -1796,8 +1796,8 @@ export default function SettingsPage() {
                     }}
                     placeholder={
                       language === "en"
-                        ? "E.g. Diaz Family, Business, Restaurant"
-                        : "Ej. Fam Díaz, Negocio, Restaurante"
+                        ? "E.g. Home, Mom\'s list, Office"
+                        : "Ej. Casa, Lista de mamá, Oficina"
                     }
                     autoFocus
                     style={{
