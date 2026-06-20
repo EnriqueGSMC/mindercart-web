@@ -344,14 +344,51 @@ export default function SettingsPage() {
   const [pendingFamilyInvite, setPendingFamilyInvite] = React.useState<PendingFamilyInviteMatch | null>(null);
   const [familyAcceptInviteBusy, setFamilyAcceptInviteBusy] = React.useState(false);
 
+  const refreshSettingsDerivedState = React.useCallback(() => {
+    setStoreProfiles(mcStorage.listStoreProfiles());
+    setCustomItems(listCustomItemsCompat());
+  }, []);
+
   React.useEffect(() => {
+    if (!hydrated) return;
+
     setLanguage(settings.language);
     setPreferredStore(settings.preferredStore);
     setFontScale(settings.fontScale);
-    setStoreProfiles(mcStorage.listStoreProfiles());
-    setCustomItems(listCustomItemsCompat());
+    refreshSettingsDerivedState();
     setStoreDraft(emptyStoreDraft(settings.preferredStore));
-  }, [settings.language, settings.preferredStore, settings.fontScale]);
+  }, [hydrated, refreshSettingsDerivedState, settings.language, settings.preferredStore, settings.fontScale]);
+
+  React.useEffect(() => {
+    if (!hydrated) return;
+
+    refreshSettingsDerivedState();
+
+    const retryTimers = [250, 900, 1800].map((delay) =>
+      window.setTimeout(() => {
+        refreshSettingsDerivedState();
+      }, delay)
+    );
+
+    const onWindowFocus = () => {
+      refreshSettingsDerivedState();
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refreshSettingsDerivedState();
+      }
+    };
+
+    window.addEventListener("focus", onWindowFocus);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      retryTimers.forEach((timerId) => window.clearTimeout(timerId));
+      window.removeEventListener("focus", onWindowFocus);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [hydrated, refreshSettingsDerivedState, session.status, session.user?.email, session.user?.uid]);
 
 
   React.useEffect(() => {
@@ -522,6 +559,7 @@ export default function SettingsPage() {
       setFamilyMembers(members);
       setFamilyPendingInvites(invites);
       setFamilyMembersOpen(!!refreshedFamily);
+      refreshSettingsDerivedState();
 
       setFamilyMessage(
         language === "en"
@@ -768,6 +806,7 @@ export default function SettingsPage() {
       });
 
       setMigrationAvailable(false);
+      refreshSettingsDerivedState();
       setMigrationMessage(
         language === "en" ? "Local data migrated to your account." : "Los datos locales se migraron a tu cuenta."
       );
