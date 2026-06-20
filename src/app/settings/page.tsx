@@ -11,10 +11,10 @@ import {
   scalePx,
 } from "@/components/mindercart/Shell";
 import { t } from "@/lib/mindercart/i18n";
-import { listStoreProfiles, readState, saveSettings, upsertStoreProfile } from "@/lib/mindercart/storage";
+import * as mcStorage from "@/lib/mindercart/storage";
 import { useMinderCartState } from "@/lib/mindercart/hooks";
 import { useAuthSession } from "@/lib/firebase/auth-context";
-import { signInUser, signOutUser, signUpUser } from "@/lib/firebase/auth-actions";
+import { resetPasswordForUser, signInUser, signOutUser, signUpUser } from "@/lib/firebase/auth-actions";
 import { resolveUserBootstrap } from "@/lib/firebase/resolve-user-bootstrap";
 import { saveUserData } from "@/lib/firebase/save-user-data";
 import {
@@ -29,7 +29,7 @@ import {
   revokeFamilyInvite,
 } from "@/lib/firebase/shared-list-actions";
 import type { FamilyInviteRecord, FamilyMemberRecord, FamilyRecord } from "@/lib/firebase/shared-list-types";
-import type { FontScale, Language, StoreProfile } from "@/lib/mindercart/types";
+import type { FontScale, ItemMaster, Language, StoreProfile } from "@/lib/mindercart/types";
 
 function withMenuOpen(pathname: string) {
   return pathname.includes("?") ? `${pathname}&menu=1` : `${pathname}?menu=1`;
@@ -89,6 +89,68 @@ function readSavedListsForMigration() {
   }
 }
 
+function writeSavedListsForMigration(savedLists: unknown[]) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(SAVED_LISTS_STORAGE_KEY, JSON.stringify(savedLists));
+}
+
+function normalizeText(value: unknown) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ");
+}
+
+function makeCustomItemKey(value: unknown) {
+  return normalizeText(value).replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-");
+}
+
+function removeCustomItemFromSavedLists(item: Pick<ItemMaster, "itemKey" | "name">) {
+  const savedLists = readSavedListsForMigration();
+  if (!Array.isArray(savedLists) || savedLists.length === 0) return 0;
+
+  const targetItemKey = String(item.itemKey ?? "").trim() || makeCustomItemKey(item.name);
+  const targetName = normalizeText(item.name);
+  let removedCount = 0;
+
+  const nextSavedLists = savedLists.map((entry) => {
+    if (!entry || typeof entry !== "object") return entry;
+
+    const record = entry as { items?: unknown[]; updatedAt?: string };
+    const currentItems = Array.isArray(record.items) ? record.items : [];
+
+    const nextItems = currentItems.filter((rawItem) => {
+      if (!rawItem || typeof rawItem !== "object") return true;
+
+      const candidate = rawItem as { name?: unknown };
+      const candidateName = String(candidate.name ?? "").trim();
+      if (!candidateName) return true;
+
+      const matches =
+        makeCustomItemKey(candidateName) === targetItemKey || normalizeText(candidateName) === targetName;
+
+      if (matches) removedCount += 1;
+      return !matches;
+    });
+
+    if (nextItems.length === currentItems.length) return entry;
+
+    return {
+      ...record,
+      items: nextItems,
+      updatedAt: new Date().toISOString(),
+    };
+  });
+
+  if (removedCount > 0) {
+    writeSavedListsForMigration(nextSavedLists);
+  }
+
+  return removedCount;
+}
+
 function draftFromProfile(profile: StoreProfile, preferredStore: string): StoreDraft {
   return {
     previousName: profile.name,
@@ -105,6 +167,72 @@ function draftFromProfile(profile: StoreProfile, preferredStore: string): StoreD
   };
 }
 
+function normalizeCustomItemsCandidate(candidate: unknown) {
+  if (!Array.isArray(candidate)) return [] as ItemMaster[];
+
+  return candidate.filter((entry): entry is ItemMaster => {
+    if (!entry || typeof entry !== "object") return false;
+
+    const record = entry as Record<string, unknown>;
+    if (typeof record.name !== "string" || !record.name.trim()) return false;
+
+    const isCustomLike =
+      Boolean(record.isCustom ?? record.custom ?? record.createdByUser) ||
+      String(record.itemKey ?? "").startsWith("custom-");
+
+    return isCustomLike;
+  });
+}
+
+function listCustomItemsCompat() {
+  const storageWithCustomItems = mcStorage as typeof mcStorage & {
+    listCustomItems?: () => ItemMaster[];
+  };
+
+  if (typeof storageWithCustomItems.listCustomItems === "function") {
+    try {
+      const result = storageWithCustomItems.listCustomItems();
+      return Array.isArray(result) ? result : [];
+    } catch {
+      return [];
+    }
+  }
+
+  const state = mcStorage.readState() as Record<string, unknown> | null;
+  if (!state || typeof state !== "object") return [];
+
+  const candidates = [
+    state.customItems,
+    state.itemMasters,
+    state.itemsMaster,
+    state.masterItems,
+    state.items,
+  ];
+
+  for (const candidate of candidates) {
+    const items = normalizeCustomItemsCandidate(candidate);
+    if (items.length > 0) return items;
+  }
+
+  return [];
+}
+
+function removeCustomItemCompat(item: Pick<ItemMaster, "itemKey" | "name">) {
+  const storageWithCustomItems = mcStorage as typeof mcStorage & {
+    removeCustomItem?: (payload: { itemKey: string; name: string }) => void;
+  };
+
+  if (typeof storageWithCustomItems.removeCustomItem !== "function") return false;
+
+  storageWithCustomItems.removeCustomItem({
+    itemKey: item.itemKey,
+    name: item.name,
+  });
+
+  return true;
+}
+
+
 export default function SettingsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -114,6 +242,10 @@ export default function SettingsPage() {
   const [preferredStore, setPreferredStore] = React.useState(settings.preferredStore);
   const [fontScale, setFontScale] = React.useState<FontScale>(settings.fontScale);
   const [storeProfiles, setStoreProfiles] = React.useState<StoreProfile[]>([]);
+  const [customItems, setCustomItems] = React.useState<ItemMaster[]>([]);
+  const [customItemsExpanded, setCustomItemsExpanded] = React.useState(false);
+  const [customItemsBusyId, setCustomItemsBusyId] = React.useState<string | null>(null);
+  const [customItemsMessage, setCustomItemsMessage] = React.useState("");
   const [storeEditorOpen, setStoreEditorOpen] = React.useState(false);
   const [storeError, setStoreError] = React.useState("");
   const [storeDraft, setStoreDraft] = React.useState<StoreDraft>(emptyStoreDraft(settings.preferredStore));
@@ -121,8 +253,10 @@ export default function SettingsPage() {
   const session = useAuthSession();
   const [accountEmail, setAccountEmail] = React.useState("");
   const [accountPassword, setAccountPassword] = React.useState("");
+  const [accountPasswordVisible, setAccountPasswordVisible] = React.useState(false);
   const [accountBusy, setAccountBusy] = React.useState(false);
   const [accountError, setAccountError] = React.useState("");
+  const [accountMessage, setAccountMessage] = React.useState("");
   const [migrationBusy, setMigrationBusy] = React.useState(false);
   const [migrationError, setMigrationError] = React.useState("");
   const [migrationMessage, setMigrationMessage] = React.useState("");
@@ -136,6 +270,9 @@ export default function SettingsPage() {
   const [familyInviteEmail, setFamilyInviteEmail] = React.useState("");
   const [familyInviteBusy, setFamilyInviteBusy] = React.useState(false);
   const [familyInviteOpen, setFamilyInviteOpen] = React.useState(false);
+  const [createGroupModalOpen, setCreateGroupModalOpen] = React.useState(false);
+  const [createGroupNameDraft, setCreateGroupNameDraft] = React.useState("");
+  const [createGroupNameError, setCreateGroupNameError] = React.useState("");
   const [familyMembersOpen, setFamilyMembersOpen] = React.useState(false);
   const [familyMembersBusy, setFamilyMembersBusy] = React.useState(false);
   const [familyRevokeInviteBusyId, setFamilyRevokeInviteBusyId] = React.useState<string | null>(null);
@@ -149,7 +286,8 @@ export default function SettingsPage() {
     setLanguage(settings.language);
     setPreferredStore(settings.preferredStore);
     setFontScale(settings.fontScale);
-    setStoreProfiles(listStoreProfiles());
+    setStoreProfiles(mcStorage.listStoreProfiles());
+    setCustomItems(listCustomItemsCompat());
     setStoreDraft(emptyStoreDraft(settings.preferredStore));
   }, [settings.language, settings.preferredStore, settings.fontScale]);
 
@@ -268,6 +406,7 @@ export default function SettingsPage() {
     };
   }, [language, session.status, session.user?.email, session.user?.uid]);
 
+
   const filteredStoreProfiles = React.useMemo(() => storeProfiles, [storeProfiles]);
 
   const storeEditorHasContent =
@@ -284,14 +423,23 @@ export default function SettingsPage() {
   const s = (px: number) => scalePx(fontScale, px);
 
   if (!hydrated) {
-  
+    return (
+      <AppShell title={t("es", "settingsTitle")} darkHero subtitle={t("es", "settingsSubtitle")} showCart={false}>
+        <section style={{ ...cardStyle(), padding: 18 }}>
+          <div style={{ fontSize: 14, color: MC_NAVY_MUTED }}>{t("es", "loading")}</div>
+        </section>
+      </AppShell>
+    );
+  }
+
   async function onAcceptFamilyInvite() {
     if (!pendingFamilyInvite || !session.user?.uid || !session.user?.email) return;
 
+    setFamilyError("");
+    setFamilyMessage("");
+
     try {
       setFamilyAcceptInviteBusy(true);
-      setFamilyError("");
-      setFamilyMessage("");
 
       await acceptFamilyInvite({
         familyId: pendingFamilyInvite.familyId,
@@ -301,6 +449,18 @@ export default function SettingsPage() {
       });
 
       setPendingFamilyInvite(null);
+
+      const [refreshedFamily, members, invites] = await Promise.all([
+        getFamilyByOwnerUid(session.user.uid).catch(() => null),
+        getFamilyMembers(pendingFamilyInvite.familyId).catch(() => []),
+        getFamilyPendingInvites(pendingFamilyInvite.familyId).catch(() => []),
+      ]);
+
+      setFamilyRecord(refreshedFamily ?? null);
+      setFamilyMembers(members);
+      setFamilyPendingInvites(invites);
+      setFamilyMembersOpen(!!refreshedFamily);
+
       setFamilyMessage(
         language === "en"
           ? "Invitation accepted successfully."
@@ -317,15 +477,6 @@ export default function SettingsPage() {
     } finally {
       setFamilyAcceptInviteBusy(false);
     }
-  }
-
-  return (
-      <AppShell title={t("es", "settingsTitle")} darkHero subtitle={t("es", "settingsSubtitle")} showCart={false}>
-        <section style={{ ...cardStyle(), padding: 18 }}>
-          <div style={{ fontSize: 14, color: MC_NAVY_MUTED }}>{t("es", "loading")}</div>
-        </section>
-      </AppShell>
-    );
   }
 
   function keepStoreFieldVisible(target: HTMLInputElement | HTMLTextAreaElement) {
@@ -368,7 +519,7 @@ export default function SettingsPage() {
 
     if (!confirmed) return;
 
-    const next = upsertStoreProfile({
+    const next = mcStorage.upsertStoreProfile({
       previousName: storeDraft.previousName,
       name: storeDraft.name,
       addressLine1: storeDraft.addressLine1,
@@ -387,14 +538,53 @@ export default function SettingsPage() {
     closeStoreModal();
   }
 
+  function onRemoveCustomItem(item: ItemMaster) {
+    const confirmed = window.confirm(
+      language === "en"
+        ? `Delete "${item.name}" from your custom items?`
+        : `¿Eliminar "${item.name}" de tus artículos personalizados?`
+    );
+
+    if (!confirmed) return;
+
+    setCustomItemsBusyId(item.id);
+    setCustomItemsMessage("");
+
+    try {
+      const removedFromCoreState = removeCustomItemCompat({ itemKey: item.itemKey, name: item.name });
+      const removedFromSavedLists = removeCustomItemFromSavedLists(item);
+      setCustomItems(listCustomItemsCompat());
+      setCustomItemsMessage(
+        removedFromCoreState && removedFromSavedLists > 0
+          ? language === "en"
+            ? `"${item.name}" was deleted from your custom items and saved lists.`
+            : `"${item.name}" se eliminó de tus artículos personalizados y de Mis Listas.`
+          : removedFromCoreState
+            ? language === "en"
+              ? `"${item.name}" was deleted from your custom items.`
+              : `"${item.name}" se eliminó de tus artículos personalizados.`
+            : removedFromSavedLists > 0
+              ? language === "en"
+                ? `"${item.name}" was deleted from your saved lists.`
+                : `"${item.name}" se eliminó de Mis Listas.`
+              : language === "en"
+                ? `Custom item deletion is not available in this build.`
+                : `La eliminación de artículos personalizados no está disponible en esta compilación.`
+      );
+    } finally {
+      setCustomItemsBusyId(null);
+    }
+  }
+
   function onSave(e: React.FormEvent) {
     e.preventDefault();
-    saveSettings({ language, preferredStore, fontScale });
+    mcStorage.saveSettings({ language, preferredStore, fontScale });
     router.push(withMenuOpen(returnTo));
   }
 
   async function onSignIn() {
     setAccountError("");
+    setAccountMessage("");
 
     try {
       setAccountBusy(true);
@@ -415,6 +605,7 @@ export default function SettingsPage() {
 
   async function onSignUp() {
     setAccountError("");
+    setAccountMessage("");
 
     try {
       setAccountBusy(true);
@@ -433,8 +624,41 @@ export default function SettingsPage() {
     }
   }
 
+  async function onResetPassword() {
+    setAccountError("");
+    setAccountMessage("");
+
+    const email = accountEmail.trim();
+
+    if (!email) {
+      setAccountError(language === "en" ? "Enter your email to reset your password" : "Ingresa tu correo para recuperar tu contraseña");
+      return;
+    }
+
+    try {
+      setAccountBusy(true);
+      await resetPasswordForUser(email);
+      setAccountMessage(
+        language === "en"
+          ? "We sent you an email to reset your password"
+          : "Te enviamos un correo para restablecer tu contraseña"
+      );
+    } catch (error) {
+      setAccountError(
+        error instanceof Error
+          ? error.message
+          : language === "en"
+            ? "We could not send the reset email"
+            : "No se pudo enviar el correo de recuperación"
+      );
+    } finally {
+      setAccountBusy(false);
+    }
+  }
+
   async function onSignOut() {
     setAccountError("");
+    setAccountMessage("");
 
     try {
       setAccountBusy(true);
@@ -463,7 +687,7 @@ export default function SettingsPage() {
     try {
       setMigrationBusy(true);
 
-      const currentCoreState = readState();
+      const currentCoreState = mcStorage.readState();
       const currentSavedLists = JSON.parse(JSON.stringify(readSavedListsForMigration()));
 
       await saveUserData({
@@ -498,57 +722,19 @@ export default function SettingsPage() {
     }
   }
 
-
-  async function onAcceptFamilyInvite() {
-    if (!pendingFamilyInvite || !session.user?.uid || !session.user?.email) return;
-
-    setFamilyError("");
-    setFamilyMessage("");
-
-    try {
-      setFamilyAcceptInviteBusy(true);
-
-      await acceptFamilyInvite({
-        familyId: pendingFamilyInvite.familyId,
-        inviteId: pendingFamilyInvite.invite.id,
-        uid: session.user.uid,
-        email: session.user.email,
-      });
-
-      setPendingFamilyInvite(null);
-
-      const [refreshedFamily, members, invites] = await Promise.all([
-        getFamilyByOwnerUid(session.user.uid).catch(() => null),
-        getFamilyMembers(pendingFamilyInvite.familyId).catch(() => []),
-        getFamilyPendingInvites(pendingFamilyInvite.familyId).catch(() => []),
-      ]);
-
-      setFamilyRecord(refreshedFamily ?? null);
-      setFamilyMembers(members);
-      setFamilyPendingInvites(invites);
-      setFamilyMembersOpen(true);
-
-      setFamilyMessage(
-        language === "en"
-          ? "Invitation accepted successfully."
-          : "La invitación se aceptó correctamente."
-      );
-    } catch (error) {
-      setFamilyError(
-        error instanceof Error
-          ? error.message
-          : language === "en"
-            ? "Could not accept invitation"
-            : "No se pudo aceptar la invitación"
-      );
-    } finally {
-      setFamilyAcceptInviteBusy(false);
-    }
-  }
-
   async function onCreateFamily() {
     if (!session.user?.uid || !session.user?.email) return;
 
+    const trimmedCreateGroupName = createGroupNameDraft.trim();
+
+    if (!trimmedCreateGroupName) {
+      setCreateGroupNameError(
+        language === "en" ? "Enter a name for your group." : "Escribe un nombre para tu grupo."
+      );
+      return;
+    }
+
+    setCreateGroupNameError("");
     setFamilyError("");
     setFamilyMessage("");
 
@@ -559,6 +745,7 @@ export default function SettingsPage() {
       if (existingFamily) {
         setFamilyRecord(existingFamily);
         setFamilyInviteOpen(false);
+        setCreateGroupModalOpen(false);
         setFamilyMessage(language === "en" ? "Family already created." : "La familia ya fue creada.");
         return;
       }
@@ -566,11 +753,13 @@ export default function SettingsPage() {
       const createdFamily = await createFamily({
         ownerUid: session.user.uid,
         ownerEmail: session.user.email,
-        familyName: language === "en" ? "My Family" : "Mi familia",
+        familyName: trimmedCreateGroupName,
       });
 
       setFamilyRecord(createdFamily);
       setFamilyInviteOpen(false);
+      setCreateGroupModalOpen(false);
+      setCreateGroupNameDraft("");
       setFamilyMessage(language === "en" ? "Family created successfully." : "La familia se creó correctamente.");
     } catch (error) {
       setFamilyError(
@@ -891,21 +1080,64 @@ export default function SettingsPage() {
                   }}
                 />
 
-                <input
-                  type="password"
-                  value={accountPassword}
-                  onChange={(e) => setAccountPassword(e.target.value)}
-                  placeholder={language === "en" ? "Password" : "Contraseña"}
-                  autoComplete="current-password"
-                  style={{
-                    width: "100%",
-                    padding: "12px 14px",
-                    borderRadius: 14,
-                    border: `1px solid ${MC_NAVY_LINE}`,
-                    boxSizing: "border-box",
-                    fontSize: s(15),
-                  }}
-                />
+                <div style={{ position: "relative" }}>
+                  <input
+                    type={accountPasswordVisible ? "text" : "password"}
+                    value={accountPassword}
+                    onChange={(e) => setAccountPassword(e.target.value)}
+                    placeholder={language === "en" ? "Password" : "Contraseña"}
+                    autoComplete="current-password"
+                    style={{
+                      width: "100%",
+                      padding: "12px 88px 12px 14px",
+                      borderRadius: 14,
+                      border: `1px solid ${MC_NAVY_LINE}`,
+                      boxSizing: "border-box",
+                      fontSize: s(15),
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setAccountPasswordVisible((current) => !current)}
+                    aria-label={accountPasswordVisible ? (language === "en" ? "Hide password" : "Ocultar contraseña") : (language === "en" ? "Show password" : "Mostrar contraseña")}
+                    title={accountPasswordVisible ? (language === "en" ? "Hide" : "Ocultar") : (language === "en" ? "Show" : "Mostrar")}
+                    style={{
+                      position: "absolute",
+                      top: "50%",
+                      right: 12,
+                      transform: "translateY(-50%)",
+                      border: "none",
+                      background: "transparent",
+                      color: MC_NAVY,
+                      fontWeight: 800,
+                      fontSize: s(13),
+                      padding: 0,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {accountPasswordVisible ? (language === "en" ? "Hide" : "Ocultar") : (language === "en" ? "Show" : "Mostrar")}
+                  </button>
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                  <button
+                    type="button"
+                    onClick={onResetPassword}
+                    disabled={accountBusy || !session.enabled}
+                    style={{
+                      border: "none",
+                      background: "transparent",
+                      color: MC_NAVY,
+                      fontWeight: 800,
+                      fontSize: s(13),
+                      padding: 0,
+                      cursor: accountBusy || !session.enabled ? "default" : "pointer",
+                      opacity: accountBusy || !session.enabled ? 0.6 : 1,
+                    }}
+                  >
+                    {language === "en" ? "Reset password" : "Recuperar contraseña"}
+                  </button>
+                </div>
 
                 <div
                   style={{
@@ -959,6 +1191,10 @@ export default function SettingsPage() {
               <div style={{ fontSize: s(13), color: "#b42318", fontWeight: 800 }}>{accountError}</div>
             ) : null}
 
+            {accountMessage ? (
+              <div style={{ fontSize: s(13), color: MC_NAVY, fontWeight: 800 }}>{accountMessage}</div>
+            ) : null}
+
             {session.error ? (
               <div style={{ fontSize: s(12), color: MC_NAVY_MUTED }}>{session.error}</div>
             ) : null}
@@ -972,7 +1208,7 @@ export default function SettingsPage() {
                 padding: 14,
                 borderRadius: 14,
                 border: `1px solid ${MC_NAVY_LINE}`,
-                background: "#fff",
+                background: familyRecord ? "#fff" : "#eef4ff",
               }}
             >
               <div
@@ -985,7 +1221,7 @@ export default function SettingsPage() {
                 }}
               >
                 <div style={{ fontWeight: 900, fontSize: s(15), color: MC_NAVY }}>
-                  {language === "en" ? "Family" : "Familiar"}
+                  {language === "en" ? "Group plan" : "Plan grupal"}
                 </div>
 
                 <div
@@ -1001,30 +1237,30 @@ export default function SettingsPage() {
                 >
                   {familyRecord
                     ? language === "en"
-                      ? "Family created"
-                      : "Familia creada"
+                      ? "Group created"
+                      : "Grupo creado"
                     : pendingFamilyInvite
                       ? language === "en"
                         ? "Pending invite"
                         : "Invitación pendiente"
                       : language === "en"
-                        ? "Plan Family"
-                        : "Plan Familiar"}
+                        ? "Group plan"
+                        : "Plan grupal"}
                 </div>
               </div>
 
               <div style={{ fontSize: s(13), color: MC_NAVY_MUTED }}>
                 {familyRecord
                   ? language === "en"
-                    ? `Owner: ${familyRecord.name}`
-                    : `Titular: ${familyRecord.name}`
+                    ? `Group: ${familyRecord.name}`
+                    : `Grupo: ${familyRecord.name}`
                   : pendingFamilyInvite
                     ? language === "en"
                       ? `You have a pending invitation to join ${pendingFamilyInvite.familyName}.`
                       : `Tienes una invitación pendiente para unirte a ${pendingFamilyInvite.familyName}.`
                     : language === "en"
-                      ? "Create your Family space here. Later you will be able to invite up to 4 more members and manage Shared Lists from one place."
-                      : "Crea aquí tu espacio Familiar. Después podrás invitar hasta 4 miembros más y administrar Shared Lists desde un solo lugar."}
+                      ? "Create your shared group here. You can invite up to 4 more members and manage lists together."
+                      : "Crea aquí tu grupo compartido. Podrás invitar hasta 4 integrantes más y administrar listas entre todos."}
               </div>
 
               {familyMessage ? (
@@ -1061,7 +1297,7 @@ export default function SettingsPage() {
                 familyInviteOpen ? (
                   <div style={{ display: "grid", gap: 6 }}>
                     <div style={{ fontWeight: 900, fontSize: s(13), color: MC_NAVY }}>
-                      {language === "en" ? "Member email" : "Correo del miembro"}
+                      {language === "en" ? "Member email" : "Correo del integrante"}
                     </div>
                     <input
                       type="email"
@@ -1078,25 +1314,8 @@ export default function SettingsPage() {
                       }}
                     />
                   </div>
-                ) : (
-                  <div
-                    style={{
-                      padding: "12px 14px",
-                      borderRadius: 14,
-                      border: `1px solid ${MC_NAVY_LINE}`,
-                      background: "#eef4ff",
-                      color: MC_NAVY,
-                      fontSize: s(13),
-                      fontWeight: 700,
-                    }}
-                  >
-                    {language === "en"
-                      ? "Invite a member to your Family plan."
-                      : "Invita a un miembro a tu plan Familiar."}
-                  </div>
-                )
+                ) : null
               ) : null}
-
 
               {familyRecord ? (
                 <div style={{ display: "grid", gap: 10 }}>
@@ -1122,11 +1341,11 @@ export default function SettingsPage() {
                         : "Cargando grupo..."
                       : familyMembersOpen
                         ? language === "en"
-                          ? "Hide family group"
-                          : "Ocultar grupo familiar"
+                          ? "Hide group"
+                          : "Ocultar grupo"
                         : language === "en"
-                          ? "View family group"
-                          : "Ver grupo familiar"}
+                          ? "View group"
+                          : "Ver grupo"}
                   </button>
 
                   {familyMembersOpen ? (
@@ -1142,7 +1361,7 @@ export default function SettingsPage() {
                     >
                       <div style={{ display: "grid", gap: 6 }}>
                         <div style={{ fontWeight: 900, fontSize: s(13), color: MC_NAVY }}>
-                          {language === "en" ? "Members" : "Miembros"}
+                          {language === "en" ? "Members" : "Integrantes"}
                         </div>
 
                         {familyMembers.length ? (
@@ -1171,7 +1390,7 @@ export default function SettingsPage() {
                                       : "Titular"
                                     : language === "en"
                                       ? "Member"
-                                      : "Miembro"}
+                                      : "Integrante"}
                                 </div>
                               </div>
 
@@ -1226,7 +1445,7 @@ export default function SettingsPage() {
                           ))
                         ) : (
                           <div style={{ fontSize: s(13), color: MC_NAVY_MUTED }}>
-                            {language === "en" ? "No family members yet." : "Todavía no hay miembros en la familia."}
+                            {language === "en" ? "No members yet." : "Todavía no hay integrantes."}
                           </div>
                         )}
                       </div>
@@ -1349,15 +1568,21 @@ export default function SettingsPage() {
                 >
                   <button
                     type="button"
-                    onClick={() => void onCreateFamily()}
+                    onClick={() => {
+                      setCreateGroupNameDraft("");
+                      setCreateGroupNameError("");
+                      setFamilyError("");
+                      setFamilyMessage("");
+                      setCreateGroupModalOpen(true);
+                    }}
                     disabled={familyBusy || !!familyRecord || !session.enabled}
                     style={{
                       width: "100%",
                       padding: "12px 14px",
                       borderRadius: 14,
-                      border: `1px solid ${MC_NAVY_LINE}`,
-                      background: "#fff",
-                      color: MC_NAVY,
+                      border: "1px solid transparent",
+                      background: MC_NAVY,
+                      color: "#fff",
                       fontWeight: 900,
                       fontSize: s(15),
                       opacity: familyBusy || !!familyRecord || !session.enabled ? 0.6 : 1,
@@ -1368,8 +1593,8 @@ export default function SettingsPage() {
                         ? "Creating..."
                         : "Creando..."
                       : language === "en"
-                        ? "Create family"
-                        : "Crear familia"}
+                        ? "Create group"
+                        : "Crear grupo"}
                   </button>
 
                   <button
@@ -1391,7 +1616,7 @@ export default function SettingsPage() {
                       width: "100%",
                       padding: "12px 14px",
                       borderRadius: 14,
-                      border: "1px solid transparent",
+                      border: `1px solid ${MC_NAVY_LINE}`,
                       background: MC_NAVY,
                       color: "#fff",
                       fontWeight: 900,
@@ -1409,13 +1634,142 @@ export default function SettingsPage() {
                       : !familyInviteOpen
                         ? language === "en"
                           ? "Invite member"
-                          : "Invitar miembro"
+                          : "Invitar integrante"
                         : language === "en"
                           ? "Send invite"
                           : "Enviar invitación"}
                   </button>
                 </div>
               )}
+            </div>
+          ) : null}
+
+          {createGroupModalOpen ? (
+            <div
+              style={{
+                position: "fixed",
+                top: "calc(env(safe-area-inset-top, 0px) + 144px)",
+                right: 0,
+                bottom: "calc(env(safe-area-inset-bottom, 0px) + 78px)",
+                left: 0,
+                background: "rgba(0, 0, 0, 0.35)",
+                padding: 12,
+                zIndex: 70,
+              }}
+            >
+              <div
+                style={{
+                  width: "100%",
+                  maxWidth: 560,
+                  margin: "0 auto",
+                  borderRadius: 18,
+                  background: "#fff",
+                  border: `1px solid ${MC_NAVY_LINE}`,
+                  boxShadow: "0 18px 50px rgba(0, 0, 0, 0.16)",
+                  padding: 16,
+                  display: "grid",
+                  gap: 12,
+                }}
+              >
+                <div style={{ display: "grid", gap: 6 }}>
+                  <div style={{ fontWeight: 900, fontSize: s(16), color: MC_NAVY }}>
+                    {language === "en" ? "What would you like to call your group?" : "¿Cómo quieres llamar a tu grupo?"}
+                  </div>
+                  <div style={{ fontSize: s(13), color: MC_NAVY_MUTED }}>
+                    {language === "en" ? "Enter a name to identify it." : "Escribe un nombre para identificarlo."}
+                  </div>
+                </div>
+
+                <div style={{ display: "grid", gap: 6 }}>
+                  <div style={{ fontWeight: 900, fontSize: s(13), color: MC_NAVY }}>
+                    {language === "en" ? "Group name" : "Nombre del grupo"}
+                  </div>
+                  <input
+                    type="text"
+                    value={createGroupNameDraft}
+                    onChange={(e) => {
+                      setCreateGroupNameDraft(e.target.value);
+                      if (createGroupNameError) {
+                        setCreateGroupNameError("");
+                      }
+                    }}
+                    placeholder={
+                      language === "en"
+                        ? "E.g. Diaz Family, Business, Restaurant"
+                        : "Ej. Fam Díaz, Negocio, Restaurante"
+                    }
+                    autoFocus
+                    style={{
+                      width: "100%",
+                      padding: "12px 14px",
+                      borderRadius: 14,
+                      border: `1px solid ${MC_NAVY_LINE}`,
+                      fontSize: s(15),
+                      boxSizing: "border-box",
+                    }}
+                  />
+                </div>
+
+                {createGroupNameError ? (
+                  <div style={{ fontSize: s(13), color: "#b42318", fontWeight: 800 }}>{createGroupNameError}</div>
+                ) : null}
+
+                <div
+                  style={{
+                    display: "grid",
+                    gap: 10,
+                    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCreateGroupModalOpen(false);
+                      setCreateGroupNameDraft("");
+                      setCreateGroupNameError("");
+                    }}
+                    disabled={familyBusy}
+                    style={{
+                      width: "100%",
+                      padding: "12px 14px",
+                      borderRadius: 14,
+                      border: `1px solid ${MC_NAVY_LINE}`,
+                      background: "#fff",
+                      color: MC_NAVY,
+                      fontWeight: 900,
+                      fontSize: s(15),
+                      opacity: familyBusy ? 0.6 : 1,
+                    }}
+                  >
+                    {language === "en" ? "Cancel" : "Cancelar"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => void onCreateFamily()}
+                    disabled={familyBusy}
+                    style={{
+                      width: "100%",
+                      padding: "12px 14px",
+                      borderRadius: 14,
+                      border: "1px solid transparent",
+                      background: MC_NAVY,
+                      color: "#fff",
+                      fontWeight: 900,
+                      fontSize: s(15),
+                      opacity: familyBusy ? 0.6 : 1,
+                    }}
+                  >
+                    {familyBusy
+                      ? language === "en"
+                        ? "Creating..."
+                        : "Creando..."
+                      : language === "en"
+                        ? "Create group"
+                        : "Crear grupo"}
+                  </button>
+                </div>
+              </div>
             </div>
           ) : null}
 
@@ -1485,6 +1839,131 @@ export default function SettingsPage() {
                 <option value="__add__">{language === "en" ? "Add" : "Agregar"}</option>
               </select>
             </div>
+          </div>
+
+          <div>
+            <button
+              type="button"
+              onClick={() => setCustomItemsExpanded((current) => !current)}
+              aria-expanded={customItemsExpanded}
+              style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
+                padding: "12px 14px",
+                borderRadius: 14,
+                border: `1px solid ${MC_NAVY_LINE}`,
+                background: "#fff",
+                color: MC_NAVY,
+                fontSize: s(15),
+                fontWeight: 900,
+                cursor: "pointer",
+                textAlign: "left",
+              }}
+            >
+              <span>{language === "en" ? "Custom items" : "Artículos personalizados"}</span>
+              <span
+                aria-hidden="true"
+                style={{
+                  fontSize: s(13),
+                  color: MC_NAVY_MUTED,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {customItemsExpanded
+                  ? language === "en"
+                    ? "Hide"
+                    : "Ocultar"
+                  : language === "en"
+                    ? "View"
+                    : "Ver"}
+              </span>
+            </button>
+
+            {customItemsExpanded ? (
+              <>
+                <div
+                  style={{
+                    marginTop: 8,
+                    borderRadius: 14,
+                    border: `1px solid ${MC_NAVY_LINE}`,
+                    background: "#fff",
+                    overflow: "hidden",
+                  }}
+                >
+                  {customItems.length === 0 ? (
+                    <div
+                      style={{
+                        padding: "12px 14px",
+                        fontSize: s(14),
+                        color: MC_NAVY_MUTED,
+                      }}
+                    >
+                      {language === "en"
+                        ? "You have no custom items."
+                        : "No tienes artículos personalizados."}
+                    </div>
+                  ) : (
+                    customItems.map((item, index) => (
+                      <div
+                        key={item.id}
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "minmax(0, 1fr) auto",
+                          gap: 12,
+                          alignItems: "center",
+                          padding: "12px 14px",
+                          borderTop: index === 0 ? "none" : `1px solid ${MC_NAVY_LINE}`,
+                        }}
+                      >
+                        <div style={{ minWidth: 0 }}>
+                          <div
+                            style={{
+                              fontWeight: 400,
+                              color: MC_NAVY,
+                              fontSize: s(15),
+                              wordBreak: "break-word",
+                            }}
+                          >
+                            {item.name}
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => onRemoveCustomItem(item)}
+                          disabled={customItemsBusyId === item.id}
+                          style={{
+                            border: `1px solid ${MC_NAVY_LINE}`,
+                            background: "#fff",
+                            color: MC_NAVY,
+                            borderRadius: 12,
+                            padding: "8px 12px",
+                            fontWeight: 800,
+                            fontSize: s(13),
+                            cursor: customItemsBusyId === item.id ? "default" : "pointer",
+                            opacity: customItemsBusyId === item.id ? 0.7 : 1,
+                          }}
+                        >
+                          {customItemsBusyId === item.id
+                            ? language === "en"
+                              ? "Deleting..."
+                              : "Eliminando..."
+                            : language === "en"
+                              ? "Delete"
+                              : "Eliminar"}
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+                {customItemsMessage ? (
+                  <div style={{ marginTop: 6, fontSize: s(13), color: MC_NAVY_MUTED }}>{customItemsMessage}</div>
+                ) : null}
+              </>
+            ) : null}
           </div>
 
           <div>
