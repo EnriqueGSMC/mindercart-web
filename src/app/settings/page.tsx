@@ -11,21 +11,25 @@ import {
   scalePx,
 } from "@/components/mindercart/Shell";
 import { t } from "@/lib/mindercart/i18n";
-import { listCustomItems, listStoreProfiles, readState, removeCustomItem, saveSettings, upsertStoreProfile } from "@/lib/mindercart/storage";
+import * as mcStorage from "@/lib/mindercart/storage";
 import { useMinderCartState } from "@/lib/mindercart/hooks";
 import { useAuthSession } from "@/lib/firebase/auth-context";
 import { resetPasswordForUser, signInUser, signOutUser, signUpUser } from "@/lib/firebase/auth-actions";
 import { resolveUserBootstrap } from "@/lib/firebase/resolve-user-bootstrap";
 import { saveUserData } from "@/lib/firebase/save-user-data";
 import {
+  acceptFamilyInvite,
   createFamily,
   getFamilyByOwnerUid,
   getFamilyMembers,
   getFamilyPendingInvites,
+  getPendingFamilyInviteForEmail,
   inviteFamilyMember,
+  removeFamilyMember,
   revokeFamilyInvite,
 } from "@/lib/firebase/shared-list-actions";
 import type { FamilyInviteRecord, FamilyMemberRecord, FamilyRecord } from "@/lib/firebase/shared-list-types";
+import { SEED_GENERAL_ITEMS } from "@/lib/mindercart/seed-items";
 import type { FontScale, ItemMaster, Language, StoreProfile } from "@/lib/mindercart/types";
 
 function withMenuOpen(pathname: string) {
@@ -44,6 +48,12 @@ type StoreDraft = {
   phone: string;
   notes: string;
   preferred: boolean;
+};
+
+type PendingFamilyInviteMatch = {
+  familyId: string;
+  familyName: string;
+  invite: FamilyInviteRecord;
 };
 
 function emptyStoreDraft(name = ""): StoreDraft {
@@ -158,6 +168,133 @@ function draftFromProfile(profile: StoreProfile, preferredStore: string): StoreD
   };
 }
 
+function getSeedItemKey(seedItem: unknown) {
+  if (!seedItem || typeof seedItem !== "object") return "";
+
+  const record = seedItem as Record<string, unknown>;
+  return typeof record.itemKey === "string" ? record.itemKey.trim() : "";
+}
+
+function getSeedItemNames(seedItem: unknown) {
+  if (!seedItem || typeof seedItem !== "object") return [] as string[];
+
+  const record = seedItem as Record<string, unknown>;
+  const label = record.label && typeof record.label === "object" ? (record.label as Record<string, unknown>) : null;
+
+  return [
+    record.name,
+    record.nameEs,
+    record.nameEn,
+    typeof record.label === "string" ? record.label : "",
+    label?.default,
+    label?.es,
+    label?.en,
+  ]
+    .map((value) => (typeof value === "string" ? value.trim() : ""))
+    .filter(Boolean);
+}
+
+const SEED_ITEM_KEYS = new Set(
+  SEED_GENERAL_ITEMS.map((item) => getSeedItemKey(item)).filter(Boolean)
+);
+
+const SEED_ITEM_NAMES = new Set(
+  SEED_GENERAL_ITEMS.flatMap((item) => getSeedItemNames(item))
+    .map((value) => normalizeText(value))
+    .filter(Boolean)
+);
+
+function matchesCustomItemTarget(
+  candidate: Pick<ItemMaster, "itemKey" | "name"> | { itemKey?: unknown; name?: unknown },
+  target: Pick<ItemMaster, "itemKey" | "name">
+) {
+  const candidateItemKey = String(candidate.itemKey ?? "").trim();
+  const candidateName = normalizeText(candidate.name);
+  const targetItemKey = String(target.itemKey ?? "").trim() || makeCustomItemKey(target.name);
+  const targetName = normalizeText(target.name);
+
+  if (candidateItemKey && targetItemKey && candidateItemKey === targetItemKey) return true;
+  if (candidateName && targetName && candidateName === targetName) return true;
+  if (candidateItemKey && targetName && candidateItemKey === makeCustomItemKey(targetName)) return true;
+  if (candidateName && targetItemKey && makeCustomItemKey(candidateName) === targetItemKey) return true;
+
+  return false;
+}
+
+function isSeedItemRecord(record: Pick<ItemMaster, "itemKey" | "name"> | { itemKey?: unknown; name?: unknown }) {
+  const itemKey = String(record.itemKey ?? "").trim();
+  const normalizedName = normalizeText(record.name);
+
+  if (itemKey && SEED_ITEM_KEYS.has(itemKey)) return true;
+  if (normalizedName && SEED_ITEM_NAMES.has(normalizedName)) return true;
+
+  return false;
+}
+
+function normalizeCustomItemsCandidate(candidate: unknown) {
+  if (!Array.isArray(candidate)) return [] as ItemMaster[];
+
+  return candidate.filter((entry): entry is ItemMaster => {
+    if (!entry || typeof entry !== "object") return false;
+
+    const record = entry as Record<string, unknown>;
+    if (typeof record.name !== "string" || !record.name.trim()) return false;
+
+    return !isSeedItemRecord({
+      itemKey: record.itemKey,
+      name: record.name,
+    });
+  });
+}
+
+function listCustomItemsCompat() {
+  const storageWithCustomItems = mcStorage as typeof mcStorage & {
+    listCustomItems?: () => ItemMaster[];
+  };
+
+  if (typeof storageWithCustomItems.listCustomItems === "function") {
+    try {
+      const result = storageWithCustomItems.listCustomItems();
+      return Array.isArray(result) ? result : [];
+    } catch {
+      return [];
+    }
+  }
+
+  const state = mcStorage.readState();
+  return normalizeCustomItemsCandidate(state.itemsMaster);
+}
+
+function removeCustomItemCompat(item: Pick<ItemMaster, "itemKey" | "name">) {
+  const storageWithCustomItems = mcStorage as typeof mcStorage & {
+    removeCustomItem?: (payload: { itemKey: string; name: string }) => void;
+  };
+
+  if (typeof storageWithCustomItems.removeCustomItem === "function") {
+    storageWithCustomItems.removeCustomItem({
+      itemKey: item.itemKey,
+      name: item.name,
+    });
+
+    return true;
+  }
+
+  const state = mcStorage.readState();
+  const nextItemsMaster = state.itemsMaster.filter((entry) => !matchesCustomItemTarget(entry, item));
+
+  if (nextItemsMaster.length === state.itemsMaster.length) return false;
+
+  mcStorage.writeState({
+    ...state,
+    itemsMaster: nextItemsMaster,
+    generalListItems: state.generalListItems.filter((entry) => !matchesCustomItemTarget(entry, item)),
+    activeShoppingListItems: state.activeShoppingListItems.filter((entry) => !matchesCustomItemTarget(entry, item)),
+  });
+
+  return true;
+}
+
+
 export default function SettingsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -201,15 +338,18 @@ export default function SettingsPage() {
   const [familyMembersOpen, setFamilyMembersOpen] = React.useState(false);
   const [familyMembersBusy, setFamilyMembersBusy] = React.useState(false);
   const [familyRevokeInviteBusyId, setFamilyRevokeInviteBusyId] = React.useState<string | null>(null);
+  const [familyRemoveMemberBusyId, setFamilyRemoveMemberBusyId] = React.useState<string | null>(null);
   const [familyMembers, setFamilyMembers] = React.useState<FamilyMemberRecord[]>([]);
   const [familyPendingInvites, setFamilyPendingInvites] = React.useState<FamilyInviteRecord[]>([]);
+  const [pendingFamilyInvite, setPendingFamilyInvite] = React.useState<PendingFamilyInviteMatch | null>(null);
+  const [familyAcceptInviteBusy, setFamilyAcceptInviteBusy] = React.useState(false);
 
   React.useEffect(() => {
     setLanguage(settings.language);
     setPreferredStore(settings.preferredStore);
     setFontScale(settings.fontScale);
-    setStoreProfiles(listStoreProfiles());
-    setCustomItems(listCustomItems());
+    setStoreProfiles(mcStorage.listStoreProfiles());
+    setCustomItems(listCustomItemsCompat());
     setStoreDraft(emptyStoreDraft(settings.preferredStore));
   }, [settings.language, settings.preferredStore, settings.fontScale]);
 
@@ -263,6 +403,8 @@ export default function SettingsPage() {
         setFamilyMembersOpen(false);
         setFamilyMembers([]);
         setFamilyPendingInvites([]);
+        setPendingFamilyInvite(null);
+        setFamilyAcceptInviteBusy(false);
         setFamilyError("");
         setFamilyMessage("");
         return;
@@ -273,18 +415,39 @@ export default function SettingsPage() {
 
         if (cancelled) return;
 
-        setFamilyRecord(family);
+        if (family) {
+          setFamilyRecord(family);
+          setPendingFamilyInvite(null);
+          setFamilyError("");
+          setFamilyInviteOpen(false);
+          setFamilyMembersOpen(false);
+          return;
+        }
+
+        let inviteMatch: PendingFamilyInviteMatch | null = null;
+
+        if (session.user.email) {
+          const pendingInvite = await getPendingFamilyInviteForEmail(session.user.email);
+
+          if (cancelled) return;
+
+          if (pendingInvite) {
+            inviteMatch = pendingInvite as PendingFamilyInviteMatch;
+          }
+        }
+
+        setFamilyRecord(null);
+        setPendingFamilyInvite(inviteMatch);
         setFamilyError("");
         setFamilyInviteOpen(false);
         setFamilyMembersOpen(false);
-        if (!family) {
-          setFamilyMembers([]);
-          setFamilyPendingInvites([]);
-        }
+        setFamilyMembers([]);
+        setFamilyPendingInvites([]);
       } catch (error) {
         if (cancelled) return;
 
         setFamilyRecord(null);
+        setPendingFamilyInvite(null);
         setFamilyMembers([]);
         setFamilyPendingInvites([]);
         setFamilyMembersOpen(false);
@@ -303,7 +466,8 @@ export default function SettingsPage() {
     return () => {
       cancelled = true;
     };
-  }, [language, session.status, session.user?.uid]);
+  }, [language, session.status, session.user?.email, session.user?.uid]);
+
 
   const filteredStoreProfiles = React.useMemo(() => storeProfiles, [storeProfiles]);
 
@@ -328,6 +492,53 @@ export default function SettingsPage() {
         </section>
       </AppShell>
     );
+  }
+
+  async function onAcceptFamilyInvite() {
+    if (!pendingFamilyInvite || !session.user?.uid || !session.user?.email) return;
+
+    setFamilyError("");
+    setFamilyMessage("");
+
+    try {
+      setFamilyAcceptInviteBusy(true);
+
+      await acceptFamilyInvite({
+        familyId: pendingFamilyInvite.familyId,
+        inviteId: pendingFamilyInvite.invite.id,
+        uid: session.user.uid,
+        email: session.user.email,
+      });
+
+      setPendingFamilyInvite(null);
+
+      const [refreshedFamily, members, invites] = await Promise.all([
+        getFamilyByOwnerUid(session.user.uid).catch(() => null),
+        getFamilyMembers(pendingFamilyInvite.familyId).catch(() => []),
+        getFamilyPendingInvites(pendingFamilyInvite.familyId).catch(() => []),
+      ]);
+
+      setFamilyRecord(refreshedFamily ?? null);
+      setFamilyMembers(members);
+      setFamilyPendingInvites(invites);
+      setFamilyMembersOpen(!!refreshedFamily);
+
+      setFamilyMessage(
+        language === "en"
+          ? "Invitation accepted successfully."
+          : "La invitación se aceptó correctamente."
+      );
+    } catch (error) {
+      setFamilyError(
+        error instanceof Error
+          ? error.message
+          : language === "en"
+            ? "Could not accept invitation"
+            : "No se pudo aceptar la invitación"
+      );
+    } finally {
+      setFamilyAcceptInviteBusy(false);
+    }
   }
 
   function keepStoreFieldVisible(target: HTMLInputElement | HTMLTextAreaElement) {
@@ -370,7 +581,7 @@ export default function SettingsPage() {
 
     if (!confirmed) return;
 
-    const next = upsertStoreProfile({
+    const next = mcStorage.upsertStoreProfile({
       previousName: storeDraft.previousName,
       name: storeDraft.name,
       addressLine1: storeDraft.addressLine1,
@@ -402,17 +613,25 @@ export default function SettingsPage() {
     setCustomItemsMessage("");
 
     try {
-      removeCustomItem({ itemKey: item.itemKey, name: item.name });
+      const removedFromCoreState = removeCustomItemCompat({ itemKey: item.itemKey, name: item.name });
       const removedFromSavedLists = removeCustomItemFromSavedLists(item);
-      setCustomItems(listCustomItems());
+      setCustomItems(listCustomItemsCompat());
       setCustomItemsMessage(
-        removedFromSavedLists > 0
+        removedFromCoreState && removedFromSavedLists > 0
           ? language === "en"
             ? `"${item.name}" was deleted from your custom items and saved lists.`
             : `"${item.name}" se eliminó de tus artículos personalizados y de Mis Listas.`
-          : language === "en"
-            ? `"${item.name}" was deleted from your custom items.`
-            : `"${item.name}" se eliminó de tus artículos personalizados.`
+          : removedFromCoreState
+            ? language === "en"
+              ? `"${item.name}" was deleted from your custom items.`
+              : `"${item.name}" se eliminó de tus artículos personalizados.`
+            : removedFromSavedLists > 0
+              ? language === "en"
+                ? `"${item.name}" was deleted from your saved lists.`
+                : `"${item.name}" se eliminó de Mis Listas.`
+              : language === "en"
+                ? `Custom item deletion is not available in this build.`
+                : `La eliminación de artículos personalizados no está disponible en esta compilación.`
       );
     } finally {
       setCustomItemsBusyId(null);
@@ -421,7 +640,7 @@ export default function SettingsPage() {
 
   function onSave(e: React.FormEvent) {
     e.preventDefault();
-    saveSettings({ language, preferredStore, fontScale });
+    mcStorage.saveSettings({ language, preferredStore, fontScale });
     router.push(withMenuOpen(returnTo));
   }
 
@@ -530,7 +749,7 @@ export default function SettingsPage() {
     try {
       setMigrationBusy(true);
 
-      const currentCoreState = readState();
+      const currentCoreState = mcStorage.readState();
       const currentSavedLists = JSON.parse(JSON.stringify(readSavedListsForMigration()));
 
       await saveUserData({
@@ -603,7 +822,7 @@ export default function SettingsPage() {
       setFamilyInviteOpen(false);
       setCreateGroupModalOpen(false);
       setCreateGroupNameDraft("");
-      setFamilyMessage(language === "en" ? "Your group plan was created successfully." : "Tu plan grupal se creó correctamente.");
+      setFamilyMessage(language === "en" ? "Family created successfully." : "La familia se creó correctamente.");
     } catch (error) {
       setFamilyError(
         error instanceof Error
@@ -752,6 +971,50 @@ export default function SettingsPage() {
     }
   }
 
+  async function onRemoveFamilyMember(memberUid: string) {
+    if (!familyRecord?.id) return;
+
+    const confirmed = window.confirm(
+      language === "en"
+        ? "Do you want to remove this family member?"
+        : "¿Quieres quitar a este miembro de la familia?"
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setFamilyRemoveMemberBusyId(memberUid);
+      setFamilyError("");
+      setFamilyMessage("");
+
+      await removeFamilyMember(familyRecord.id, memberUid);
+
+      if (familyMembersOpen) {
+        const [members, invites] = await Promise.all([
+          getFamilyMembers(familyRecord.id),
+          getFamilyPendingInvites(familyRecord.id),
+        ]);
+        setFamilyMembers(members);
+        setFamilyPendingInvites(invites);
+      }
+
+      setFamilyMessage(
+        language === "en"
+          ? "Family member removed successfully."
+          : "El miembro se quitó correctamente."
+      );
+    } catch (error) {
+      setFamilyError(
+        error instanceof Error
+          ? error.message
+          : language === "en"
+            ? "Could not remove family member"
+            : "No se pudo quitar al miembro de la familia"
+      );
+    } finally {
+      setFamilyRemoveMemberBusyId(null);
+    }
+  }
 
   return (
     <AppShell title={t(language, "settingsTitle")} darkHero subtitle={t(language, "settingsSubtitle")} showCart={false}>
@@ -1022,6 +1285,30 @@ export default function SettingsPage() {
                 <div style={{ fontWeight: 900, fontSize: s(15), color: MC_NAVY }}>
                   {language === "en" ? "Group plan" : "Plan grupal"}
                 </div>
+
+                <div
+                  style={{
+                    padding: "4px 10px",
+                    borderRadius: 999,
+                    border: `1px solid ${MC_NAVY_LINE}`,
+                    color: MC_NAVY,
+                    fontSize: s(12),
+                    fontWeight: 800,
+                    background: "#fff",
+                  }}
+                >
+                  {familyRecord
+                    ? language === "en"
+                      ? "Group created"
+                      : "Grupo creado"
+                    : pendingFamilyInvite
+                      ? language === "en"
+                        ? "Pending invite"
+                        : "Invitación pendiente"
+                      : language === "en"
+                        ? "Group plan"
+                        : "Plan grupal"}
+                </div>
               </div>
 
               <div style={{ fontSize: s(13), color: MC_NAVY_MUTED }}>
@@ -1029,9 +1316,13 @@ export default function SettingsPage() {
                   ? language === "en"
                     ? `Group: ${familyRecord.name}`
                     : `Grupo: ${familyRecord.name}`
-                  : language === "en"
-                    ? "Create your shared group here. You can invite up to 4 more members and manage lists together."
-                    : "Crea aquí tu grupo compartido. Podrás invitar hasta 4 integrantes más y administrar listas entre todos."}
+                  : pendingFamilyInvite
+                    ? language === "en"
+                      ? `You have a pending invitation to join ${pendingFamilyInvite.familyName}.`
+                      : `Tienes una invitación pendiente para unirte a ${pendingFamilyInvite.familyName}.`
+                    : language === "en"
+                      ? "Create your shared group here. You can invite up to 4 more members and manage lists together."
+                      : "Crea aquí tu grupo compartido. Podrás invitar hasta 4 integrantes más y administrar listas entre todos."}
               </div>
 
               {familyMessage ? (
@@ -1042,11 +1333,33 @@ export default function SettingsPage() {
                 <div style={{ fontSize: s(13), color: "#b42318", fontWeight: 800 }}>{familyError}</div>
               ) : null}
 
+              {pendingFamilyInvite ? (
+                <div
+                  style={{
+                    display: "grid",
+                    gap: 8,
+                    padding: "12px 14px",
+                    borderRadius: 14,
+                    border: `1px solid ${MC_NAVY_LINE}`,
+                    background: "#f7faff",
+                  }}
+                >
+                  <div style={{ fontWeight: 900, fontSize: s(13), color: MC_NAVY }}>
+                    {language === "en" ? "Pending invitation" : "Invitación pendiente"}
+                  </div>
+                  <div style={{ fontSize: s(13), color: MC_NAVY_MUTED }}>
+                    {language === "en"
+                      ? `Accept the invitation to join ${pendingFamilyInvite.familyName}.`
+                      : `Acepta la invitación para unirte a ${pendingFamilyInvite.familyName}.`}
+                  </div>
+                </div>
+              ) : null}
+
               {familyRecord ? (
                 familyInviteOpen ? (
                   <div style={{ display: "grid", gap: 6 }}>
                     <div style={{ fontWeight: 900, fontSize: s(13), color: MC_NAVY }}>
-                      {language === "en" ? "Member email" : "Correo del miembro"}
+                      {language === "en" ? "Member email" : "Correo del integrante"}
                     </div>
                     <input
                       type="email"
@@ -1065,7 +1378,6 @@ export default function SettingsPage() {
                   </div>
                 ) : null
               ) : null}
-
 
               {familyRecord ? (
                 <div style={{ display: "grid", gap: 10 }}>
@@ -1140,33 +1452,62 @@ export default function SettingsPage() {
                                       : "Titular"
                                     : language === "en"
                                       ? "Member"
-                                      : "Miembro"}
+                                      : "Integrante"}
                                 </div>
                               </div>
 
-                              <div
-                                style={{
-                                  padding: "4px 8px",
-                                  borderRadius: 999,
-                                  background: "#eef4ff",
-                                  color: MC_NAVY,
-                                  fontSize: s(12),
-                                  fontWeight: 800,
-                                }}
-                              >
-                                {member.status === "active"
-                                  ? language === "en"
-                                    ? "Active"
-                                    : "Activo"
-                                  : language === "en"
-                                    ? "Invited"
-                                    : "Invitado"}
+                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                {member.role !== "owner" ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => void onRemoveFamilyMember(member.uid)}
+                                    disabled={familyRemoveMemberBusyId === member.uid}
+                                    style={{
+                                      border: `1px solid ${MC_NAVY_LINE}`,
+                                      background: "#fff",
+                                      color: MC_NAVY,
+                                      borderRadius: 999,
+                                      padding: "6px 10px",
+                                      fontSize: s(12),
+                                      fontWeight: 800,
+                                      cursor: familyRemoveMemberBusyId === member.uid ? "default" : "pointer",
+                                      opacity: familyRemoveMemberBusyId === member.uid ? 0.6 : 1,
+                                    }}
+                                  >
+                                    {familyRemoveMemberBusyId === member.uid
+                                      ? language === "en"
+                                        ? "Removing..."
+                                        : "Quitando..."
+                                      : language === "en"
+                                        ? "Remove"
+                                        : "Quitar"}
+                                  </button>
+                                ) : null}
+
+                                <div
+                                  style={{
+                                    padding: "4px 8px",
+                                    borderRadius: 999,
+                                    background: "#eef4ff",
+                                    color: MC_NAVY,
+                                    fontSize: s(12),
+                                    fontWeight: 800,
+                                  }}
+                                >
+                                  {member.status === "active"
+                                    ? language === "en"
+                                      ? "Active"
+                                      : "Activo"
+                                    : language === "en"
+                                      ? "Invited"
+                                      : "Invitado"}
+                                </div>
                               </div>
                             </div>
                           ))
                         ) : (
                           <div style={{ fontSize: s(13), color: MC_NAVY_MUTED }}>
-                            {language === "en" ? "No family members yet." : "Todavía no hay miembros en la familia."}
+                            {language === "en" ? "No members yet." : "Todavía no hay integrantes."}
                           </div>
                         )}
                       </div>
@@ -1254,23 +1595,11 @@ export default function SettingsPage() {
                 </div>
               ) : null}
 
-              <div
-                style={{
-                  display: "grid",
-                  gap: 10,
-                  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-                }}
-              >
+              {pendingFamilyInvite ? (
                 <button
                   type="button"
-                  onClick={() => {
-                    setCreateGroupNameDraft("");
-                    setCreateGroupNameError("");
-                    setFamilyError("");
-                    setFamilyMessage("");
-                    setCreateGroupModalOpen(true);
-                  }}
-                  disabled={familyBusy || !!familyRecord || !session.enabled}
+                  onClick={() => void onAcceptFamilyInvite()}
+                  disabled={familyAcceptInviteBusy}
                   style={{
                     width: "100%",
                     padding: "12px 14px",
@@ -1280,61 +1609,100 @@ export default function SettingsPage() {
                     color: "#fff",
                     fontWeight: 900,
                     fontSize: s(15),
-                    opacity: familyBusy || !!familyRecord || !session.enabled ? 0.6 : 1,
+                    opacity: familyAcceptInviteBusy ? 0.6 : 1,
                   }}
                 >
-                  {familyBusy
+                  {familyAcceptInviteBusy
                     ? language === "en"
-                      ? "Creating..."
-                      : "Creando..."
+                      ? "Accepting..."
+                      : "Aceptando..."
                     : language === "en"
-                      ? "Create group"
-                      : "Crear grupo"}
+                      ? "Accept invitation"
+                      : "Aceptar invitación"}
                 </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!familyRecord) return;
-                    if (!familyInviteOpen) {
-                      setFamilyInviteOpen(true);
+              ) : (
+                <div
+                  style={{
+                    display: "grid",
+                    gap: 10,
+                    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCreateGroupNameDraft("");
+                      setCreateGroupNameError("");
                       setFamilyError("");
                       setFamilyMessage("");
-                      return;
-                    }
-                    void onInviteFamilyMember();
-                  }}
-                  disabled={
-                    !familyRecord || familyInviteBusy || (familyInviteOpen && !familyInviteEmail.trim())
-                  }
-                  style={{
-                    width: "100%",
-                    padding: "12px 14px",
-                    borderRadius: 14,
-                    border: `1px solid ${MC_NAVY_LINE}`,
-                    background: MC_NAVY,
-                    color: "#fff",
-                    fontWeight: 900,
-                    fontSize: s(15),
-                    opacity:
-                      !familyRecord || familyInviteBusy || (familyInviteOpen && !familyInviteEmail.trim())
-                        ? 0.6
-                        : 1,
-                  }}
-                >
-                  {familyInviteBusy
-                    ? language === "en"
-                      ? "Inviting..."
-                      : "Invitando..."
-                    : !familyInviteOpen
+                      setCreateGroupModalOpen(true);
+                    }}
+                    disabled={familyBusy || !!familyRecord || !session.enabled}
+                    style={{
+                      width: "100%",
+                      padding: "12px 14px",
+                      borderRadius: 14,
+                      border: "1px solid transparent",
+                      background: MC_NAVY,
+                      color: "#fff",
+                      fontWeight: 900,
+                      fontSize: s(15),
+                      opacity: familyBusy || !!familyRecord || !session.enabled ? 0.6 : 1,
+                    }}
+                  >
+                    {familyBusy
                       ? language === "en"
-                        ? "Invite member"
-                        : "Invitar integrante"
+                        ? "Creating..."
+                        : "Creando..."
                       : language === "en"
-                        ? "Send invite"
-                        : "Enviar invitación"}
-                </button>
-              </div>
+                        ? "Create group"
+                        : "Crear grupo"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!familyRecord) return;
+                      if (!familyInviteOpen) {
+                        setFamilyInviteOpen(true);
+                        setFamilyError("");
+                        setFamilyMessage("");
+                        return;
+                      }
+                      void onInviteFamilyMember();
+                    }}
+                    disabled={
+                      !familyRecord || familyInviteBusy || (familyInviteOpen && !familyInviteEmail.trim())
+                    }
+                    style={{
+                      width: "100%",
+                      padding: "12px 14px",
+                      borderRadius: 14,
+                      border: `1px solid ${MC_NAVY_LINE}`,
+                      background: MC_NAVY,
+                      color: "#fff",
+                      fontWeight: 900,
+                      fontSize: s(15),
+                      opacity:
+                        !familyRecord || familyInviteBusy || (familyInviteOpen && !familyInviteEmail.trim())
+                          ? 0.6
+                          : 1,
+                    }}
+                  >
+                    {familyInviteBusy
+                      ? language === "en"
+                        ? "Inviting..."
+                        : "Invitando..."
+                      : !familyInviteOpen
+                        ? language === "en"
+                          ? "Invite member"
+                          : "Invitar integrante"
+                        : language === "en"
+                          ? "Send invite"
+                          : "Enviar invitación"}
+                  </button>
+                </div>
+              )}
             </div>
           ) : null}
 
