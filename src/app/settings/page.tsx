@@ -29,6 +29,7 @@ import {
   revokeFamilyInvite,
 } from "@/lib/firebase/shared-list-actions";
 import type { FamilyInviteRecord, FamilyMemberRecord, FamilyRecord } from "@/lib/firebase/shared-list-types";
+import { SEED_GENERAL_ITEMS } from "@/lib/mindercart/seed-items";
 import type { FontScale, ItemMaster, Language, StoreProfile } from "@/lib/mindercart/types";
 
 function withMenuOpen(pathname: string) {
@@ -167,6 +168,69 @@ function draftFromProfile(profile: StoreProfile, preferredStore: string): StoreD
   };
 }
 
+function getSeedItemKey(seedItem: unknown) {
+  if (!seedItem || typeof seedItem !== "object") return "";
+
+  const record = seedItem as Record<string, unknown>;
+  return typeof record.itemKey === "string" ? record.itemKey.trim() : "";
+}
+
+function getSeedItemNames(seedItem: unknown) {
+  if (!seedItem || typeof seedItem !== "object") return [] as string[];
+
+  const record = seedItem as Record<string, unknown>;
+  const label = record.label && typeof record.label === "object" ? (record.label as Record<string, unknown>) : null;
+
+  return [
+    record.name,
+    record.nameEs,
+    record.nameEn,
+    typeof record.label === "string" ? record.label : "",
+    label?.default,
+    label?.es,
+    label?.en,
+  ]
+    .map((value) => (typeof value === "string" ? value.trim() : ""))
+    .filter(Boolean);
+}
+
+const SEED_ITEM_KEYS = new Set(
+  SEED_GENERAL_ITEMS.map((item) => getSeedItemKey(item)).filter(Boolean)
+);
+
+const SEED_ITEM_NAMES = new Set(
+  SEED_GENERAL_ITEMS.flatMap((item) => getSeedItemNames(item))
+    .map((value) => normalizeText(value))
+    .filter(Boolean)
+);
+
+function matchesCustomItemTarget(
+  candidate: Pick<ItemMaster, "itemKey" | "name"> | { itemKey?: unknown; name?: unknown },
+  target: Pick<ItemMaster, "itemKey" | "name">
+) {
+  const candidateItemKey = String(candidate.itemKey ?? "").trim();
+  const candidateName = normalizeText(candidate.name);
+  const targetItemKey = String(target.itemKey ?? "").trim() || makeCustomItemKey(target.name);
+  const targetName = normalizeText(target.name);
+
+  if (candidateItemKey && targetItemKey && candidateItemKey === targetItemKey) return true;
+  if (candidateName && targetName && candidateName === targetName) return true;
+  if (candidateItemKey && targetName && candidateItemKey === makeCustomItemKey(targetName)) return true;
+  if (candidateName && targetItemKey && makeCustomItemKey(candidateName) === targetItemKey) return true;
+
+  return false;
+}
+
+function isSeedItemRecord(record: Pick<ItemMaster, "itemKey" | "name"> | { itemKey?: unknown; name?: unknown }) {
+  const itemKey = String(record.itemKey ?? "").trim();
+  const normalizedName = normalizeText(record.name);
+
+  if (itemKey && SEED_ITEM_KEYS.has(itemKey)) return true;
+  if (normalizedName && SEED_ITEM_NAMES.has(normalizedName)) return true;
+
+  return false;
+}
+
 function normalizeCustomItemsCandidate(candidate: unknown) {
   if (!Array.isArray(candidate)) return [] as ItemMaster[];
 
@@ -176,11 +240,10 @@ function normalizeCustomItemsCandidate(candidate: unknown) {
     const record = entry as Record<string, unknown>;
     if (typeof record.name !== "string" || !record.name.trim()) return false;
 
-    const isCustomLike =
-      Boolean(record.isCustom ?? record.custom ?? record.createdByUser) ||
-      String(record.itemKey ?? "").startsWith("custom-");
-
-    return isCustomLike;
+    return !isSeedItemRecord({
+      itemKey: record.itemKey,
+      name: record.name,
+    });
   });
 }
 
@@ -198,23 +261,8 @@ function listCustomItemsCompat() {
     }
   }
 
-  const state = mcStorage.readState() as Record<string, unknown> | null;
-  if (!state || typeof state !== "object") return [];
-
-  const candidates = [
-    state.customItems,
-    state.itemMasters,
-    state.itemsMaster,
-    state.masterItems,
-    state.items,
-  ];
-
-  for (const candidate of candidates) {
-    const items = normalizeCustomItemsCandidate(candidate);
-    if (items.length > 0) return items;
-  }
-
-  return [];
+  const state = mcStorage.readState();
+  return normalizeCustomItemsCandidate(state.itemsMaster);
 }
 
 function removeCustomItemCompat(item: Pick<ItemMaster, "itemKey" | "name">) {
@@ -222,11 +270,25 @@ function removeCustomItemCompat(item: Pick<ItemMaster, "itemKey" | "name">) {
     removeCustomItem?: (payload: { itemKey: string; name: string }) => void;
   };
 
-  if (typeof storageWithCustomItems.removeCustomItem !== "function") return false;
+  if (typeof storageWithCustomItems.removeCustomItem === "function") {
+    storageWithCustomItems.removeCustomItem({
+      itemKey: item.itemKey,
+      name: item.name,
+    });
 
-  storageWithCustomItems.removeCustomItem({
-    itemKey: item.itemKey,
-    name: item.name,
+    return true;
+  }
+
+  const state = mcStorage.readState();
+  const nextItemsMaster = state.itemsMaster.filter((entry) => !matchesCustomItemTarget(entry, item));
+
+  if (nextItemsMaster.length === state.itemsMaster.length) return false;
+
+  mcStorage.writeState({
+    ...state,
+    itemsMaster: nextItemsMaster,
+    generalListItems: state.generalListItems.filter((entry) => !matchesCustomItemTarget(entry, item)),
+    activeShoppingListItems: state.activeShoppingListItems.filter((entry) => !matchesCustomItemTarget(entry, item)),
   });
 
   return true;
