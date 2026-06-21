@@ -7,6 +7,7 @@ import React from "react";
 import { useAuthSession } from "@/lib/firebase/auth-context";
 import { saveUserData } from "@/lib/firebase/save-user-data";
 import { useUserBootstrap } from "@/lib/firebase/use-user-bootstrap";
+import { getFamilyById, getFamilyByOwnerUid, getUserFamilyMembership } from "@/lib/firebase/shared-list-actions";
 import { useMinderCartState } from "@/lib/mindercart/hooks";
 import { t } from "@/lib/mindercart/i18n";
 import { unitCatalogQuantityLabel } from "@/lib/mindercart/catalog";
@@ -39,6 +40,29 @@ function buildCloudSyncSignature(coreState: unknown, savedLists: unknown) {
     coreState,
     savedLists,
   });
+}
+
+type HeaderGroupContext = {
+  familyName: string;
+  role: "owner" | "member";
+};
+
+function resolveHeaderGroupContextLabel(
+  lang: "es" | "en",
+  context: HeaderGroupContext | null,
+): string | null {
+  if (!context?.familyName?.trim()) return null;
+
+  const roleLabel =
+    context.role === "owner"
+      ? lang === "es"
+        ? "Titular"
+        : "Owner"
+      : lang === "es"
+        ? "Integrante"
+        : "Member";
+
+  return `${lang === "es" ? "Grupo" : "Group"}: ${context.familyName} · ${roleLabel}`;
 }
 
 type FooterAction = {
@@ -310,11 +334,70 @@ export function AppShell(props: {
   const baselineSignatureRef = React.useRef("");
   const lastSavedSignatureRef = React.useRef("");
   const lastUidRef = React.useRef("");
+  const [headerGroupContext, setHeaderGroupContext] = React.useState<HeaderGroupContext | null>(null);
+  const [headerGroupLoading, setHeaderGroupLoading] = React.useState(false);
 
   React.useEffect(() => {
     setMenuOpen(searchParams.get("menu") === "1");
   }, [searchParams]);
 
+  React.useEffect(() => {
+    const uid = String(session.user?.uid ?? "").trim();
+    const isReady = session.status === "authenticated" && bootstrap.status === "ready" && !!uid;
+
+    if (!isReady) {
+      setHeaderGroupContext(null);
+      setHeaderGroupLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setHeaderGroupLoading(true);
+
+    void (async () => {
+      try {
+        const membership = await getUserFamilyMembership(uid);
+
+        if (membership?.familyId) {
+          const family = await getFamilyById(membership.familyId);
+
+          if (!cancelled && family?.name?.trim()) {
+            setHeaderGroupContext({
+              familyName: family.name.trim(),
+              role: membership.role === "owner" ? "owner" : "member",
+            });
+            setHeaderGroupLoading(false);
+            return;
+          }
+        }
+
+        const ownedFamily = await getFamilyByOwnerUid(uid);
+
+        if (!cancelled && ownedFamily?.name?.trim()) {
+          setHeaderGroupContext({
+            familyName: ownedFamily.name.trim(),
+            role: "owner",
+          });
+          setHeaderGroupLoading(false);
+          return;
+        }
+
+        if (!cancelled) {
+          setHeaderGroupContext(null);
+          setHeaderGroupLoading(false);
+        }
+      } catch {
+        if (!cancelled) {
+          setHeaderGroupContext(null);
+          setHeaderGroupLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [bootstrap.status, session.status, session.user?.uid]);
 
   React.useEffect(() => {
     const uid = String(session.user?.uid ?? "").trim();
@@ -377,6 +460,7 @@ export function AppShell(props: {
   const showCart = props.showCart !== false;
   const s = (px: number) => scalePx(settings?.fontScale, px);
   const lang = settings.language;
+  const headerGroupLine = resolveHeaderGroupContextLabel(lang, headerGroupContext);
 
   const fallbackTitle =
     pathname === "/"
@@ -422,7 +506,7 @@ export function AppShell(props: {
       >
         <div
           style={{
-            padding: "calc(12px + env(safe-area-inset-top)) 16px 12px",
+            padding: "calc(10px + env(safe-area-inset-top)) 16px 10px",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -459,7 +543,7 @@ export function AppShell(props: {
               <div
                 style={{
                   fontSize: s(19),
-                  lineHeight: 1.05,
+                  lineHeight: 1.02,
                   fontWeight: 900,
                   letterSpacing: "-0.02em",
                   color: "#fff",
@@ -469,13 +553,29 @@ export function AppShell(props: {
               </div>
               <div
                 style={{
-                  marginTop: 4,
+                  marginTop: 2,
                   fontSize: s(12),
                   color: "rgba(255,255,255,0.88)",
                 }}
               >
                 {t(lang, "brandTagline")}
               </div>
+              {!headerGroupLoading && headerGroupLine ? (
+                <div
+                  style={{
+                    marginTop: 3,
+                    fontSize: s(11),
+                    color: "rgba(255,255,255,0.86)",
+                    fontWeight: 700,
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                  title={headerGroupLine}
+                >
+                  {headerGroupLine}
+                </div>
+              ) : null}
             </div>
           </div>
 
