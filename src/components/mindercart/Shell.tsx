@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import React from "react";
 import { useAuthSession } from "@/lib/firebase/auth-context";
+import { getFamilyById, getUserFamilyMembership } from "@/lib/firebase/shared-list-actions";
 import { saveUserData } from "@/lib/firebase/save-user-data";
 import { useUserBootstrap } from "@/lib/firebase/use-user-bootstrap";
 import { useMinderCartState } from "@/lib/mindercart/hooks";
@@ -39,6 +40,45 @@ function buildCloudSyncSignature(coreState: unknown, savedLists: unknown) {
     coreState,
     savedLists,
   });
+}
+
+type ShellGroupContext = {
+  familyName: string;
+  role: "owner" | "member";
+};
+
+function readShellGroupContextCache(uid: string): ShellGroupContext | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = window.sessionStorage.getItem(`mindercart.shellGroupContext.${uid}`);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<ShellGroupContext> | null;
+    if (!parsed || typeof parsed.familyName !== "string") return null;
+    const familyName = parsed.familyName.trim();
+    const role = parsed.role === "owner" ? "owner" : parsed.role === "member" ? "member" : null;
+    if (!familyName || !role) return null;
+    return { familyName, role };
+  } catch {
+    return null;
+  }
+}
+
+function writeShellGroupContextCache(uid: string, value: ShellGroupContext | null) {
+  if (typeof window === "undefined") return;
+
+  const key = `mindercart.shellGroupContext.${uid}`;
+
+  try {
+    if (!value) {
+      window.sessionStorage.removeItem(key);
+      return;
+    }
+
+    window.sessionStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Keep navigation usable even if sessionStorage is unavailable.
+  }
 }
 
 type FooterAction = {
@@ -310,6 +350,7 @@ export function AppShell(props: {
   const baselineSignatureRef = React.useRef("");
   const lastSavedSignatureRef = React.useRef("");
   const lastUidRef = React.useRef("");
+  const [groupContext, setGroupContext] = React.useState<ShellGroupContext | null>(null);
 
   React.useEffect(() => {
     setMenuOpen(searchParams.get("menu") === "1");
@@ -374,6 +415,55 @@ export function AppShell(props: {
     };
   }, [bootstrap.status, session.status, session.user?.uid, state]);
 
+  React.useEffect(() => {
+    const uid = String(session.user?.uid ?? "").trim();
+    const isReady = session.status === "authenticated" && bootstrap.status === "ready" && !!uid;
+
+    if (!isReady) {
+      setGroupContext(null);
+      return;
+    }
+
+    const cached = readShellGroupContextCache(uid);
+    if (cached) {
+      setGroupContext(cached);
+    }
+
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const membership = await getUserFamilyMembership(uid);
+
+        if (!membership || membership.status !== "active" || !membership.familyId) {
+          if (!cancelled) {
+            setGroupContext(null);
+            writeShellGroupContextCache(uid, null);
+          }
+          return;
+        }
+
+        const family = await getFamilyById(membership.familyId);
+        const familyName = typeof family?.name === "string" ? family.name.trim() : "";
+        const role: ShellGroupContext["role"] = membership.role === "owner" ? "owner" : "member";
+        const nextValue: ShellGroupContext | null = familyName ? { familyName, role } : null;
+
+        if (!cancelled) {
+          setGroupContext(nextValue);
+          writeShellGroupContextCache(uid, nextValue);
+        }
+      } catch {
+        if (!cancelled && !cached) {
+          setGroupContext(null);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [bootstrap.status, session.status, session.user?.uid]);
+
   const showCart = props.showCart !== false;
   const s = (px: number) => scalePx(settings?.fontScale, px);
   const lang = settings.language;
@@ -393,6 +483,10 @@ export function AppShell(props: {
 
   const menuTitle = lang === "es" ? "Menú" : "Menu";
   const menuSubtitle = lang === "es" ? "Selecciona una opción" : "Choose an option";
+  const groupLabel = lang === "es" ? "Grupo" : "Group";
+  const roleLabel = lang === "es" ? "Rol" : "Role";
+  const ownerLabel = lang === "es" ? "Titular" : "Owner";
+  const memberLabel = lang === "es" ? "Integrante" : "Member";
   const title = menuOpen ? menuTitle : props.title || props.sectionLabel || fallbackTitle;
   const subtitle = menuOpen ? menuSubtitle : props.subtitle;
   const settingsHref = `/settings?returnTo=${encodeURIComponent(pathname || "/")}`;
@@ -561,6 +655,50 @@ export function AppShell(props: {
               }}
             >
               <div style={{ display: "grid", gap: 10 }}>
+                {groupContext ? (
+                  <div
+                    style={{
+                      padding: "12px 14px",
+                      borderRadius: 14,
+                      border: `1px solid ${MC_NAVY_LINE}`,
+                      background: MC_NAVY_SOFT,
+                      display: "grid",
+                      gap: 6,
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: s(12),
+                        fontWeight: 800,
+                        color: MC_NAVY_MUTED,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.04em",
+                      }}
+                    >
+                      {groupLabel}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: s(15),
+                        fontWeight: 900,
+                        color: MC_NAVY_TEXT,
+                        lineHeight: 1.2,
+                      }}
+                    >
+                      {groupContext.familyName}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: s(13),
+                        color: MC_NAVY_TEXT,
+                        lineHeight: 1.2,
+                      }}
+                    >
+                      {roleLabel}: {groupContext.role === "owner" ? ownerLabel : memberLabel}
+                    </div>
+                  </div>
+                ) : null}
+
                 {menuItems.map((item) => (
                   <Link
                     key={item.href}
