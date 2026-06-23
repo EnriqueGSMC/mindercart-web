@@ -663,38 +663,69 @@ export function AppShell(props: {
                       border: `1px solid ${MC_NAVY_LINE}`,
                       background: MC_NAVY_SOFT,
                       display: "grid",
-                      gap: 6,
+                      gap: 8,
                     }}
                   >
                     <div
                       style={{
-                        fontSize: s(12),
-                        fontWeight: 800,
-                        color: MC_NAVY_MUTED,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.04em",
+                        display: "flex",
+                        alignItems: "flex-start",
+                        justifyContent: "space-between",
+                        gap: 12,
                       }}
                     >
-                      {groupLabel}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: s(15),
-                        fontWeight: 900,
-                        color: MC_NAVY_TEXT,
-                        lineHeight: 1.2,
-                      }}
-                    >
-                      {groupContext.familyName}
+                      <div
+                        style={{
+                          minWidth: 0,
+                          flex: 1,
+                          fontSize: s(14),
+                          color: MC_NAVY_TEXT,
+                          lineHeight: 1.25,
+                        }}
+                      >
+                        <span>{groupLabel}: </span>
+                        <strong
+                          style={{
+                            fontWeight: 900,
+                          }}
+                        >
+                          {groupContext.familyName}
+                        </strong>
+                      </div>
+                      <div
+                        style={{
+                          flexShrink: 0,
+                          textAlign: "right",
+                          fontSize: s(13),
+                          color: MC_NAVY_TEXT,
+                          lineHeight: 1.25,
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        <span>{roleLabel}: </span>
+                        <strong
+                          style={{
+                            fontWeight: 900,
+                          }}
+                        >
+                          {groupContext.role === "owner" ? ownerLabel : memberLabel}
+                        </strong>
+                      </div>
                     </div>
                     <div
                       style={{
                         fontSize: s(13),
-                        color: MC_NAVY_TEXT,
-                        lineHeight: 1.2,
+                        color: MC_NAVY_MUTED,
+                        lineHeight: 1.25,
                       }}
                     >
-                      {roleLabel}: {groupContext.role === "owner" ? ownerLabel : memberLabel}
+                      {groupContext.role === "owner"
+                        ? lang === "es"
+                          ? "Administras este grupo."
+                          : "You manage this group."
+                        : lang === "es"
+                          ? "Eres parte de este grupo."
+                          : "You are part of this group."}
                     </div>
                   </div>
                 ) : null}
