@@ -13,7 +13,7 @@ import {
 } from "firebase/auth";
 import { clientAuth } from "@/lib/firebase/client";
 import { saveUserData } from "@/lib/firebase/save-user-data";
-import { CHANGE_EVENT, readState, resetStateForLogout } from "@/lib/mindercart/storage";
+import { CHANGE_EVENT, readState, resetStateForLogout, saveSettings } from "@/lib/mindercart/storage";
 
 const SAVED_LISTS_STORAGE_KEY = "mindercart.savedLists.v1";
 
@@ -84,6 +84,16 @@ function clearSavedListsForLogout() {
   window.dispatchEvent(new CustomEvent(CHANGE_EVENT));
 }
 
+function readUiPreferencesForLogout() {
+  const state = readState();
+
+  return {
+    language: state.settings.language === "en" ? "en" : "es",
+    preferredStore: state.settings.preferredStore || "HEB",
+    fontScale: state.settings.fontScale === "large" ? "large" : "normal",
+  } as const;
+}
+
 export async function signInUser(email: string, password: string) {
   const credentials = requireEmailAndPassword(email, password);
 
@@ -125,6 +135,7 @@ export async function signOutUser() {
     const auth = clientAuth();
     const uid = auth.currentUser?.uid ?? "";
     const coreState = readState();
+    const uiPreferences = readUiPreferencesForLogout();
     const savedLists = readSavedListsForLogout();
 
     if (uid) {
@@ -139,6 +150,7 @@ export async function signOutUser() {
 
     await signOut(auth);
     resetStateForLogout();
+    saveSettings(uiPreferences);
     clearSavedListsForLogout();
   } catch (error) {
     const message = error instanceof Error ? error.message : "Sign out failed";
