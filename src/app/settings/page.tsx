@@ -249,6 +249,15 @@ function normalizeCustomItemsCandidate(candidate: unknown) {
   });
 }
 
+function sortCustomItemsAlphabetically(items: ItemMaster[]) {
+  return [...items].sort((a, b) =>
+    a.name.localeCompare(b.name, undefined, {
+      sensitivity: "base",
+      numeric: true,
+    })
+  );
+}
+
 function listCustomItemsCompat() {
   const storageWithCustomItems = mcStorage as typeof mcStorage & {
     listCustomItems?: () => ItemMaster[];
@@ -257,14 +266,14 @@ function listCustomItemsCompat() {
   if (typeof storageWithCustomItems.listCustomItems === "function") {
     try {
       const result = storageWithCustomItems.listCustomItems();
-      return Array.isArray(result) ? result : [];
+      return Array.isArray(result) ? sortCustomItemsAlphabetically(result) : [];
     } catch {
       return [];
     }
   }
 
   const state = mcStorage.readState();
-  return normalizeCustomItemsCandidate(state.itemsMaster);
+  return sortCustomItemsAlphabetically(normalizeCustomItemsCandidate(state.itemsMaster));
 }
 
 function removeCustomItemCompat(item: Pick<ItemMaster, "itemKey" | "name">) {
