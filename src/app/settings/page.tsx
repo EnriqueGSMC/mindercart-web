@@ -249,6 +249,15 @@ function normalizeCustomItemsCandidate(candidate: unknown) {
   });
 }
 
+function sortCustomItemsAlphabetically(items: ItemMaster[]) {
+  return [...items].sort((a, b) =>
+    a.name.localeCompare(b.name, undefined, {
+      sensitivity: "base",
+      numeric: true,
+    })
+  );
+}
+
 function listCustomItemsCompat() {
   const storageWithCustomItems = mcStorage as typeof mcStorage & {
     listCustomItems?: () => ItemMaster[];
@@ -257,14 +266,14 @@ function listCustomItemsCompat() {
   if (typeof storageWithCustomItems.listCustomItems === "function") {
     try {
       const result = storageWithCustomItems.listCustomItems();
-      return Array.isArray(result) ? result : [];
+      return Array.isArray(result) ? sortCustomItemsAlphabetically(result) : [];
     } catch {
       return [];
     }
   }
 
   const state = mcStorage.readState();
-  return normalizeCustomItemsCandidate(state.itemsMaster);
+  return sortCustomItemsAlphabetically(normalizeCustomItemsCandidate(state.itemsMaster));
 }
 
 function removeCustomItemCompat(item: Pick<ItemMaster, "itemKey" | "name">) {
@@ -707,6 +716,7 @@ export default function SettingsPage() {
     }
 
     setPreferredStore(value);
+    persistPreferences({ preferredStore: value });
     setStoreError("");
     setStoreEditorOpen(false);
   }
@@ -714,6 +724,14 @@ export default function SettingsPage() {
   function closeStoreModal() {
     setStoreEditorOpen(false);
     setStoreError("");
+  }
+
+  function persistPreferences(next: Partial<{ language: Language; preferredStore: string; fontScale: FontScale }>) {
+    mcStorage.saveSettings({
+      language: next.language ?? language,
+      preferredStore: next.preferredStore ?? preferredStore,
+      fontScale: next.fontScale ?? fontScale,
+    });
   }
 
   function onSaveStoreProfile() {
@@ -785,7 +803,7 @@ export default function SettingsPage() {
 
   function onSave(e: React.FormEvent) {
     e.preventDefault();
-    mcStorage.saveSettings({ language, preferredStore, fontScale });
+    persistPreferences({ language, preferredStore, fontScale });
     router.push(withMenuOpen(returnTo));
   }
 
@@ -1951,7 +1969,11 @@ export default function SettingsPage() {
             <div style={{ fontWeight: 900, marginBottom: 6, fontSize: s(15) }}>{t(language, "language")}</div>
             <select
               value={language}
-              onChange={(e) => setLanguage(e.target.value === "en" ? "en" : "es")}
+              onChange={(e) => {
+                const nextLanguage = e.target.value === "en" ? "en" : "es";
+                setLanguage(nextLanguage);
+                persistPreferences({ language: nextLanguage });
+              }}
               style={{
                 width: "100%",
                 padding: "12px 14px",
@@ -2144,11 +2166,12 @@ export default function SettingsPage() {
             <div style={{ fontWeight: 900, marginBottom: 6, fontSize: s(15) }}>{t(language, "fontSize")}</div>
             <select
               value={fontScale}
-              onChange={(e) =>
-                setFontScale(
-                  e.target.value === "large" || e.target.value === "xlarge" ? e.target.value : "normal"
-                )
-              }
+              onChange={(e) => {
+                const nextFontScale =
+                  e.target.value === "large" || e.target.value === "xlarge" ? e.target.value : "normal";
+                setFontScale(nextFontScale);
+                persistPreferences({ fontScale: nextFontScale });
+              }}
               style={{
                 width: "100%",
                 padding: "12px 14px",
