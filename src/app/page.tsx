@@ -314,7 +314,9 @@ export default function NeedsPage() {
   const [savedListsMessage, setSavedListsMessage] = React.useState("");
   const [selectedOpenSavedListItemIds, setSelectedOpenSavedListItemIds] = React.useState<string[]>([]);
   const [savedListNameEditUnlocked, setSavedListNameEditUnlocked] = React.useState(false);
+  const [removingActiveItemId, setRemovingActiveItemId] = React.useState<string | null>(null);
   const savedListNameInputRef = React.useRef<HTMLInputElement | null>(null);
+  const removeActiveItemLockRef = React.useRef(false);
 
   React.useEffect(() => {
     if (!hydrated) return;
@@ -388,6 +390,29 @@ export default function NeedsPage() {
     setSelectedOpenSavedListItemIds([]);
     setSavedListsMessage("");
   }, [isOpenSavedListView, selectedSavedListId]);
+
+  React.useEffect(() => {
+    if (!removingActiveItemId) return;
+
+    const itemStillExists = activeShoppingListItems.some(
+      (item) => item.id === removingActiveItemId
+    );
+
+    if (itemStillExists) return;
+
+    let secondFrame = 0;
+    const firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(() => {
+        removeActiveItemLockRef.current = false;
+        setRemovingActiveItemId(null);
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(firstFrame);
+      if (secondFrame) window.cancelAnimationFrame(secondFrame);
+    };
+  }, [activeShoppingListItems, removingActiveItemId]);
 
   const trimmedName = name.trim();
   const normalizedDraftName = trimmedName
@@ -694,6 +719,21 @@ export default function NeedsPage() {
       );
     } catch (e: unknown) {
       setSavedListsMessage(`⚠ ${String((e as { message?: string })?.message || e)}`);
+    }
+  }
+
+  function handleRemoveActiveItem(itemId: string) {
+    if (removeActiveItemLockRef.current) return;
+
+    removeActiveItemLockRef.current = true;
+    setRemovingActiveItemId(itemId);
+
+    try {
+      removeActiveItem(itemId);
+    } catch (e: unknown) {
+      removeActiveItemLockRef.current = false;
+      setRemovingActiveItemId(null);
+      setMessage(`⚠ ${String((e as { message?: string })?.message || e)}`);
     }
   }
 
@@ -1816,9 +1856,10 @@ export default function NeedsPage() {
 
                         <button
                           type="button"
+                          disabled={removingActiveItemId !== null}
                           onClick={(e) => {
                             e.stopPropagation();
-                            removeActiveItem(item.id);
+                            handleRemoveActiveItem(item.id);
                           }}
                           style={{
                             padding: "8px 12px",
@@ -1828,9 +1869,15 @@ export default function NeedsPage() {
                             fontWeight: 700,
                             whiteSpace: "nowrap",
                             fontSize: s(14),
+                            cursor: removingActiveItemId !== null ? "default" : "pointer",
+                            opacity: removingActiveItemId !== null && removingActiveItemId !== item.id ? 0.55 : 1,
                           }}
                         >
-                          {t(lang, "remove")}
+                          {removingActiveItemId === item.id
+                            ? lang === "en"
+                              ? "Removing…"
+                              : "Quitando…"
+                            : t(lang, "remove")}
                         </button>
                       </div>
                     </div>
