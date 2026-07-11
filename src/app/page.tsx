@@ -9,6 +9,7 @@ import {
   CATEGORY_OPTIONS,
   STORE_OPTIONS,
   addQuickNeed,
+  addQuickNeeds,
   buildSuggestions,
   readState,
   removeActiveItem,
@@ -674,16 +675,16 @@ export default function NeedsPage() {
     }
 
     try {
-      selectedItems.forEach((item) => {
-        addQuickNeed({
+      addQuickNeeds(
+        selectedItems.map((item) => ({
           name: item.name,
           category: item.category,
           unit: item.unit,
           quantity: item.quantity,
           store: item.store,
           sourceListName: openedSavedList.name,
-        });
-      });
+        }))
+      );
 
       setSelectedOpenSavedListItemIds([]);
       setSavedListsMessage(

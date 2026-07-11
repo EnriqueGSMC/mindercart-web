@@ -712,9 +712,10 @@ function upsertItemMaster(
 
 function upsertGeneralListItem(
   generalListItems: GeneralListItem[],
-  input: { name: string; category: string; unit: string; quantity: string; store: string }
+  input: { name: string; category: string; unit: string; quantity: string; store: string },
+  itemsMaster = readState().itemsMaster
 ): GeneralListItem[] {
-  const match = resolveCatalogMatch(readState().itemsMaster, input.name);
+  const match = resolveCatalogMatch(itemsMaster, input.name);
   const nextItemKey = "itemKey" in (match || {}) ? safe((match as { itemKey?: string }).itemKey) : "";
   const itemKeyValue = nextItemKey || makeItemKey(input.name);
 
@@ -900,6 +901,92 @@ export function addQuickNeed(input: {
   sourceListName?: string;
 }) {
   return addQuickNeedInternal(input).state;
+}
+
+export function addQuickNeeds(inputs: Array<{
+  name: string;
+  category: string;
+  unit: string;
+  quantity: string;
+  store: string;
+  sourceListName?: string;
+}>) {
+  const state = readState();
+  let itemsMaster = state.itemsMaster;
+  let generalListItems = state.generalListItems;
+  let activeShoppingListItems = state.activeShoppingListItems;
+
+  for (const input of inputs) {
+    const name = safe(input.name);
+    const category = canonicalizeCategory(input.category) || DEFAULT_CATEGORY;
+    const unit = canonicalizeUnit(input.unit);
+    const quantity = safe(input.quantity) || "1";
+    const store = safe(input.store) || state.settings.preferredStore || "HEB";
+    const catalogMatch = resolveCatalogMatch(itemsMaster, name);
+    const catalogItemKey =
+      "itemKey" in (catalogMatch || {}) ? safe((catalogMatch as { itemKey?: string }).itemKey) : "";
+    const trackedItemKey = catalogItemKey || makeItemKey(name);
+
+    if (!name) throw new Error("Artículo requerido");
+
+    const key = itemKey({ itemKey: trackedItemKey, name, unit, store });
+    const existing = findMatchingActiveItemByContext(activeShoppingListItems, key, input.sourceListName);
+
+    activeShoppingListItems = existing
+      ? activeShoppingListItems.map((item) =>
+          item.id === existing.id
+            ? {
+                ...item,
+                itemKey: trackedItemKey,
+                category,
+                quantity: numericSum(item.quantity, quantity),
+                sourceTypes: Array.from(new Set([...item.sourceTypes, "quick_add"])),
+                sourceListName: safe(input.sourceListName) || safe((item as { sourceListName?: string }).sourceListName),
+              }
+            : item
+        )
+      : [
+          {
+            id: uid(),
+            itemKey: trackedItemKey,
+            name,
+            category,
+            unit,
+            quantity,
+            store,
+            checked: false,
+            sourceTypes: ["quick_add"],
+            sourceRefs: [],
+            sourceListName: safe(input.sourceListName),
+            createdAt: now(),
+          },
+          ...activeShoppingListItems,
+        ];
+
+    const currentItemsMaster = itemsMaster;
+    itemsMaster = upsertItemMaster(currentItemsMaster, { name, category, unit, store });
+    generalListItems = upsertGeneralListItem(
+      generalListItems,
+      {
+        name,
+        category,
+        unit,
+        quantity,
+        store,
+      },
+      currentItemsMaster
+    );
+  }
+
+  const next: MinderCartState = {
+    ...state,
+    itemsMaster,
+    generalListItems,
+    activeShoppingListItems,
+  };
+
+  writeState(next);
+  return next;
 }
 
 export function addGeneralSelections(ids: string[]) {
