@@ -9,6 +9,7 @@ import {
   CATEGORY_OPTIONS,
   STORE_OPTIONS,
   addQuickNeed,
+  addQuickNeeds,
   buildSuggestions,
   readState,
   removeActiveItem,
@@ -389,8 +390,20 @@ export default function NeedsPage() {
   }, [isOpenSavedListView, selectedSavedListId]);
 
   const trimmedName = name.trim();
+  const normalizedDraftName = trimmedName
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("es");
+  const hasExactSuggestionMatch = suggestions.some(
+    (suggestion) =>
+      suggestion.name
+        .trim()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLocaleLowerCase("es") === normalizedDraftName
+  );
   const showSuggestions = trimmedName.length >= 2 && suggestions.length > 0;
-  const canOpenCustomDraft = trimmedName.length >= 3 && suggestions.length === 0;
+  const canOpenCustomDraft = trimmedName.length >= 3 && !hasExactSuggestionMatch;
 
   const draftSelectOptions = React.useMemo<DraftSelectOptions>(() => {
     const state = readState();
@@ -662,16 +675,16 @@ export default function NeedsPage() {
     }
 
     try {
-      selectedItems.forEach((item) => {
-        addQuickNeed({
+      addQuickNeeds(
+        selectedItems.map((item) => ({
           name: item.name,
           category: item.category,
           unit: item.unit,
           quantity: item.quantity,
           store: item.store,
           sourceListName: openedSavedList.name,
-        });
-      });
+        }))
+      );
 
       setSelectedOpenSavedListItemIds([]);
       setSavedListsMessage(
