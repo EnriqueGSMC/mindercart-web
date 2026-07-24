@@ -24,6 +24,7 @@ type DraftItem = {
   unit: string;
   quantity: string;
   store: string;
+  note?: string;
 };
 
 type DraftSelectOptions = {
@@ -517,6 +518,7 @@ export default function NeedsPage() {
       unit: normalizeUnit(input.unit),
       quantity: input.quantity || "1",
       store: input.store || settings.preferredStore || "HEB",
+      note: input.note ?? "",
     });
   }
 
@@ -528,6 +530,7 @@ export default function NeedsPage() {
     quantity: string;
     store: string;
     sourceListName?: string;
+    note?: string;
   }) {
     setEditingSavedListItemId(null);
     setEditingActiveItemId(item.id);
@@ -538,6 +541,7 @@ export default function NeedsPage() {
       unit: normalizeUnit(item.unit),
       quantity: item.quantity || "1",
       store: item.store || settings.preferredStore || "HEB",
+      note: item.note ?? "",
     });
   }
 
@@ -911,6 +915,32 @@ export default function NeedsPage() {
               <option value={ADD_STORE_VALUE}>{lang === "en" ? "Add" : "Agregar"}</option>
             </select>
           </div>
+
+          {!isSavedListEditorView ? (
+            <div>
+              <div style={{ fontSize: s(12), fontWeight: 700, marginBottom: 5 }}>
+                {lang === "en" ? "Note or preference (optional)" : "Nota o preferencia (opcional)"}
+              </div>
+              <input
+                value={draft.note ?? ""}
+                maxLength={80}
+                onChange={(e) => updateDraftField("note", e.target.value)}
+                placeholder={
+                  lang === "en"
+                    ? "e.g. Cherry, sugar-free, preferred brand"
+                    : "ej. Cherry, sin azúcar, marca preferida"
+                }
+                style={{
+                  width: "100%",
+                  padding: "12px 14px",
+                  borderRadius: 14,
+                  border: `1px solid ${MC_NAVY_LINE}`,
+                  boxSizing: "border-box",
+                  fontSize: s(15),
+                }}
+              />
+            </div>
+          ) : null}
         </div>
 
         <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
@@ -1847,6 +1877,19 @@ export default function NeedsPage() {
                             </span>
                           ) : null}
                         </div>
+                        {item.note ? (
+                          <div
+                            style={{
+                              marginTop: 2,
+                              fontSize: s(13),
+                              fontWeight: 400,
+                              color: MC_NAVY_MUTED,
+                              lineHeight: 1.25,
+                            }}
+                          >
+                            {item.note}
+                          </div>
+                        ) : null}
                       </div>
 
                       <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
