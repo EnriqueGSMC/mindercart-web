@@ -4,7 +4,7 @@ import React from "react";
 import { AppShell, QtyUnitText, cardStyle, scalePx } from "@/components/mindercart/Shell";
 import { t } from "@/lib/mindercart/i18n";
 import { useMinderCartState } from "@/lib/mindercart/hooks";
-import { addQuickNeed } from "@/lib/mindercart/storage";
+import { addQuickNeedWithResult } from "@/lib/mindercart/storage";
 
 function normalize(value: unknown) {
   return String(value ?? "")
@@ -74,7 +74,7 @@ function buildQuickNeedPayload(item: HistoryLikeItem, fallbackStore: string) {
           listName: sourceListName,
         }
       : {}),
-  } as Parameters<typeof addQuickNeed>[0];
+  } as Parameters<typeof addQuickNeedWithResult>[0];
 }
 
 export default function HistoryPage() {
@@ -100,6 +100,8 @@ export default function HistoryPage() {
             alreadyInList: "Already in My List",
             addedSummary: (count: number) => `${count} item${count === 1 ? "" : "s"} added to My List`,
             reusedAllSummary: (count: number) => `${count} item${count === 1 ? "" : "s"} added from this purchase`,
+            omittedDeletedCustomSummary: (count: number) =>
+              `${count} deleted custom item${count === 1 ? "" : "s"} omitted`,
             nothingNewToAdd: "Everything is already in My List",
             backToHistory: "← Back to History",
             purchaseLabel: "Purchase",
@@ -115,6 +117,8 @@ export default function HistoryPage() {
             alreadyInList: "Ya está en Mi Lista",
             addedSummary: (count: number) => `${count} artículo${count === 1 ? "" : "s"} agregado${count === 1 ? "" : "s"} a Mi Lista`,
             reusedAllSummary: (count: number) => `${count} artículo${count === 1 ? "" : "s"} agregado${count === 1 ? "" : "s"} desde esta compra`,
+            omittedDeletedCustomSummary: (count: number) =>
+              `Se omitieron ${count} artículo${count === 1 ? "" : "s"} personalizado${count === 1 ? "" : "s"} eliminado${count === 1 ? "" : "s"}`,
             nothingNewToAdd: "Todo ya está en Mi Lista",
             backToHistory: "← Regresar a Historial",
             purchaseLabel: "Compra",
@@ -164,6 +168,21 @@ export default function HistoryPage() {
 
   const selectedCountFor = (entryId: string) =>
     Object.values(selectedByEntry[entryId] || {}).filter(Boolean).length;
+
+  const buildStatusMessage = React.useCallback(
+    (mode: "selected" | "all", addedCount: number, omittedDeletedCustomCount: number) => {
+      if (addedCount <= 0 && omittedDeletedCustomCount > 0) {
+        return copy.omittedDeletedCustomSummary(omittedDeletedCustomCount);
+      }
+
+      if (omittedDeletedCustomCount <= 0) {
+        return mode === "all" ? copy.reusedAllSummary(addedCount) : copy.addedSummary(addedCount);
+      }
+
+      return `${mode === "all" ? copy.reusedAllSummary(addedCount) : copy.addedSummary(addedCount)}. ${copy.omittedDeletedCustomSummary(omittedDeletedCustomCount)}`;
+    },
+    [copy]
+  );
 
   const getUniqueItemsToAdd = React.useCallback(
     (entryId: string, mode: "selected" | "all") => {
@@ -218,8 +237,18 @@ export default function HistoryPage() {
     setBusyEntryId(entryId);
 
     try {
+      let addedCount = 0;
+      let omittedDeletedCustomCount = 0;
+
       itemsToAdd.forEach((item) => {
-        addQuickNeed(buildQuickNeedPayload(item, entry.store || settings.preferredStore));
+        const result = addQuickNeedWithResult(buildQuickNeedPayload(item, entry.store || settings.preferredStore));
+        if (result.added) {
+          addedCount += 1;
+          return;
+        }
+        if (result.skippedReason === "missing_custom_item") {
+          omittedDeletedCustomCount += 1;
+        }
       });
 
       setSelectedByEntry((current) => ({
@@ -228,8 +257,7 @@ export default function HistoryPage() {
       }));
       setStatusByEntry((current) => ({
         ...current,
-        [entryId]:
-          mode === "all" ? copy.reusedAllSummary(itemsToAdd.length) : copy.addedSummary(itemsToAdd.length),
+        [entryId]: buildStatusMessage(mode, addedCount, omittedDeletedCustomCount),
       }));
       setExpandedId(null);
       setRepurchaseModeByEntry((current) => ({ ...current, [entryId]: false }));
