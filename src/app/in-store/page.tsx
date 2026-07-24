@@ -33,12 +33,14 @@ import { useMinderCartState } from "@/lib/mindercart/hooks";
 type RemoveAction = {
   id: string;
   name: string;
+  note?: string | null;
 } | null;
 
 type MoveStoreSelection = {
   id: string;
   name: string;
   currentStore: string;
+  note?: string | null;
 } | null;
 
 const MOVE_STORE_ADD_VALUE = "__add_store__";
@@ -68,6 +70,7 @@ type DisplayListItem = {
   unit: string;
   category?: string;
   sourceListName?: string | null;
+  note?: string | null;
 };
 
 const OFFICIAL_CATEGORY_VALUES = CATEGORY_CATALOG.map((row) => row.legacyValue);
@@ -144,10 +147,16 @@ function deleteItemEverywhere(id: string) {
   const target = state.activeShoppingListItems.find((item) => item.id === id);
   if (!target) return state;
 
-  const sameGeneralItem = (item: { name: string; unit: string; store: string }) =>
+  const sameGeneralItem = (item: {
+    name: string;
+    unit: string;
+    store: string;
+    note?: string | null;
+  }) =>
     normalizeValue(item.name) === normalizeValue(target.name) &&
     normalizeValue(item.unit) === normalizeValue(target.unit) &&
-    normalizeValue(item.store) === normalizeValue(target.store);
+    normalizeValue(item.store) === normalizeValue(target.store) &&
+    normalizeValue(item.note) === normalizeValue(target.note);
 
   const next = {
     ...state,
@@ -173,15 +182,18 @@ function sameNameInStore(
     name?: unknown;
     store?: unknown;
     defaultStore?: unknown;
+    note?: unknown;
   },
   target: {
     name: string;
     store: string;
+    note?: string | null;
   }
 ) {
   return (
     normalizeValue(item.name) === normalizeValue(target.name) &&
-    normalizeValue(item.store ?? item.defaultStore) === normalizeValue(target.store)
+    normalizeValue(item.store ?? item.defaultStore) === normalizeValue(target.store) &&
+    normalizeValue(item.note) === normalizeValue(target.note)
   );
 }
 
@@ -193,19 +205,22 @@ function sameSourceAwareIdentity(
     store?: unknown;
     defaultStore?: unknown;
     sourceListName?: unknown;
+    note?: unknown;
   },
   target: {
     name: string;
     unit: string;
     store: string;
     sourceListName?: string | null;
+    note?: string | null;
   }
 ) {
   return (
     normalizeValue(item.name) === normalizeValue(target.name) &&
     normalizeValue(item.unit ?? item.defaultUnit) === normalizeValue(target.unit) &&
     normalizeValue(item.store ?? item.defaultStore) === normalizeValue(target.store) &&
-    normalizeValue(item.sourceListName) === normalizeValue(target.sourceListName)
+    normalizeValue(item.sourceListName) === normalizeValue(target.sourceListName) &&
+    normalizeValue(item.note) === normalizeValue(target.note)
   );
 }
 
@@ -275,12 +290,14 @@ function moveActiveItemToStore(id: string, targetStore: string) {
   const sourceCategory = toSafeText(sourceItem.category, "Abarrotes");
   const sourceHasOrigin = hasSourceListOrigin(sourceItem);
   const sourceSourceListName = toSafeText(sourceItem.sourceListName);
+  const sourceNote = toSafeText(sourceItem.note);
   const sameNameDestinationItems = activeShoppingListItems.filter(
     (item, index) =>
       index !== sourceIndex &&
       sameNameInStore(item, {
         name: sourceName,
         store: nextStore,
+        note: sourceNote,
       })
   );
   const mergeTarget = !sourceHasOrigin
@@ -297,6 +314,7 @@ function moveActiveItemToStore(id: string, targetStore: string) {
       unit: sourceUnit,
       store: currentStore,
       sourceListName: sourceSourceListName,
+      note: sourceNote,
     })
   );
 
@@ -329,6 +347,7 @@ function moveActiveItemToStore(id: string, targetStore: string) {
         unit: sourceUnit,
         store: nextStore,
         sourceListName: "",
+        note: sourceNote,
       })
     );
 
@@ -473,17 +492,20 @@ function sameCatalogIdentity(
     defaultUnit?: unknown;
     store?: unknown;
     defaultStore?: unknown;
+    note?: unknown;
   },
   target: {
     name: string;
     unit: string;
     store: string;
+    note?: string | null;
   }
 ) {
   return (
     normalizeValue(item.name) === normalizeValue(target.name) &&
     normalizeValue(item.unit ?? item.defaultUnit) === normalizeValue(target.unit) &&
-    normalizeValue(item.store ?? item.defaultStore) === normalizeValue(target.store)
+    normalizeValue(item.store ?? item.defaultStore) === normalizeValue(target.store) &&
+    normalizeValue(item.note) === normalizeValue(target.note)
   );
 }
 
@@ -735,6 +757,7 @@ export default function ShoppingPage() {
       id: removeAction.id,
       name: removeAction.name,
       currentStore: selectedStoreGroup.store,
+      note: removeAction.note,
     });
     setMoveStoreTarget(moveStoreOptions[0] ?? "");
     closeRemoveMenu();
@@ -806,6 +829,7 @@ export default function ShoppingPage() {
         sameNameInStore(item, {
           name: toSafeText(sourceItem.name),
           store: normalizedTargetStore,
+          note: toSafeText(sourceItem.note),
         })
     );
 
@@ -952,6 +976,7 @@ export default function ShoppingPage() {
         name: articleName,
         unit,
         store,
+        note: "",
       })
     );
 
@@ -989,6 +1014,7 @@ export default function ShoppingPage() {
         name: articleName,
         unit,
         store,
+        note: "",
       })
     );
 
@@ -1123,8 +1149,23 @@ export default function ShoppingPage() {
           <div style={circleBadgeStyle(options.badgeActive, s(options.badgeFontSize))}>
             {options.badgeLabel}
           </div>
-          <div style={{ flex: 1, minWidth: 0, fontSize: s(17), fontWeight: 500 }}>
-            {renderDisplayItemName(item, s(17))}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: s(17), fontWeight: 500 }}>
+              {renderDisplayItemName(item, s(17))}
+            </div>
+            {toSafeText(item.note) ? (
+              <div
+                style={{
+                  marginTop: 2,
+                  fontSize: s(13),
+                  fontWeight: 400,
+                  color: MC_NAVY_MUTED,
+                  lineHeight: 1.25,
+                }}
+              >
+                {toSafeText(item.note)}
+              </div>
+            ) : null}
           </div>
           <div style={{ fontSize: s(15), color: MC_NAVY_MUTED, flexShrink: 0, whiteSpace: "nowrap" }}>
             <QtyUnitText quantity={String(item.quantity)} unit={item.unit} />
@@ -1133,7 +1174,13 @@ export default function ShoppingPage() {
 
         <button
           type="button"
-          onClick={() => setRemoveAction({ id: item.id, name: getDisplayItemName(item) })}
+          onClick={() =>
+            setRemoveAction({
+              id: item.id,
+              name: getDisplayItemName(item),
+              note: item.note,
+            })
+          }
           style={sideActionButtonStyle(s(14))}
         >
           {lang === "en" ? "Move" : "Mover"}
@@ -1642,6 +1689,11 @@ export default function ShoppingPage() {
             <div style={{ marginTop: 6, fontSize: s(14), color: MC_NAVY_MUTED }}>
               {removeAction.name}
             </div>
+            {toSafeText(removeAction.note) ? (
+              <div style={{ marginTop: 3, fontSize: s(13), color: MC_NAVY_MUTED }}>
+                {toSafeText(removeAction.note)}
+              </div>
+            ) : null}
 
             <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
               <button
@@ -1718,6 +1770,11 @@ export default function ShoppingPage() {
             <div style={{ marginTop: 4, fontSize: s(13), color: MC_NAVY_MUTED }}>
               {moveStoreSelection.name}
             </div>
+            {toSafeText(moveStoreSelection.note) ? (
+              <div style={{ marginTop: 3, fontSize: s(13), color: MC_NAVY_MUTED }}>
+                {toSafeText(moveStoreSelection.note)}
+              </div>
+            ) : null}
 
             <div style={{ marginTop: 14 }}>
               <div style={{ fontSize: s(12), fontWeight: 700, marginBottom: 5 }}>
