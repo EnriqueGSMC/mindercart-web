@@ -517,12 +517,27 @@ export default function CartPage() {
                         textAlign: "left",
                       }}
                     >
-                      <div style={{ fontSize: s(17), fontWeight: 500, minWidth: 0 }}>
-                        {item.name}
-                        {item.sourceListName ? (
-                          <span style={{ fontSize: s(14), fontWeight: 400, color: "#5b6b9a" }}>
-                            {" "}({item.sourceListName})
-                          </span>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: s(17), fontWeight: 500 }}>
+                          {item.name}
+                          {item.sourceListName ? (
+                            <span style={{ fontSize: s(14), fontWeight: 400, color: "#5b6b9a" }}>
+                              {" "}({item.sourceListName})
+                            </span>
+                          ) : null}
+                        </div>
+                        {item.note ? (
+                          <div
+                            style={{
+                              marginTop: 2,
+                              fontSize: s(13),
+                              fontWeight: 400,
+                              color: "#5b6b9a",
+                              lineHeight: 1.25,
+                            }}
+                          >
+                            {item.note}
+                          </div>
                         ) : null}
                       </div>
                       <div style={{ fontSize: s(15), color: "#6b7280", flexShrink: 0 }}>
@@ -606,6 +621,19 @@ export default function CartPage() {
                     </span>
                   ) : null}
                 </div>
+                {activeItemDraft.original.note ? (
+                  <div
+                    style={{
+                      marginTop: 3,
+                      fontSize: s(13),
+                      fontWeight: 400,
+                      color: "#5b6b9a",
+                      lineHeight: 1.25,
+                    }}
+                  >
+                    {activeItemDraft.original.note}
+                  </div>
+                ) : null}
                 <div style={{ marginTop: 6, fontSize: s(14), color: "#5b6b9a" }}>
                   {lang === "en"
                     ? "Update category, unit, quantity, or store for this item."
