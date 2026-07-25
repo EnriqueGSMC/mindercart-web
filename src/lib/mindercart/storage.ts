@@ -1618,7 +1618,14 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
                 (item) => `
                   <div class="mc-print-row">
                     <div class="mc-print-checkbox" aria-hidden="true"></div>
-                    <div class="mc-print-name">${escapeHtml(item.name)}</div>
+                    <div class="mc-print-item-copy">
+                      <div class="mc-print-name">${escapeHtml(item.name)}</div>
+                      ${
+                        safe(item.note)
+                          ? `<div class="mc-print-note">${escapeHtml(item.note)}</div>`
+                          : ""
+                      }
+                    </div>
                     <div class="mc-print-qty">${escapeHtml(item.quantity)} ${escapeHtml(unitLabel(lang, item.unit))}</div>
                   </div>
                 `
@@ -1629,6 +1636,13 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
       `
     )
     .join("");
+
+  const sharedFooter = `
+    <div class="mc-print-brand-footer">
+      <div class="mc-print-brand-powered">Powered by MinderCart</div>
+      <div class="mc-print-brand-slogan">Never forget what to buy.</div>
+    </div>
+  `;
 
   return `
     <html>
@@ -1848,11 +1862,24 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
             background: #fff;
           }
 
+          .mc-print-item-copy {
+            min-width: 0;
+            padding-right: 2mm;
+          }
+
           .mc-print-name {
             font-size: 9.6pt;
             line-height: 1.15;
             font-weight: 700;
-            padding-right: 2mm;
+          }
+
+          .mc-print-note {
+            margin-top: 0.8mm;
+            font-size: 8.3pt;
+            line-height: 1.15;
+            font-weight: 500;
+            color: var(--mc-muted);
+            overflow-wrap: anywhere;
           }
 
           .mc-print-qty {
@@ -1867,6 +1894,30 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
             padding: 3mm 0;
             font-size: 10pt;
             color: var(--mc-muted);
+          }
+
+          .mc-print-brand-footer {
+            margin: 5mm 16px 0;
+            padding: 3.2mm 0 1mm;
+            border-top: 0.3mm solid var(--mc-line);
+            text-align: center;
+            color: var(--mc-muted);
+            page-break-inside: avoid;
+            break-inside: avoid;
+          }
+
+          .mc-print-brand-powered {
+            font-size: 8.8pt;
+            line-height: 1.15;
+            font-weight: 800;
+            color: var(--mc-navy);
+          }
+
+          .mc-print-brand-slogan {
+            margin-top: 0.8mm;
+            font-size: 7.8pt;
+            line-height: 1.15;
+            font-weight: 500;
           }
 
           @page {
@@ -1906,6 +1957,7 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
               <div class="mc-print-list">
                 ${sharedBody || `<div class="mc-print-empty">${emptyLabel}</div>`}
               </div>
+              ${sharedFooter}
             </div>
           </div>
 
@@ -1922,6 +1974,7 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
           <div class="mc-print-list">
             ${sharedBody || `<div class="mc-print-empty">${emptyLabel}</div>`}
           </div>
+          ${sharedFooter}
         </div>
       </body>
     </html>
