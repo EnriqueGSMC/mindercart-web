@@ -572,17 +572,22 @@ function formatWhatsAppUnit(value: unknown, quantity: unknown, language: string)
   );
 }
 
-function formatWhatsAppItemLine(item: Pick<DisplayListItem, "name" | "quantity" | "unit">, language: string) {
+function formatWhatsAppItemLine(
+  item: Pick<DisplayListItem, "name" | "quantity" | "unit" | "note">,
+  language: string
+) {
   const quantity = toSafeText(item.quantity);
   const unit = formatWhatsAppUnit(item.unit, item.quantity, language);
   const details = [quantity, unit].filter(Boolean).join(" ");
+  const note = toSafeText(item.note);
+  const displayName = note ? `${item.name} — ${note}` : item.name;
 
-  return details ? `- ${item.name} (${details})` : `- ${item.name}`;
+  return details ? `- ${displayName} (${details})` : `- ${displayName}`;
 }
 
 function buildStoreWhatsAppText(
   store: string,
-  items: Pick<DisplayListItem, "name" | "quantity" | "unit" | "category">[],
+  items: Pick<DisplayListItem, "name" | "quantity" | "unit" | "category" | "note">[],
   language: string
 ) {
   const groupedItems = groupItemsByCategory(items, language === "en" ? "en" : "es");
@@ -597,7 +602,13 @@ function buildStoreWhatsAppText(
     )
     .join("\n\n");
 
-  return `${store} (${items.length})\n\n${groupedText}`.trim();
+  const signature = [
+    "──────────────",
+    "Powered by MinderCart",
+    "Never forget what to buy.",
+  ].join("\n");
+
+  return `${store} (${items.length})\n\n${groupedText}\n\n${signature}`.trim();
 }
 
 function sideActionButtonStyle(fontSize: number): React.CSSProperties {
