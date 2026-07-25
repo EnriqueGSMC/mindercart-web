@@ -15,10 +15,18 @@ function normalize(value: unknown) {
     .replace(/\s+/g, " ");
 }
 
-function makeActiveKey(input: { itemKey?: string; name: string; unit: string; store: string; sourceListName?: string }) {
+function makeActiveKey(input: {
+  itemKey?: string;
+  name: string;
+  unit: string;
+  store: string;
+  sourceListName?: string;
+  note?: string;
+}) {
   const baseIdentity = normalize(input.itemKey || input.name);
   const sourceIdentity = normalize(input.sourceListName);
-  return [baseIdentity, sourceIdentity, normalize(input.unit), normalize(input.store)].join("|");
+  const noteIdentity = normalize(input.note);
+  return [baseIdentity, sourceIdentity, noteIdentity, normalize(input.unit), normalize(input.store)].join("|");
 }
 
 function formatDateOnly(value: string | number | Date, lang: "es" | "en") {
@@ -55,10 +63,13 @@ type HistoryLikeItem = {
   savedListName?: string;
   originListName?: string;
   listName?: string;
+  note?: string;
 };
 
 function buildQuickNeedPayload(item: HistoryLikeItem, fallbackStore: string) {
   const sourceListName = getSourceListName(item as unknown as Record<string, unknown>);
+  const note = typeof item.note === "string" ? item.note.trim() : "";
+
   return {
     name: item.name,
     category: item.category,
@@ -66,6 +77,7 @@ function buildQuickNeedPayload(item: HistoryLikeItem, fallbackStore: string) {
     quantity: item.quantity || "1",
     store: item.store || fallbackStore,
     ...(typeof item.itemKey === "string" && item.itemKey.trim() ? { itemKey: item.itemKey.trim() } : {}),
+    ...(note ? { note } : {}),
     ...(sourceListName
       ? {
           sourceListName,
@@ -381,6 +393,7 @@ export default function HistoryPage() {
                         );
                         const checked = repurchaseMode && (alreadyInMyList || Boolean(selectedByEntry[row.id]?.[item.id]));
                         const sourceListName = getSourceListName(item as unknown as Record<string, unknown>);
+                        const note = typeof item.note === "string" ? item.note.trim() : "";
 
                         const rowContent = (
                           <>
@@ -403,30 +416,45 @@ export default function HistoryPage() {
                                 gap: 10,
                               }}
                             >
-                              <div
-                                style={{
-                                  minWidth: 0,
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                  whiteSpace: "nowrap",
-                                  fontSize: s(16),
-                                  fontWeight: 500,
-                                  lineHeight: 1.2,
-                                  color: alreadyInMyList && repurchaseMode ? "#0f766e" : "#111827",
-                                }}
-                              >
-                                {item.name}
-                                {sourceListName ? (
-                                  <span
+                              <div style={{ minWidth: 0, flex: 1 }}>
+                                <div
+                                  style={{
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                    fontSize: s(16),
+                                    fontWeight: 500,
+                                    lineHeight: 1.2,
+                                    color: alreadyInMyList && repurchaseMode ? "#0f766e" : "#111827",
+                                  }}
+                                >
+                                  {item.name}
+                                  {sourceListName ? (
+                                    <span
+                                      style={{
+                                        marginLeft: 4,
+                                        fontSize: s(12),
+                                        fontWeight: 500,
+                                        color: "#6b7280",
+                                      }}
+                                    >
+                                      ({sourceListName})
+                                    </span>
+                                  ) : null}
+                                </div>
+                                {note ? (
+                                  <div
                                     style={{
-                                      marginLeft: 4,
-                                      fontSize: s(12),
-                                      fontWeight: 500,
-                                      color: "#6b7280",
+                                      marginTop: 3,
+                                      fontSize: s(13),
+                                      fontWeight: 400,
+                                      lineHeight: 1.25,
+                                      color: alreadyInMyList && repurchaseMode ? "#0f766e" : "#6b7280",
+                                      overflowWrap: "anywhere",
                                     }}
                                   >
-                                    ({sourceListName})
-                                  </span>
+                                    {note}
+                                  </div>
                                 ) : null}
                               </div>
                               <div
