@@ -59,6 +59,7 @@ type CatalogCategoryItem = {
   quantity: string;
   store: string;
   note?: string;
+  purchaseCount?: number;
 };
 
 type CatalogCategoryGroup = {
@@ -134,6 +135,16 @@ function formatUnitOptionLabel(value: string, lang: "es" | "en") {
   if (!meta) return String(value ?? "").trim();
 
   return lang === "en" ? `${meta.labelEn} (${meta.abbrEn})` : `${meta.labelEs} (${meta.abbrEs})`;
+}
+
+function formatPurchaseFrequency(count: number, lang: "es" | "en") {
+  const safeCount = Number.isFinite(count) && count > 0 ? count : 0;
+
+  if (lang === "en") {
+    return `${safeCount} ${safeCount === 1 ? "time" : "times"}`;
+  }
+
+  return `${safeCount} ${safeCount === 1 ? "vez" : "veces"}`;
 }
 
 function catalogBaseKey(item: { name: string; unit: string }) {
@@ -415,7 +426,10 @@ export default function CartPage() {
             sensitivity: "base",
           })
       )
-      .map((entry) => entry.item);
+      .map((entry) => ({
+        ...entry.item,
+        purchaseCount: entry.purchaseCount,
+      }));
   }, [catalogItems, itemsMaster, lang, settings.preferredStore, shoppingHistory]);
 
   const categoryGroups = React.useMemo<CatalogCategoryGroup[]>(() => {
@@ -1128,7 +1142,9 @@ export default function CartPage() {
                       ) : null}
                     </div>
                     <div style={{ fontSize: s(15), color: "#5b6b9a", flexShrink: 0 }}>
-                      <QtyUnitText quantity={item.quantity} unit={item.unit} />
+                      {selectedCategoryGroup.category === "Compras frecuentes"
+                        ? formatPurchaseFrequency(item.purchaseCount || 0, lang)
+                        : <QtyUnitText quantity={item.quantity} unit={item.unit} />}
                     </div>
                   </label>
                 );
