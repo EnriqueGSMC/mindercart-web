@@ -61,6 +61,7 @@ type DraftPurchaseItem = {
   unit: string;
   category: string;
   store: string;
+  note: string;
 };
 
 type DisplayListItem = {
@@ -473,6 +474,7 @@ function createDraftPurchaseItem(store: string, seed?: Partial<CatalogSuggestion
     unit: toSafeText(seed?.unit, "pza"),
     category: toSafeText(seed?.category, "Abarrotes"),
     store,
+    note: "",
   };
 }
 
@@ -962,6 +964,7 @@ export default function ShoppingPage() {
     const unit = toSafeText(draftPurchaseItem.unit, "pza");
     const category = toSafeText(draftPurchaseItem.category, "Abarrotes");
     const store = selectedStoreGroup.store;
+    const note = toSafeText(draftPurchaseItem.note).slice(0, 80);
     const state = readState();
 
     const activeShoppingListItems = Array.isArray(state.activeShoppingListItems)
@@ -976,7 +979,7 @@ export default function ShoppingPage() {
         name: articleName,
         unit,
         store,
-        note: "",
+        note,
       })
     );
 
@@ -999,6 +1002,7 @@ export default function ShoppingPage() {
       unit,
       category,
       store,
+      note,
       checked: false,
     };
 
@@ -1014,7 +1018,7 @@ export default function ShoppingPage() {
         name: articleName,
         unit,
         store,
-        note: "",
+        note,
       })
     );
 
@@ -1029,6 +1033,7 @@ export default function ShoppingPage() {
       unit,
       category,
       store,
+      note,
       active: true,
       lastUsedAt: Date.now(),
     };
@@ -1634,6 +1639,32 @@ export default function ShoppingPage() {
                         </option>
                       ))}
                     </select>
+                  </label>
+
+                  <label style={{ display: "grid", gap: 6 }}>
+                    <span style={{ fontSize: s(13), fontWeight: 800, color: MC_NAVY }}>
+                      {lang === "en" ? "Note (optional)" : "Nota (opcional)"}
+                    </span>
+                    <input
+                      value={draftPurchaseItem.note}
+                      onChange={(event) => updateDraftPurchaseItem("note", event.target.value)}
+                      maxLength={80}
+                      placeholder={
+                        lang === "en"
+                          ? "Example: cherry or orange"
+                          : "Ejemplo: cherry o naranja"
+                      }
+                      style={{
+                        width: "100%",
+                        minHeight: 48,
+                        borderRadius: 14,
+                        border: `1px solid ${MC_NAVY_LINE}`,
+                        padding: "12px 14px",
+                        fontSize: s(16),
+                        outline: "none",
+                        color: MC_NAVY,
+                      }}
+                    />
                   </label>
                 </div>
 
