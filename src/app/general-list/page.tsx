@@ -24,6 +24,10 @@ const CATEGORY_FOOTER_INSET = 112;
 const CHECKED_ROW_BG = "#EAF1FF";
 const CHECKED_ROW_BORDER = "#C9D8FF";
 const ADD_STORE_VALUE = "__ADD_STORE__";
+const FREQUENT_PURCHASE_MIN_COUNT = 3;
+const FREQUENT_PURCHASE_RECENCY_DAYS = 60;
+const FREQUENT_PURCHASE_RECENCY_MS =
+  FREQUENT_PURCHASE_RECENCY_DAYS * 24 * 60 * 60 * 1000;
 
 const UNIT_OPTION_META: Record<string, { labelEs: string; labelEn: string; abbrEs: string; abbrEn: string }> = {
   pza: { labelEs: "Pieza", labelEn: "Piece", abbrEs: "pza", abbrEn: "pc" },
@@ -48,11 +52,13 @@ const UNIT_OPTION_META: Record<string, { labelEs: string; labelEn: string; abbrE
 
 type CatalogCategoryItem = {
   id: string;
+  itemKey?: string;
   name: string;
   category: string;
   unit: string;
   quantity: string;
   store: string;
+  note?: string;
 };
 
 type CatalogCategoryGroup = {
@@ -130,8 +136,22 @@ function formatUnitOptionLabel(value: string, lang: "es" | "en") {
   return lang === "en" ? `${meta.labelEn} (${meta.abbrEn})` : `${meta.labelEs} (${meta.abbrEs})`;
 }
 
-function catalogKey(item: { name: string; unit: string }) {
+function catalogBaseKey(item: { name: string; unit: string }) {
   return `${normalizeValue(item.name)}__${normalizeValue(item.unit)}`;
+}
+
+function catalogKey(item: { name: string; unit: string; note?: string | null }) {
+  return `${catalogBaseKey(item)}__${normalizeValue(item.note)}`;
+}
+
+function frequentPurchaseIdentity(item: {
+  itemKey?: string;
+  name: string;
+  unit: string;
+  note?: string | null;
+}) {
+  const baseIdentity = normalizeValue(item.itemKey) || normalizeValue(item.name);
+  return `${baseIdentity}__${normalizeValue(item.unit)}__${normalizeValue(item.note)}`;
 }
 
 function preferredStoreFor(item: Pick<ItemMaster, "defaultStore">, preferredStore: string) {
@@ -182,6 +202,7 @@ export default function CartPage() {
   const {
     generalListItems,
     activeShoppingListItems,
+    shoppingHistory,
     itemsMaster,
     settings,
     hydrated,
@@ -266,6 +287,7 @@ export default function CartPage() {
 
         deduped.set(key, {
           id: item.id,
+          itemKey: item.itemKey,
           name: item.name,
           category: item.category,
           unit: item.unit,
@@ -277,9 +299,131 @@ export default function CartPage() {
     return [...deduped.values()].sort((a, b) => a.name.localeCompare(b.name));
   }, [generalListQuantityByCatalogKey, itemsMaster, settings.preferredStore]);
 
+  const frequentPurchaseItems = React.useMemo<CatalogCategoryItem[]>(() => {
+    const locale = lang === "en" ? "en" : "es";
+    const catalogByItemKey = new Map<string, CatalogCategoryItem>();
+    const catalogByLocalizedNameAndUnit = new Map<string, CatalogCategoryItem>();
+
+    catalogItems.forEach((item) => {
+      const normalizedItemKey = normalizeValue(item.itemKey);
+      if (normalizedItemKey) catalogByItemKey.set(normalizedItemKey, item);
+      catalogByLocalizedNameAndUnit.set(catalogBaseKey(item), item);
+    });
+
+    itemsMaster
+      .filter((item: ItemMaster) => item.active !== false)
+      .forEach((item: ItemMaster) => {
+        const normalizedItemKey = normalizeValue(item.itemKey);
+        const catalogItem =
+          (normalizedItemKey ? catalogByItemKey.get(normalizedItemKey) : null) ??
+          catalogByLocalizedNameAndUnit.get(catalogBaseKey(item));
+
+        if (!catalogItem) return;
+
+        [item.name, item.nameEs, item.nameEn]
+          .map((name) => String(name ?? "").trim())
+          .filter(Boolean)
+          .forEach((name) => {
+            catalogByLocalizedNameAndUnit.set(
+              catalogBaseKey({ name, unit: item.unit }),
+              catalogItem
+            );
+          });
+      });
+
+    const aggregates = new Map<
+      string,
+      {
+        purchaseCount: number;
+        lastPurchasedAt: number;
+        item: CatalogCategoryItem;
+      }
+    >();
+
+    shoppingHistory.forEach((purchase) => {
+      const closedAt = new Date(purchase.closedAt).getTime();
+      if (!Number.isFinite(closedAt)) return;
+
+      const seenInPurchase = new Set<string>();
+
+      purchase.items.forEach((historyItem) => {
+        const normalizedHistoryItemKey = normalizeValue(historyItem.itemKey);
+        const currentCatalogItem =
+          (normalizedHistoryItemKey
+            ? catalogByItemKey.get(normalizedHistoryItemKey)
+            : null) ??
+          catalogByLocalizedNameAndUnit.get(
+            catalogBaseKey({
+              name: historyItem.name,
+              unit: historyItem.unit,
+            })
+          );
+
+        if (!currentCatalogItem) return;
+
+        const note = String(historyItem.note ?? "").trim();
+        const identity = frequentPurchaseIdentity({
+          itemKey: currentCatalogItem.itemKey,
+          name: currentCatalogItem.name,
+          unit: historyItem.unit || currentCatalogItem.unit,
+          note,
+        });
+
+        if (seenInPurchase.has(identity)) return;
+        seenInPurchase.add(identity);
+
+        const existing = aggregates.get(identity);
+        const isLatestPurchase = !existing || closedAt > existing.lastPurchasedAt;
+
+        aggregates.set(identity, {
+          purchaseCount: (existing?.purchaseCount ?? 0) + 1,
+          lastPurchasedAt: Math.max(existing?.lastPurchasedAt ?? 0, closedAt),
+          item: isLatestPurchase
+            ? {
+                id: `frequent:${identity}`,
+                itemKey: currentCatalogItem.itemKey,
+                name: currentCatalogItem.name,
+                category: currentCatalogItem.category,
+                unit: historyItem.unit || currentCatalogItem.unit,
+                quantity: String(historyItem.quantity || "1"),
+                store:
+                  historyItem.store ||
+                  purchase.store ||
+                  currentCatalogItem.store ||
+                  settings.preferredStore ||
+                  "HEB",
+                note,
+              }
+            : existing.item,
+        });
+      });
+    });
+
+    const recentCutoff = Date.now() - FREQUENT_PURCHASE_RECENCY_MS;
+
+    return [...aggregates.values()]
+      .filter(
+        (entry) =>
+          entry.purchaseCount >= FREQUENT_PURCHASE_MIN_COUNT &&
+          entry.lastPurchasedAt >= recentCutoff
+      )
+      .sort(
+        (left, right) =>
+          right.purchaseCount - left.purchaseCount ||
+          right.lastPurchasedAt - left.lastPurchasedAt ||
+          left.item.name.localeCompare(right.item.name, locale, {
+            sensitivity: "base",
+          })
+      )
+      .map((entry) => entry.item);
+  }, [catalogItems, itemsMaster, lang, settings.preferredStore, shoppingHistory]);
+
   const categoryGroups = React.useMemo<CatalogCategoryGroup[]>(() => {
     const locale = lang === "en" ? "en" : "es";
-    const frequentPurchasesGroup: CatalogCategoryGroup = { category: "Compras frecuentes", items: [] };
+    const frequentPurchasesGroup: CatalogCategoryGroup = {
+      category: "Compras frecuentes",
+      items: frequentPurchaseItems,
+    };
     const grouped = new Map<string, CatalogCategoryItem[]>();
 
     for (const item of catalogItems) {
@@ -301,7 +445,7 @@ export default function CartPage() {
       );
 
     return [frequentPurchasesGroup, ...orderedGroups];
-  }, [catalogItems, lang]);
+  }, [catalogItems, frequentPurchaseItems, lang]);
 
   const selectedCategoryGroup =
     categoryGroups.find((group) => group.category === openCategory) ?? null;
@@ -321,6 +465,7 @@ export default function CartPage() {
           unit: item.unit,
           quantity: item.quantity || "1",
           store: item.store || settings.preferredStore || "HEB",
+          note: item.note || "",
         });
       }
       return;
@@ -963,8 +1108,24 @@ export default function CartPage() {
                       style={{ width: 18, height: 18, flexShrink: 0 }}
                     />
 
-                    <div style={{ flex: 1, minWidth: 0, fontSize: s(17), fontWeight: 500 }}>
-                      {item.name}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: s(17), fontWeight: 500 }}>
+                        {item.name}
+                      </div>
+                      {item.note ? (
+                        <div
+                          style={{
+                            marginTop: 2,
+                            fontSize: s(13),
+                            fontWeight: 400,
+                            color: "#5b6b9a",
+                            lineHeight: 1.25,
+                            overflowWrap: "anywhere",
+                          }}
+                        >
+                          {item.note}
+                        </div>
+                      ) : null}
                     </div>
                     <div style={{ fontSize: s(15), color: "#5b6b9a", flexShrink: 0 }}>
                       <QtyUnitText quantity={item.quantity} unit={item.unit} />
