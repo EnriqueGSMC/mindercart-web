@@ -712,15 +712,19 @@ function upsertItemMaster(
 
 function upsertGeneralListItem(
   generalListItems: GeneralListItem[],
-  input: { name: string; category: string; unit: string; quantity: string; store: string },
+  input: { name: string; category: string; unit: string; quantity: string; store: string; note?: string },
   itemsMaster = readState().itemsMaster
 ): GeneralListItem[] {
   const match = resolveCatalogMatch(itemsMaster, input.name);
   const nextItemKey = "itemKey" in (match || {}) ? safe((match as { itemKey?: string }).itemKey) : "";
   const itemKeyValue = nextItemKey || makeItemKey(input.name);
+  const note = safe(input.note);
 
   const existing = generalListItems.find(
-    (item) => (safe(item.itemKey) || `${normalize(item.name)}__${normalize(item.unit)}`) === (itemKeyValue || `${normalize(input.name)}__${normalize(input.unit)}`)
+    (item) =>
+      (safe(item.itemKey) || `${normalize(item.name)}__${normalize(item.unit)}`) ===
+        (itemKeyValue || `${normalize(input.name)}__${normalize(input.unit)}`) &&
+      normalize(item.note) === normalize(note)
   );
 
   if (existing) {
@@ -734,6 +738,7 @@ function upsertGeneralListItem(
             unit: canonicalizeUnit(input.unit),
             quantity: safe(input.quantity) || item.quantity,
             store: cleanStore(input.store) || item.store,
+            note,
             active: true,
             lastUsedAt: now(),
           }
@@ -750,6 +755,7 @@ function upsertGeneralListItem(
       unit: canonicalizeUnit(input.unit),
       quantity: safe(input.quantity) || "1",
       store: cleanStore(input.store),
+      note,
       active: true,
       lastUsedAt: now(),
     },
@@ -771,12 +777,15 @@ function findMatchingActiveItemByContext<
     unit: string;
     store?: string;
     sourceListName?: string | null;
+    note?: string | null;
   }
->(items: T[], key: string, sourceListName?: string) {
+>(items: T[], key: string, sourceListName?: string, note?: string) {
   const incomingSourceListName = safe(sourceListName);
+  const incomingNote = normalize(note);
 
   return items.find((item) => {
     if (itemKey(item) !== key) return false;
+    if (normalize(item.note) !== incomingNote) return false;
 
     const currentSourceListName = sourceListNameOf(item);
 
@@ -797,6 +806,7 @@ function addQuickNeedInternal(input: {
   store: string;
   itemKey?: string;
   sourceListName?: string;
+  note?: string;
 }) {
   const state = readState();
   const name = safe(input.name);
@@ -804,6 +814,7 @@ function addQuickNeedInternal(input: {
   const unit = canonicalizeUnit(input.unit);
   const quantity = safe(input.quantity) || "1";
   const store = safe(input.store) || state.settings.preferredStore || "HEB";
+  const note = safe(input.note);
   const requestedItemKey = safe(input.itemKey);
   const requestedCatalogItem = requestedItemKey
     ? state.itemsMaster.find((item) => safe(item.itemKey) === requestedItemKey)
@@ -825,7 +836,12 @@ function addQuickNeedInternal(input: {
   }
 
   const key = itemKey({ itemKey: trackedItemKey, name, unit, store });
-  const existing = findMatchingActiveItemByContext(state.activeShoppingListItems, key, input.sourceListName);
+  const existing = findMatchingActiveItemByContext(
+    state.activeShoppingListItems,
+    key,
+    input.sourceListName,
+    note
+  );
 
   const activeShoppingListItems = existing
     ? state.activeShoppingListItems.map((item) =>
@@ -835,6 +851,7 @@ function addQuickNeedInternal(input: {
               itemKey: trackedItemKey,
               category,
               quantity: numericSum(item.quantity, quantity),
+              note,
               sourceTypes: Array.from(new Set([...item.sourceTypes, "quick_add"])),
               sourceListName: safe(input.sourceListName) || safe((item as { sourceListName?: string }).sourceListName),
             }
@@ -849,6 +866,7 @@ function addQuickNeedInternal(input: {
           unit,
           quantity,
           store,
+          note,
           checked: false,
           sourceTypes: ["quick_add"],
           sourceRefs: [],
@@ -867,6 +885,7 @@ function addQuickNeedInternal(input: {
       unit,
       quantity,
       store,
+      note,
     }),
     activeShoppingListItems,
   };
@@ -887,6 +906,7 @@ export function addQuickNeedWithResult(input: {
   store: string;
   itemKey?: string;
   sourceListName?: string;
+  note?: string;
 }) {
   return addQuickNeedInternal(input);
 }
@@ -899,6 +919,7 @@ export function addQuickNeed(input: {
   store: string;
   itemKey?: string;
   sourceListName?: string;
+  note?: string;
 }) {
   return addQuickNeedInternal(input).state;
 }
@@ -910,6 +931,7 @@ export function addQuickNeeds(inputs: Array<{
   quantity: string;
   store: string;
   sourceListName?: string;
+  note?: string;
 }>) {
   const state = readState();
   let itemsMaster = state.itemsMaster;
@@ -922,6 +944,7 @@ export function addQuickNeeds(inputs: Array<{
     const unit = canonicalizeUnit(input.unit);
     const quantity = safe(input.quantity) || "1";
     const store = safe(input.store) || state.settings.preferredStore || "HEB";
+    const note = safe(input.note);
     const catalogMatch = resolveCatalogMatch(itemsMaster, name);
     const catalogItemKey =
       "itemKey" in (catalogMatch || {}) ? safe((catalogMatch as { itemKey?: string }).itemKey) : "";
@@ -930,7 +953,12 @@ export function addQuickNeeds(inputs: Array<{
     if (!name) throw new Error("Artículo requerido");
 
     const key = itemKey({ itemKey: trackedItemKey, name, unit, store });
-    const existing = findMatchingActiveItemByContext(activeShoppingListItems, key, input.sourceListName);
+    const existing = findMatchingActiveItemByContext(
+      activeShoppingListItems,
+      key,
+      input.sourceListName,
+      note
+    );
 
     activeShoppingListItems = existing
       ? activeShoppingListItems.map((item) =>
@@ -940,6 +968,7 @@ export function addQuickNeeds(inputs: Array<{
                 itemKey: trackedItemKey,
                 category,
                 quantity: numericSum(item.quantity, quantity),
+                note,
                 sourceTypes: Array.from(new Set([...item.sourceTypes, "quick_add"])),
                 sourceListName: safe(input.sourceListName) || safe((item as { sourceListName?: string }).sourceListName),
               }
@@ -954,6 +983,7 @@ export function addQuickNeeds(inputs: Array<{
             unit,
             quantity,
             store,
+            note,
             checked: false,
             sourceTypes: ["quick_add"],
             sourceRefs: [],
@@ -973,6 +1003,7 @@ export function addQuickNeeds(inputs: Array<{
         unit,
         quantity,
         store,
+        note,
       },
       currentItemsMaster
     );
@@ -998,7 +1029,12 @@ export function addGeneralSelections(ids: string[]) {
 
   for (const item of selected) {
     const key = itemKey(item);
-    const existing = findMatchingActiveItemByContext(activeShoppingListItems, key);
+    const existing = findMatchingActiveItemByContext(
+      activeShoppingListItems,
+      key,
+      undefined,
+      item.note
+    );
 
     if (existing) {
       activeShoppingListItems = activeShoppingListItems.map((row) =>
@@ -1008,6 +1044,7 @@ export function addGeneralSelections(ids: string[]) {
               itemKey: safe(item.itemKey) || row.itemKey,
               category: item.category || row.category,
               quantity: numericSum(row.quantity, item.quantity),
+              note: safe(item.note),
               sourceTypes: Array.from(new Set([...row.sourceTypes, "general_list"])),
               sourceRefs: Array.from(new Set([...row.sourceRefs, item.id])),
             }
@@ -1023,6 +1060,7 @@ export function addGeneralSelections(ids: string[]) {
           unit: canonicalizeUnit(item.unit),
           quantity: item.quantity || "1",
           store: item.store || state.settings.preferredStore,
+          note: safe(item.note),
           checked: false,
           sourceTypes: ["general_list"],
           sourceRefs: [item.id],
@@ -1096,6 +1134,7 @@ export function deleteActiveItemEverywhere(id: string) {
   const targetItemKey = safe(target.itemKey);
   const targetName = normalize(target.name);
   const targetUnit = normalize(target.unit);
+  const targetNote = normalize(target.note);
 
   const next: MinderCartState = {
     ...state,
@@ -1104,7 +1143,10 @@ export function deleteActiveItemEverywhere(id: string) {
       const sameSource = sourceRefSet.size > 0 && sourceRefSet.has(item.id);
       const sameItemKey = targetItemKey && safe(item.itemKey) === targetItemKey;
       const sameItem = normalize(item.name) === targetName && normalize(item.unit) === targetUnit;
-      return sameSource || sameItemKey || sameItem ? { ...item, active: false } : item;
+      const sameNote = normalize(item.note) === targetNote;
+      return sameSource || ((sameItemKey || sameItem) && sameNote)
+        ? { ...item, active: false }
+        : item;
     }),
     itemsMaster: state.itemsMaster,
   };
@@ -1576,7 +1618,14 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
                 (item) => `
                   <div class="mc-print-row">
                     <div class="mc-print-checkbox" aria-hidden="true"></div>
-                    <div class="mc-print-name">${escapeHtml(item.name)}</div>
+                    <div class="mc-print-item-copy">
+                      <div class="mc-print-name">${escapeHtml(item.name)}</div>
+                      ${
+                        safe(item.note)
+                          ? `<div class="mc-print-note">${escapeHtml(item.note)}</div>`
+                          : ""
+                      }
+                    </div>
                     <div class="mc-print-qty">${escapeHtml(item.quantity)} ${escapeHtml(unitLabel(lang, item.unit))}</div>
                   </div>
                 `
@@ -1587,6 +1636,13 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
       `
     )
     .join("");
+
+  const sharedFooter = `
+    <div class="mc-print-brand-footer">
+      <div class="mc-print-brand-powered">Powered by MinderCart</div>
+      <div class="mc-print-brand-slogan">Never forget what to buy.</div>
+    </div>
+  `;
 
   return `
     <html>
@@ -1806,11 +1862,24 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
             background: #fff;
           }
 
+          .mc-print-item-copy {
+            min-width: 0;
+            padding-right: 2mm;
+          }
+
           .mc-print-name {
             font-size: 9.6pt;
             line-height: 1.15;
             font-weight: 700;
-            padding-right: 2mm;
+          }
+
+          .mc-print-note {
+            margin-top: 0.8mm;
+            font-size: 8.3pt;
+            line-height: 1.15;
+            font-weight: 500;
+            color: var(--mc-muted);
+            overflow-wrap: anywhere;
           }
 
           .mc-print-qty {
@@ -1825,6 +1894,30 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
             padding: 3mm 0;
             font-size: 10pt;
             color: var(--mc-muted);
+          }
+
+          .mc-print-brand-footer {
+            margin: 5mm 16px 0;
+            padding: 3.2mm 0 1mm;
+            border-top: 0.3mm solid var(--mc-line);
+            text-align: center;
+            color: var(--mc-muted);
+            page-break-inside: avoid;
+            break-inside: avoid;
+          }
+
+          .mc-print-brand-powered {
+            font-size: 8.8pt;
+            line-height: 1.15;
+            font-weight: 800;
+            color: var(--mc-navy);
+          }
+
+          .mc-print-brand-slogan {
+            margin-top: 0.8mm;
+            font-size: 7.8pt;
+            line-height: 1.15;
+            font-weight: 500;
           }
 
           @page {
@@ -1864,6 +1957,7 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
               <div class="mc-print-list">
                 ${sharedBody || `<div class="mc-print-empty">${emptyLabel}</div>`}
               </div>
+              ${sharedFooter}
             </div>
           </div>
 
@@ -1880,6 +1974,7 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
           <div class="mc-print-list">
             ${sharedBody || `<div class="mc-print-empty">${emptyLabel}</div>`}
           </div>
+          ${sharedFooter}
         </div>
       </body>
     </html>

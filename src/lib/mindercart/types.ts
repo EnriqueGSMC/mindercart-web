@@ -29,6 +29,7 @@ export type GeneralListItem = SourceListMetadata & {
   unit: string;
   quantity: string;
   store: string;
+  note?: string;
   active: boolean;
   lastUsedAt: number | null;
 };
@@ -41,6 +42,7 @@ export type ActiveShoppingListItem = SourceListMetadata & {
   unit: string;
   quantity: string;
   store: string;
+  note?: string;
   checked: boolean;
   sourceTypes: string[];
   sourceRefs: string[];

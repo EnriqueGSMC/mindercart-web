@@ -24,6 +24,7 @@ type DraftItem = {
   unit: string;
   quantity: string;
   store: string;
+  note?: string;
 };
 
 type DraftSelectOptions = {
@@ -517,6 +518,7 @@ export default function NeedsPage() {
       unit: normalizeUnit(input.unit),
       quantity: input.quantity || "1",
       store: input.store || settings.preferredStore || "HEB",
+      note: input.note ?? "",
     });
   }
 
@@ -528,6 +530,7 @@ export default function NeedsPage() {
     quantity: string;
     store: string;
     sourceListName?: string;
+    note?: string;
   }) {
     setEditingSavedListItemId(null);
     setEditingActiveItemId(item.id);
@@ -538,6 +541,7 @@ export default function NeedsPage() {
       unit: normalizeUnit(item.unit),
       quantity: item.quantity || "1",
       store: item.store || settings.preferredStore || "HEB",
+      note: item.note ?? "",
     });
   }
 
@@ -911,6 +915,32 @@ export default function NeedsPage() {
               <option value={ADD_STORE_VALUE}>{lang === "en" ? "Add" : "Agregar"}</option>
             </select>
           </div>
+
+          {!isSavedListEditorView ? (
+            <div>
+              <div style={{ fontSize: s(12), fontWeight: 700, marginBottom: 5 }}>
+                {lang === "en" ? "Note or preference (optional)" : "Nota o preferencia (opcional)"}
+              </div>
+              <input
+                value={draft.note ?? ""}
+                maxLength={80}
+                onChange={(e) => updateDraftField("note", e.target.value)}
+                placeholder={
+                  lang === "en"
+                    ? "e.g. Cherry, sugar-free, preferred brand"
+                    : "ej. Cherry, sin azúcar, marca preferida"
+                }
+                style={{
+                  width: "100%",
+                  padding: "12px 14px",
+                  borderRadius: 14,
+                  border: `1px solid ${MC_NAVY_LINE}`,
+                  boxSizing: "border-box",
+                  fontSize: s(15),
+                }}
+              />
+            </div>
+          ) : null}
         </div>
 
         <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
@@ -1354,7 +1384,19 @@ export default function NeedsPage() {
           </>
         ) : isOpenSavedListView ? (
           <>
-            <section style={{ ...cardStyle(), padding: "14px 14px", boxSizing: "border-box", overflow: "hidden" }}>
+            <section
+              style={{
+                ...cardStyle(),
+                padding: "12px 14px",
+                boxSizing: "border-box",
+                overflow: "hidden",
+                position: "sticky",
+                top: 0,
+                zIndex: 20,
+                background: "#fff",
+                boxShadow: "0 8px 22px rgba(18,36,94,0.12)",
+              }}
+            >
               <div
                 style={{
                   display: "flex",
@@ -1419,14 +1461,23 @@ export default function NeedsPage() {
               </section>
             ) : (
               <>
-                <section style={{ ...cardStyle(), padding: 14, paddingBottom: "calc(26px + env(safe-area-inset-bottom))", width: "100%", boxSizing: "border-box", overflow: "hidden" }}>
+                <section
+                  style={{
+                    ...cardStyle(),
+                    padding: 10,
+                    paddingBottom: "calc(22px + env(safe-area-inset-bottom))",
+                    width: "100%",
+                    boxSizing: "border-box",
+                    overflow: "hidden",
+                  }}
+                >
                   <div
                     style={{
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "space-between",
-                      gap: 12,
-                      marginBottom: 14,
+                      gap: 10,
+                      marginBottom: 10,
                     }}
                   >
                     <div
@@ -1465,18 +1516,19 @@ export default function NeedsPage() {
                   {groupedOpenedSavedListItems.length === 0 ? (
                     <div style={{ fontSize: s(14), color: MC_NAVY_MUTED }}>{noDraftItemsLabel}</div>
                   ) : (
-                    <div style={{ display: "grid", gap: 14, paddingBottom: 18 }}>
+                    <div style={{ display: "grid", gap: 10, paddingBottom: 14 }}>
                       {groupedOpenedSavedListItems.map((section) => (
-                        <div key={categoryLabel(lang, section.category)} style={{ display: "grid", gap: 8 }}>
+                        <div key={categoryLabel(lang, section.category)} style={{ display: "grid", gap: 6 }}>
                           <div
                             style={{
-                              padding: "9px 12px",
-                              borderRadius: 12,
+                              padding: "7px 10px",
+                              borderRadius: 10,
                               border: `1px solid ${MC_NAVY_LINE}`,
                               background: MC_NAVY_SOFT,
                               color: MC_NAVY,
-                              fontSize: s(13),
+                              fontSize: s(12),
                               fontWeight: 900,
+                              lineHeight: 1.15,
                             }}
                           >
                             {categoryLabel(lang, section.category)}
@@ -1485,7 +1537,7 @@ export default function NeedsPage() {
                           <div
                             style={{
                               border: `1px solid ${MC_NAVY_SOFT}`,
-                              borderRadius: 16,
+                              borderRadius: 14,
                               overflow: "hidden",
                               background: "#fff",
                             }}
@@ -1498,11 +1550,12 @@ export default function NeedsPage() {
                                 <label
                                   key={item.id}
                                   style={{
-                                    display: "flex",
-                                    gap: 12,
+                                    display: "grid",
+                                    gridTemplateColumns: "20px minmax(0, 1fr) auto",
+                                    gap: 9,
                                     alignItems: "center",
-                                    justifyContent: "space-between",
-                                    padding: "14px 12px",
+                                    minHeight: 46,
+                                    padding: "8px 10px",
                                     borderBottom: index === section.items.length - 1 ? "none" : "1px solid #f3f4f6",
                                     cursor: alreadyInMyList ? "default" : "pointer",
                                     width: "100%",
@@ -1510,41 +1563,77 @@ export default function NeedsPage() {
                                     overflow: "hidden",
                                   }}
                                 >
-                                  <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, flex: 1, overflow: "hidden" }}>
-                                    <input
-                                      type="checkbox"
-                                      checked={isChecked}
-                                      disabled={alreadyInMyList}
-                                      onChange={() => toggleOpenedSavedListItem(item.id)}
-                                      style={{ width: 18, height: 18, accentColor: MC_NAVY }}
-                                    />
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    disabled={alreadyInMyList}
+                                    onChange={() => toggleOpenedSavedListItem(item.id)}
+                                    style={{
+                                      width: 18,
+                                      height: 18,
+                                      margin: 0,
+                                      accentColor: MC_NAVY,
+                                      flexShrink: 0,
+                                    }}
+                                  />
 
-                                    <div style={{ minWidth: 0 }}>
-                                      <div style={{ fontSize: s(18), fontWeight: 500, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
-                                        {item.name}
-                                      </div>
-                                      <div style={{ fontSize: s(13), color: MC_NAVY_MUTED }}>
-                                        <QtyUnitText quantity={String(item.quantity)} unit={item.unit} />
-                                        {item.store ? ` · ${item.store}` : ""}
-                                      </div>
-                                    </div>
+                                  <div
+                                    title={item.name}
+                                    style={{
+                                      minWidth: 0,
+                                      overflow: "hidden",
+                                      textOverflow: "ellipsis",
+                                      whiteSpace: "nowrap",
+                                      fontSize: s(16),
+                                      fontWeight: 500,
+                                      lineHeight: 1.15,
+                                    }}
+                                  >
+                                    {item.name}
                                   </div>
 
-                                  {alreadyInMyList ? (
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "flex-end",
+                                      gap: 7,
+                                      minWidth: 0,
+                                      maxWidth: "48vw",
+                                      color: MC_NAVY_MUTED,
+                                      whiteSpace: "nowrap",
+                                    }}
+                                  >
                                     <div
                                       style={{
-                                        fontSize: s(11),
-                                        color: MC_NAVY_MUTED,
-                                        textAlign: "right",
+                                        minWidth: 0,
+                                        overflow: "hidden",
+                                        textOverflow: "ellipsis",
+                                        fontSize: s(12),
                                         lineHeight: 1.15,
-                                        maxWidth: 72,
-                                        flexShrink: 0,
                                       }}
                                     >
-                                      <div>{lang === "en" ? "Already in" : "Ya está en"}</div>
-                                      <div>{lang === "en" ? "My List" : "Mi Lista"}</div>
+                                      <QtyUnitText quantity={String(item.quantity)} unit={item.unit} />
+                                      {item.store ? ` · ${item.store}` : ""}
                                     </div>
-                                  ) : null}
+
+                                    {alreadyInMyList ? (
+                                      <div
+                                        style={{
+                                          padding: "3px 6px",
+                                          borderRadius: 999,
+                                          background: MC_NAVY_SOFT,
+                                          color: MC_NAVY,
+                                          fontSize: s(10),
+                                          fontWeight: 800,
+                                          lineHeight: 1,
+                                          flexShrink: 0,
+                                        }}
+                                      >
+                                        {lang === "en" ? "In My List" : "En Mi Lista"}
+                                      </div>
+                                    ) : null}
+                                  </div>
                                 </label>
                               );
                             })}
@@ -1847,6 +1936,19 @@ export default function NeedsPage() {
                             </span>
                           ) : null}
                         </div>
+                        {item.note ? (
+                          <div
+                            style={{
+                              marginTop: 2,
+                              fontSize: s(13),
+                              fontWeight: 400,
+                              color: MC_NAVY_MUTED,
+                              lineHeight: 1.25,
+                            }}
+                          >
+                            {item.note}
+                          </div>
+                        ) : null}
                       </div>
 
                       <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>

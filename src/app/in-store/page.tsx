@@ -33,12 +33,14 @@ import { useMinderCartState } from "@/lib/mindercart/hooks";
 type RemoveAction = {
   id: string;
   name: string;
+  note?: string | null;
 } | null;
 
 type MoveStoreSelection = {
   id: string;
   name: string;
   currentStore: string;
+  note?: string | null;
 } | null;
 
 const MOVE_STORE_ADD_VALUE = "__add_store__";
@@ -59,6 +61,7 @@ type DraftPurchaseItem = {
   unit: string;
   category: string;
   store: string;
+  note: string;
 };
 
 type DisplayListItem = {
@@ -68,6 +71,7 @@ type DisplayListItem = {
   unit: string;
   category?: string;
   sourceListName?: string | null;
+  note?: string | null;
 };
 
 const OFFICIAL_CATEGORY_VALUES = CATEGORY_CATALOG.map((row) => row.legacyValue);
@@ -144,10 +148,16 @@ function deleteItemEverywhere(id: string) {
   const target = state.activeShoppingListItems.find((item) => item.id === id);
   if (!target) return state;
 
-  const sameGeneralItem = (item: { name: string; unit: string; store: string }) =>
+  const sameGeneralItem = (item: {
+    name: string;
+    unit: string;
+    store: string;
+    note?: string | null;
+  }) =>
     normalizeValue(item.name) === normalizeValue(target.name) &&
     normalizeValue(item.unit) === normalizeValue(target.unit) &&
-    normalizeValue(item.store) === normalizeValue(target.store);
+    normalizeValue(item.store) === normalizeValue(target.store) &&
+    normalizeValue(item.note) === normalizeValue(target.note);
 
   const next = {
     ...state,
@@ -173,15 +183,18 @@ function sameNameInStore(
     name?: unknown;
     store?: unknown;
     defaultStore?: unknown;
+    note?: unknown;
   },
   target: {
     name: string;
     store: string;
+    note?: string | null;
   }
 ) {
   return (
     normalizeValue(item.name) === normalizeValue(target.name) &&
-    normalizeValue(item.store ?? item.defaultStore) === normalizeValue(target.store)
+    normalizeValue(item.store ?? item.defaultStore) === normalizeValue(target.store) &&
+    normalizeValue(item.note) === normalizeValue(target.note)
   );
 }
 
@@ -193,19 +206,22 @@ function sameSourceAwareIdentity(
     store?: unknown;
     defaultStore?: unknown;
     sourceListName?: unknown;
+    note?: unknown;
   },
   target: {
     name: string;
     unit: string;
     store: string;
     sourceListName?: string | null;
+    note?: string | null;
   }
 ) {
   return (
     normalizeValue(item.name) === normalizeValue(target.name) &&
     normalizeValue(item.unit ?? item.defaultUnit) === normalizeValue(target.unit) &&
     normalizeValue(item.store ?? item.defaultStore) === normalizeValue(target.store) &&
-    normalizeValue(item.sourceListName) === normalizeValue(target.sourceListName)
+    normalizeValue(item.sourceListName) === normalizeValue(target.sourceListName) &&
+    normalizeValue(item.note) === normalizeValue(target.note)
   );
 }
 
@@ -275,12 +291,14 @@ function moveActiveItemToStore(id: string, targetStore: string) {
   const sourceCategory = toSafeText(sourceItem.category, "Abarrotes");
   const sourceHasOrigin = hasSourceListOrigin(sourceItem);
   const sourceSourceListName = toSafeText(sourceItem.sourceListName);
+  const sourceNote = toSafeText(sourceItem.note);
   const sameNameDestinationItems = activeShoppingListItems.filter(
     (item, index) =>
       index !== sourceIndex &&
       sameNameInStore(item, {
         name: sourceName,
         store: nextStore,
+        note: sourceNote,
       })
   );
   const mergeTarget = !sourceHasOrigin
@@ -297,6 +315,7 @@ function moveActiveItemToStore(id: string, targetStore: string) {
       unit: sourceUnit,
       store: currentStore,
       sourceListName: sourceSourceListName,
+      note: sourceNote,
     })
   );
 
@@ -329,6 +348,7 @@ function moveActiveItemToStore(id: string, targetStore: string) {
         unit: sourceUnit,
         store: nextStore,
         sourceListName: "",
+        note: sourceNote,
       })
     );
 
@@ -454,6 +474,7 @@ function createDraftPurchaseItem(store: string, seed?: Partial<CatalogSuggestion
     unit: toSafeText(seed?.unit, "pza"),
     category: toSafeText(seed?.category, "Abarrotes"),
     store,
+    note: "",
   };
 }
 
@@ -473,17 +494,20 @@ function sameCatalogIdentity(
     defaultUnit?: unknown;
     store?: unknown;
     defaultStore?: unknown;
+    note?: unknown;
   },
   target: {
     name: string;
     unit: string;
     store: string;
+    note?: string | null;
   }
 ) {
   return (
     normalizeValue(item.name) === normalizeValue(target.name) &&
     normalizeValue(item.unit ?? item.defaultUnit) === normalizeValue(target.unit) &&
-    normalizeValue(item.store ?? item.defaultStore) === normalizeValue(target.store)
+    normalizeValue(item.store ?? item.defaultStore) === normalizeValue(target.store) &&
+    normalizeValue(item.note) === normalizeValue(target.note)
   );
 }
 
@@ -548,17 +572,22 @@ function formatWhatsAppUnit(value: unknown, quantity: unknown, language: string)
   );
 }
 
-function formatWhatsAppItemLine(item: Pick<DisplayListItem, "name" | "quantity" | "unit">, language: string) {
+function formatWhatsAppItemLine(
+  item: Pick<DisplayListItem, "name" | "quantity" | "unit" | "note">,
+  language: string
+) {
   const quantity = toSafeText(item.quantity);
   const unit = formatWhatsAppUnit(item.unit, item.quantity, language);
   const details = [quantity, unit].filter(Boolean).join(" ");
+  const note = toSafeText(item.note);
+  const displayName = note ? `${item.name} — ${note}` : item.name;
 
-  return details ? `- ${item.name} (${details})` : `- ${item.name}`;
+  return details ? `- ${displayName} (${details})` : `- ${displayName}`;
 }
 
 function buildStoreWhatsAppText(
   store: string,
-  items: Pick<DisplayListItem, "name" | "quantity" | "unit" | "category">[],
+  items: Pick<DisplayListItem, "name" | "quantity" | "unit" | "category" | "note">[],
   language: string
 ) {
   const groupedItems = groupItemsByCategory(items, language === "en" ? "en" : "es");
@@ -573,7 +602,13 @@ function buildStoreWhatsAppText(
     )
     .join("\n\n");
 
-  return `${store} (${items.length})\n\n${groupedText}`.trim();
+  const signature = [
+    "──────────────",
+    "Powered by MinderCart",
+    "Never forget what to buy.",
+  ].join("\n");
+
+  return `${store} (${items.length})\n\n${groupedText}\n\n${signature}`.trim();
 }
 
 function sideActionButtonStyle(fontSize: number): React.CSSProperties {
@@ -735,6 +770,7 @@ export default function ShoppingPage() {
       id: removeAction.id,
       name: removeAction.name,
       currentStore: selectedStoreGroup.store,
+      note: removeAction.note,
     });
     setMoveStoreTarget(moveStoreOptions[0] ?? "");
     closeRemoveMenu();
@@ -806,6 +842,7 @@ export default function ShoppingPage() {
         sameNameInStore(item, {
           name: toSafeText(sourceItem.name),
           store: normalizedTargetStore,
+          note: toSafeText(sourceItem.note),
         })
     );
 
@@ -938,6 +975,7 @@ export default function ShoppingPage() {
     const unit = toSafeText(draftPurchaseItem.unit, "pza");
     const category = toSafeText(draftPurchaseItem.category, "Abarrotes");
     const store = selectedStoreGroup.store;
+    const note = toSafeText(draftPurchaseItem.note).slice(0, 80);
     const state = readState();
 
     const activeShoppingListItems = Array.isArray(state.activeShoppingListItems)
@@ -952,6 +990,7 @@ export default function ShoppingPage() {
         name: articleName,
         unit,
         store,
+        note,
       })
     );
 
@@ -974,6 +1013,7 @@ export default function ShoppingPage() {
       unit,
       category,
       store,
+      note,
       checked: false,
     };
 
@@ -989,6 +1029,7 @@ export default function ShoppingPage() {
         name: articleName,
         unit,
         store,
+        note,
       })
     );
 
@@ -1003,6 +1044,7 @@ export default function ShoppingPage() {
       unit,
       category,
       store,
+      note,
       active: true,
       lastUsedAt: Date.now(),
     };
@@ -1123,8 +1165,23 @@ export default function ShoppingPage() {
           <div style={circleBadgeStyle(options.badgeActive, s(options.badgeFontSize))}>
             {options.badgeLabel}
           </div>
-          <div style={{ flex: 1, minWidth: 0, fontSize: s(17), fontWeight: 500 }}>
-            {renderDisplayItemName(item, s(17))}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: s(17), fontWeight: 500 }}>
+              {renderDisplayItemName(item, s(17))}
+            </div>
+            {toSafeText(item.note) ? (
+              <div
+                style={{
+                  marginTop: 2,
+                  fontSize: s(13),
+                  fontWeight: 400,
+                  color: MC_NAVY_MUTED,
+                  lineHeight: 1.25,
+                }}
+              >
+                {toSafeText(item.note)}
+              </div>
+            ) : null}
           </div>
           <div style={{ fontSize: s(15), color: MC_NAVY_MUTED, flexShrink: 0, whiteSpace: "nowrap" }}>
             <QtyUnitText quantity={String(item.quantity)} unit={item.unit} />
@@ -1133,7 +1190,13 @@ export default function ShoppingPage() {
 
         <button
           type="button"
-          onClick={() => setRemoveAction({ id: item.id, name: getDisplayItemName(item) })}
+          onClick={() =>
+            setRemoveAction({
+              id: item.id,
+              name: getDisplayItemName(item),
+              note: item.note,
+            })
+          }
           style={sideActionButtonStyle(s(14))}
         >
           {lang === "en" ? "Move" : "Mover"}
@@ -1588,6 +1651,32 @@ export default function ShoppingPage() {
                       ))}
                     </select>
                   </label>
+
+                  <label style={{ display: "grid", gap: 6 }}>
+                    <span style={{ fontSize: s(13), fontWeight: 800, color: MC_NAVY }}>
+                      {lang === "en" ? "Note (optional)" : "Nota (opcional)"}
+                    </span>
+                    <input
+                      value={draftPurchaseItem.note}
+                      onChange={(event) => updateDraftPurchaseItem("note", event.target.value)}
+                      maxLength={80}
+                      placeholder={
+                        lang === "en"
+                          ? "Example: cherry or orange"
+                          : "Ejemplo: cherry o naranja"
+                      }
+                      style={{
+                        width: "100%",
+                        minHeight: 48,
+                        borderRadius: 14,
+                        border: `1px solid ${MC_NAVY_LINE}`,
+                        padding: "12px 14px",
+                        fontSize: s(16),
+                        outline: "none",
+                        color: MC_NAVY,
+                      }}
+                    />
+                  </label>
                 </div>
 
                 <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
@@ -1642,6 +1731,11 @@ export default function ShoppingPage() {
             <div style={{ marginTop: 6, fontSize: s(14), color: MC_NAVY_MUTED }}>
               {removeAction.name}
             </div>
+            {toSafeText(removeAction.note) ? (
+              <div style={{ marginTop: 3, fontSize: s(13), color: MC_NAVY_MUTED }}>
+                {toSafeText(removeAction.note)}
+              </div>
+            ) : null}
 
             <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
               <button
@@ -1718,6 +1812,11 @@ export default function ShoppingPage() {
             <div style={{ marginTop: 4, fontSize: s(13), color: MC_NAVY_MUTED }}>
               {moveStoreSelection.name}
             </div>
+            {toSafeText(moveStoreSelection.note) ? (
+              <div style={{ marginTop: 3, fontSize: s(13), color: MC_NAVY_MUTED }}>
+                {toSafeText(moveStoreSelection.note)}
+              </div>
+            ) : null}
 
             <div style={{ marginTop: 14 }}>
               <div style={{ fontSize: s(12), fontWeight: 700, marginBottom: 5 }}>
