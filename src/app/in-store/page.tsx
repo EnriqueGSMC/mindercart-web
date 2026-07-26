@@ -613,8 +613,8 @@ function buildStoreWhatsAppText(
 
 function sideActionButtonStyle(fontSize: number): React.CSSProperties {
   return {
-    padding: "8px 12px",
-    borderRadius: 12,
+    padding: "6px 8px",
+    borderRadius: 10,
     border: `1px solid ${MC_NAVY_LINE}`,
     background: "#fff",
     color: MC_NAVY,
@@ -627,8 +627,8 @@ function sideActionButtonStyle(fontSize: number): React.CSSProperties {
 
 function circleBadgeStyle(active: boolean, fontSize: number): React.CSSProperties {
   return {
-    width: 28,
-    height: 28,
+    width: 24,
+    height: 24,
     borderRadius: 999,
     background: active ? MC_NAVY : MC_NAVY_SOFT,
     color: active ? "#fff" : MC_NAVY,
@@ -1107,13 +1107,14 @@ export default function ShoppingPage() {
     return (
       <div
         style={{
-          padding: "9px 12px",
-          borderRadius: 12,
+          padding: "7px 10px",
+          borderRadius: 10,
           border: `1px solid ${MC_NAVY_LINE}`,
           background: MC_NAVY_SOFT,
           color: MC_NAVY,
           fontSize: s(13),
           fontWeight: 900,
+          lineHeight: 1.15,
         }}
       >
         {translateCategoryLabel(category, lang)}
@@ -1128,6 +1129,7 @@ export default function ShoppingPage() {
       badgeLabel: string;
       badgeActive: boolean;
       badgeFontSize: number;
+      isLast: boolean;
       onToggle: () => void;
     }
   ) {
@@ -1136,24 +1138,26 @@ export default function ShoppingPage() {
         key={item.id}
         style={{
           width: "100%",
-          border: `1px solid ${MC_NAVY_LINE}`,
-          borderRadius: 16,
-          padding: 12,
-          display: "flex",
-          gap: 10,
+          minHeight: 46,
+          padding: "7px 8px",
+          display: "grid",
+          gridTemplateColumns: "minmax(0, 1fr) auto",
+          gap: 7,
           alignItems: "center",
+          borderBottom: options.isLast ? "none" : "1px solid #f3f4f6",
           background: options.rowBackground,
           color: MC_NAVY,
+          boxSizing: "border-box",
         }}
       >
         <button
           type="button"
           onClick={options.onToggle}
           style={{
-            flex: 1,
             minWidth: 0,
-            display: "flex",
-            gap: 12,
+            display: "grid",
+            gridTemplateColumns: "24px minmax(0, 1fr) auto",
+            gap: 8,
             alignItems: "center",
             border: "none",
             background: "transparent",
@@ -1165,25 +1169,50 @@ export default function ShoppingPage() {
           <div style={circleBadgeStyle(options.badgeActive, s(options.badgeFontSize))}>
             {options.badgeLabel}
           </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: s(17), fontWeight: 500 }}>
-              {renderDisplayItemName(item, s(17))}
+
+          <div style={{ minWidth: 0, overflow: "hidden" }}>
+            <div
+              title={getDisplayItemName(item)}
+              style={{
+                minWidth: 0,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                fontSize: s(17),
+                fontWeight: 500,
+                lineHeight: 1.15,
+              }}
+            >
+              {renderDisplayItemName(item, s(15))}
             </div>
             {toSafeText(item.note) ? (
               <div
+                title={toSafeText(item.note)}
                 style={{
                   marginTop: 2,
+                  minWidth: 0,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
                   fontSize: s(13),
                   fontWeight: 400,
                   color: MC_NAVY_MUTED,
-                  lineHeight: 1.25,
+                  lineHeight: 1.15,
                 }}
               >
                 {toSafeText(item.note)}
               </div>
             ) : null}
           </div>
-          <div style={{ fontSize: s(15), color: MC_NAVY_MUTED, flexShrink: 0, whiteSpace: "nowrap" }}>
+
+          <div
+            style={{
+              fontSize: s(14),
+              color: MC_NAVY_MUTED,
+              flexShrink: 0,
+              whiteSpace: "nowrap",
+            }}
+          >
             <QtyUnitText quantity={String(item.quantity)} unit={item.unit} />
           </div>
         </button>
@@ -1197,7 +1226,7 @@ export default function ShoppingPage() {
               note: item.note,
             })
           }
-          style={sideActionButtonStyle(s(14))}
+          style={sideActionButtonStyle(s(13))}
         >
           {lang === "en" ? "Move" : "Mover"}
         </button>
@@ -1304,11 +1333,7 @@ export default function ShoppingPage() {
           </section>
 
 
-          <section style={{ ...cardStyle(), padding: 14 }}>
-            <div style={{ fontSize: s(15), fontWeight: 800, marginBottom: 10 }}>
-              {lang === "en" ? "To add right now" : "Para agregar ahorita"}
-            </div>
-
+          <section style={{ ...cardStyle(), padding: 10 }}>
             {pendingItems.length === 0 ? (
               <div
                 style={{
@@ -1325,17 +1350,25 @@ export default function ShoppingPage() {
                   : "Ya agregaste todo lo de esta tienda."}
               </div>
             ) : (
-              <div style={{ display: "grid", gap: 12 }}>
+              <div style={{ display: "grid", gap: 10 }}>
                 {groupedPendingItems.map((group) => (
-                  <div key={`pending-${group.category}`} style={{ display: "grid", gap: 8 }}>
+                  <div key={`pending-${group.category}`} style={{ display: "grid", gap: 6 }}>
                     {renderCategoryHeading(group.category)}
-                    <div style={{ display: "grid", gap: 10 }}>
-                      {group.items.map((item) =>
+                    <div
+                      style={{
+                        border: `1px solid ${MC_NAVY_LINE}`,
+                        borderRadius: 14,
+                        overflow: "hidden",
+                        background: "#fff",
+                      }}
+                    >
+                      {group.items.map((item, index) =>
                         renderStoreItemRow(item, {
                           rowBackground: "#fff",
                           badgeLabel: "+",
                           badgeActive: false,
-                          badgeFontSize: 18,
+                          badgeFontSize: 16,
+                          isLast: index === group.items.length - 1,
                           onToggle: () => toggleActiveItemChecked(item.id, true),
                         })
                       )}
@@ -1346,8 +1379,8 @@ export default function ShoppingPage() {
             )}
           </section>
 
-          <section style={{ ...cardStyle(), padding: 14 }}>
-            <div style={{ fontSize: s(15), fontWeight: 800, marginBottom: 10 }}>
+          <section style={{ ...cardStyle(), padding: 10 }}>
+            <div style={{ fontSize: s(15), fontWeight: 800, marginBottom: 8 }}>
               {lang === "en" ? "Already in your cart" : "Ya en tu carrito"}
             </div>
 
@@ -1358,17 +1391,25 @@ export default function ShoppingPage() {
                   : "Todavía no agregas nada de esta tienda."}
               </div>
             ) : (
-              <div style={{ display: "grid", gap: 12 }}>
+              <div style={{ display: "grid", gap: 10 }}>
                 {groupedAddedItems.map((group) => (
-                  <div key={`added-${group.category}`} style={{ display: "grid", gap: 8 }}>
+                  <div key={`added-${group.category}`} style={{ display: "grid", gap: 6 }}>
                     {renderCategoryHeading(group.category)}
-                    <div style={{ display: "grid", gap: 10 }}>
-                      {group.items.map((item) =>
+                    <div
+                      style={{
+                        border: `1px solid ${MC_NAVY_LINE}`,
+                        borderRadius: 14,
+                        overflow: "hidden",
+                        background: MC_NAVY_SOFT,
+                      }}
+                    >
+                      {group.items.map((item, index) =>
                         renderStoreItemRow(item, {
                           rowBackground: MC_NAVY_SOFT,
                           badgeLabel: "✓",
                           badgeActive: true,
-                          badgeFontSize: 14,
+                          badgeFontSize: 12,
+                          isLast: index === group.items.length - 1,
                           onToggle: () => toggleActiveItemChecked(item.id, false),
                         })
                       )}

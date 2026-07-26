@@ -218,6 +218,30 @@ function normalizeItemKey(name: string, category: string) {
   return `${String(name ?? "").trim().toLocaleLowerCase("es")}|${normalizeCategory(category).toLocaleLowerCase("es")}`;
 }
 
+function normalizeSavedListOccurrenceValue(value: unknown) {
+  return String(value ?? "")
+    .trim()
+    .toLocaleLowerCase("es")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function savedListOccurrenceKey(item: {
+  name: string;
+  category: string;
+  unit: string;
+  store: string;
+  note?: string | null;
+}) {
+  return [
+    normalizeSavedListOccurrenceValue(item.name),
+    normalizeSavedListOccurrenceValue(normalizeCategory(item.category)),
+    normalizeSavedListOccurrenceValue(normalizeUnit(item.unit)),
+    normalizeSavedListOccurrenceValue(item.store),
+    normalizeSavedListOccurrenceValue(item.note),
+  ].join("|");
+}
+
 function readSavedListsFromBrowser() {
   if (typeof window === "undefined") return [] as SavedListRecord[];
 
@@ -238,7 +262,7 @@ function readSavedListsFromBrowser() {
 
         const items = Array.isArray(record.items)
           ? record.items
-              .map((item) => {
+              .map((item): SavedListDraftItem | null => {
                 if (!item || typeof item !== "object") return null;
                 const row = item as Partial<SavedListDraftItem>;
                 const itemName = String(row.name ?? "").trim();
@@ -251,6 +275,7 @@ function readSavedListsFromBrowser() {
                   unit: normalizeUnit(String(row.unit ?? "pza")),
                   quantity: String(row.quantity ?? "1").trim() || "1",
                   store: String(row.store ?? "HEB").trim() || "HEB",
+                  note: String(row.note ?? "").trim().slice(0, 80),
                 } satisfies SavedListDraftItem;
               })
               .filter((item): item is SavedListDraftItem => item !== null)
@@ -663,11 +688,17 @@ export default function NeedsPage() {
   function isSavedListItemAlreadyInMyList(item: SavedListDraftItem) {
     if (!openedSavedList) return false;
 
-    const normalizedKey = normalizeItemKey(item.name, item.category);
+    const occurrenceKey = savedListOccurrenceKey(item);
 
     return activeShoppingListItems.some(
       (activeItem) =>
-        normalizeItemKey(activeItem.name, activeItem.category) === normalizedKey
+        savedListOccurrenceKey({
+          name: activeItem.name,
+          category: activeItem.category,
+          unit: activeItem.unit,
+          store: activeItem.store,
+          note: activeItem.note,
+        }) === occurrenceKey
         && (activeItem.sourceListName ?? null) === openedSavedList.name
     );
   }
@@ -711,6 +742,7 @@ export default function NeedsPage() {
           unit: item.unit,
           quantity: item.quantity,
           store: item.store,
+          note: item.note ?? "",
           sourceListName: openedSavedList.name,
         }))
       );
@@ -745,10 +777,18 @@ export default function NeedsPage() {
     if (!draft) return;
 
     if (isSavedListEditorView) {
-      const normalizedKey = normalizeItemKey(draft.name, draft.category);
+      const normalizedOccurrenceKey = savedListOccurrenceKey({
+        name: draft.name,
+        category: draft.category,
+        unit: draft.unit,
+        store: draft.store || settings.preferredStore || "HEB",
+        note: draft.note,
+      });
       const existingIndex = editingSavedListItemId
         ? savedListItemsDraft.findIndex((item) => item.id === editingSavedListItemId)
-        : savedListItemsDraft.findIndex((item) => normalizeItemKey(item.name, item.category) === normalizedKey);
+        : savedListItemsDraft.findIndex(
+            (item) => savedListOccurrenceKey(item) === normalizedOccurrenceKey
+          );
       const nextItem: SavedListDraftItem = {
         id: existingIndex >= 0 ? savedListItemsDraft[existingIndex].id : buildLocalId("saved-list-item"),
         name: draft.name.trim(),
@@ -756,6 +796,7 @@ export default function NeedsPage() {
         unit: normalizeUnit(draft.unit),
         quantity: String(draft.quantity ?? "1").trim() || "1",
         store: draft.store || settings.preferredStore || "HEB",
+        note: String(draft.note ?? "").trim().slice(0, 80),
       };
 
       const nextSavedListItemsDraft = existingIndex >= 0
@@ -916,31 +957,29 @@ export default function NeedsPage() {
             </select>
           </div>
 
-          {!isSavedListEditorView ? (
-            <div>
-              <div style={{ fontSize: s(12), fontWeight: 700, marginBottom: 5 }}>
-                {lang === "en" ? "Note or preference (optional)" : "Nota o preferencia (opcional)"}
-              </div>
-              <input
-                value={draft.note ?? ""}
-                maxLength={80}
-                onChange={(e) => updateDraftField("note", e.target.value)}
-                placeholder={
-                  lang === "en"
-                    ? "e.g. Cherry, sugar-free, preferred brand"
-                    : "ej. Cherry, sin azúcar, marca preferida"
-                }
-                style={{
-                  width: "100%",
-                  padding: "12px 14px",
-                  borderRadius: 14,
-                  border: `1px solid ${MC_NAVY_LINE}`,
-                  boxSizing: "border-box",
-                  fontSize: s(15),
-                }}
-              />
+          <div>
+            <div style={{ fontSize: s(12), fontWeight: 700, marginBottom: 5 }}>
+              {lang === "en" ? "Note or preference (optional)" : "Nota o preferencia (opcional)"}
             </div>
-          ) : null}
+            <input
+              value={draft.note ?? ""}
+              maxLength={80}
+              onChange={(e) => updateDraftField("note", e.target.value)}
+              placeholder={
+                lang === "en"
+                  ? "e.g. Cherry, sugar-free, preferred brand"
+                  : "ej. Cherry, sin azúcar, marca preferida"
+              }
+              style={{
+                width: "100%",
+                padding: "12px 14px",
+                borderRadius: 14,
+                border: `1px solid ${MC_NAVY_LINE}`,
+                boxSizing: "border-box",
+                fontSize: s(15),
+              }}
+            />
+          </div>
         </div>
 
         <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
@@ -1347,7 +1386,23 @@ export default function NeedsPage() {
                               touchAction: "manipulation",
                             }}
                           >
-                            <div style={{ minWidth: 0, flex: 1, fontSize: s(18), fontWeight: 500 }}>{item.name}</div>
+                            <div style={{ minWidth: 0, flex: 1 }}>
+                              <div style={{ fontSize: s(18), fontWeight: 500 }}>{item.name}</div>
+                              {item.note ? (
+                                <div
+                                  style={{
+                                    marginTop: 2,
+                                    fontSize: s(13),
+                                    fontWeight: 400,
+                                    color: MC_NAVY_MUTED,
+                                    lineHeight: 1.2,
+                                    overflowWrap: "anywhere",
+                                  }}
+                                >
+                                  {item.note}
+                                </div>
+                              ) : null}
+                            </div>
 
                             <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
                               <div style={{ fontSize: s(15), color: MC_NAVY_MUTED }}>
@@ -1577,19 +1632,39 @@ export default function NeedsPage() {
                                     }}
                                   />
 
-                                  <div
-                                    title={item.name}
-                                    style={{
-                                      minWidth: 0,
-                                      overflow: "hidden",
-                                      textOverflow: "ellipsis",
-                                      whiteSpace: "nowrap",
-                                      fontSize: s(16),
-                                      fontWeight: 500,
-                                      lineHeight: 1.15,
-                                    }}
-                                  >
-                                    {item.name}
+                                  <div style={{ minWidth: 0, overflow: "hidden" }}>
+                                    <div
+                                      title={item.name}
+                                      style={{
+                                        minWidth: 0,
+                                        overflow: "hidden",
+                                        textOverflow: "ellipsis",
+                                        whiteSpace: "nowrap",
+                                        fontSize: s(16),
+                                        fontWeight: 500,
+                                        lineHeight: 1.15,
+                                      }}
+                                    >
+                                      {item.name}
+                                    </div>
+                                    {item.note ? (
+                                      <div
+                                        title={item.note}
+                                        style={{
+                                          marginTop: 2,
+                                          minWidth: 0,
+                                          overflow: "hidden",
+                                          textOverflow: "ellipsis",
+                                          whiteSpace: "nowrap",
+                                          fontSize: s(11),
+                                          fontWeight: 400,
+                                          color: MC_NAVY_MUTED,
+                                          lineHeight: 1.15,
+                                        }}
+                                      >
+                                        {item.note}
+                                      </div>
+                                    ) : null}
                                   </div>
 
                                   <div
