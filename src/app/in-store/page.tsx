@@ -1112,7 +1112,7 @@ export default function ShoppingPage() {
           border: `1px solid ${MC_NAVY_LINE}`,
           background: MC_NAVY_SOFT,
           color: MC_NAVY,
-          fontSize: s(12),
+          fontSize: s(13),
           fontWeight: 900,
           lineHeight: 1.15,
         }}
@@ -1178,7 +1178,7 @@ export default function ShoppingPage() {
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
-                fontSize: s(15),
+                fontSize: s(17),
                 fontWeight: 500,
                 lineHeight: 1.15,
               }}
@@ -1194,7 +1194,7 @@ export default function ShoppingPage() {
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
-                  fontSize: s(11),
+                  fontSize: s(13),
                   fontWeight: 400,
                   color: MC_NAVY_MUTED,
                   lineHeight: 1.15,
@@ -1207,7 +1207,7 @@ export default function ShoppingPage() {
 
           <div
             style={{
-              fontSize: s(12),
+              fontSize: s(14),
               color: MC_NAVY_MUTED,
               flexShrink: 0,
               whiteSpace: "nowrap",
@@ -1226,7 +1226,7 @@ export default function ShoppingPage() {
               note: item.note,
             })
           }
-          style={sideActionButtonStyle(s(12))}
+          style={sideActionButtonStyle(s(13))}
         >
           {lang === "en" ? "Move" : "Mover"}
         </button>
@@ -1334,10 +1334,6 @@ export default function ShoppingPage() {
 
 
           <section style={{ ...cardStyle(), padding: 10 }}>
-            <div style={{ fontSize: s(15), fontWeight: 800, marginBottom: 8 }}>
-              {lang === "en" ? "To add right now" : "Para agregar ahorita"}
-            </div>
-
             {pendingItems.length === 0 ? (
               <div
                 style={{
