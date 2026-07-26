@@ -1573,6 +1573,7 @@ export function buildShoppingListHtml(lang: Language = "en") {
 
 
 export function buildShoppingListHtmlForStore(storeName: string, lang: Language = "en") {
+  const pdfTitle = lang === "en" ? "Shopping List" : "Lista de Compras";
   const store = safe(storeName);
   const state = readState();
   const catalogMap = new Map(state.itemsMaster.map((item) => [item.itemKey, item]));
@@ -1600,7 +1601,7 @@ export function buildShoppingListHtmlForStore(storeName: string, lang: Language 
           </div>
         </div>
         <div class="mc-print-right">
-          <div class="mc-print-title-right">Lista de Compras</div>
+          <div class="mc-print-title-right">${escapeHtml(pdfTitle)}</div>
           <div class="mc-print-date">${displayDate}</div>
         </div>
       </div>
