@@ -6,7 +6,7 @@ import {
   resolveUserBootstrap,
   type UserBootstrapResolution,
 } from "@/lib/firebase/resolve-user-bootstrap";
-import { CHANGE_EVENT, writeState } from "@/lib/mindercart/storage";
+import { CHANGE_EVENT, readState, writeState } from "@/lib/mindercart/storage";
 
 const SAVED_LISTS_STORAGE_KEY = "mindercart.savedLists.v1";
 
@@ -30,6 +30,9 @@ const INITIAL_STATE: UserBootstrapState = {
   error: null,
 };
 
+type SettingsSnapshot = ReturnType<typeof readState>["settings"];
+type SettingsOverride = Partial<SettingsSnapshot>;
+
 function safe(value: unknown) {
   return String(value ?? "").trim();
 }
@@ -43,12 +46,48 @@ function emitSavedListsChange() {
   window.dispatchEvent(new CustomEvent(CHANGE_EVENT));
 }
 
-function applyCloudStateToLocal(cloudState: Record<string, unknown> | null) {
+function buildLiveSettingsOverride(
+  settingsAtStart: SettingsSnapshot,
+  settingsNow: SettingsSnapshot
+): SettingsOverride {
+  const override: SettingsOverride = {};
+
+  if (settingsNow.language !== settingsAtStart.language) {
+    override.language = settingsNow.language;
+  }
+
+  if (settingsNow.preferredStore !== settingsAtStart.preferredStore) {
+    override.preferredStore = settingsNow.preferredStore;
+  }
+
+  if (settingsNow.fontScale !== settingsAtStart.fontScale) {
+    override.fontScale = settingsNow.fontScale;
+  }
+
+  return override;
+}
+
+function applyCloudStateToLocal(
+  cloudState: Record<string, unknown> | null,
+  liveSettingsOverride: SettingsOverride = {}
+) {
   if (typeof window === "undefined" || !isRecord(cloudState)) return;
 
   const maybeCoreState = cloudState.coreState;
   if (isRecord(maybeCoreState)) {
-    writeState(maybeCoreState as never);
+    const cloudSettings = isRecord(maybeCoreState.settings) ? maybeCoreState.settings : {};
+    const nextCoreState =
+      Object.keys(liveSettingsOverride).length > 0
+        ? {
+            ...maybeCoreState,
+            settings: {
+              ...cloudSettings,
+              ...liveSettingsOverride,
+            },
+          }
+        : maybeCoreState;
+
+    writeState(nextCoreState as never);
   }
 
   if ("savedLists" in cloudState) {
@@ -97,6 +136,7 @@ export function useUserBootstrap(): UserBootstrapState {
       }
 
       try {
+        const settingsAtStart = readState().settings;
         const resolution = await resolveUserBootstrap(uid);
 
         if (cancelled) return;
@@ -105,7 +145,10 @@ export function useUserBootstrap(): UserBootstrapState {
           const signature = buildApplySignature(uid, resolution);
 
           if (signature && signature !== appliedSignatureRef.current) {
-            applyCloudStateToLocal(resolution.cloudState);
+            const settingsNow = readState().settings;
+            const liveSettingsOverride = buildLiveSettingsOverride(settingsAtStart, settingsNow);
+
+            applyCloudStateToLocal(resolution.cloudState, liveSettingsOverride);
             appliedSignatureRef.current = signature;
           }
         }
