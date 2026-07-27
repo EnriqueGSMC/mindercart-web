@@ -11,6 +11,7 @@ import {
   addQuickNeed,
   addQuickNeeds,
   buildSuggestions,
+  CHANGE_EVENT,
   readState,
   removeActiveItem,
   syncSavedListItemsToCatalog,
@@ -298,6 +299,7 @@ function readSavedListsFromBrowser() {
 function writeSavedListsToBrowser(savedLists: SavedListRecord[]) {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(SAVED_LISTS_STORAGE_KEY, JSON.stringify(savedLists));
+  window.dispatchEvent(new CustomEvent(CHANGE_EVENT));
 }
 
 export default function NeedsPage() {
@@ -351,8 +353,25 @@ export default function NeedsPage() {
 
   React.useEffect(() => {
     if (!hydrated) return;
-    setSavedLists(readSavedListsFromBrowser());
-    setSavedListsLoaded(true);
+
+    const reloadSavedLists = () => {
+      setSavedLists(readSavedListsFromBrowser());
+      setSavedListsLoaded(true);
+    };
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== null && event.key !== SAVED_LISTS_STORAGE_KEY) return;
+      reloadSavedLists();
+    };
+
+    reloadSavedLists();
+    window.addEventListener(CHANGE_EVENT, reloadSavedLists as EventListener);
+    window.addEventListener("storage", handleStorage);
+
+    return () => {
+      window.removeEventListener(CHANGE_EVENT, reloadSavedLists as EventListener);
+      window.removeEventListener("storage", handleStorage);
+    };
   }, [hydrated]);
 
   React.useEffect(() => {
