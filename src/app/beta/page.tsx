@@ -78,8 +78,10 @@ const copy = {
       "Your biggest shopping-list problem",
       "Why you would like to test MinderCart",
     ],
+    applicationGuidance:
+      "Answer the questions in the email and send it to complete your beta application.",
     applicationNote:
-      "For this first version, the button opens a prepared email. A short application form will replace it in the next step.",
+      "The button opens a prepared email with the application questions. A short form will replace it in the next step.",
     footerSupport: "Support",
     privacy: "Privacy — Coming soon",
     terms: "Terms — Coming soon",
@@ -167,8 +169,10 @@ Thank you.`,
       "Cuál es tu principal problema con las compras",
       "Por qué te gustaría probar MinderCart",
     ],
+    applicationGuidance:
+      "Responde las preguntas del correo y envíalo para completar tu solicitud de acceso a la beta.",
     applicationNote:
-      "En esta primera versión, el botón abre un correo preparado. En el siguiente paso será sustituido por un formulario breve.",
+      "El botón abre un correo preparado con las preguntas de la solicitud. En el siguiente paso será sustituido por un formulario breve.",
     footerSupport: "Soporte",
     privacy: "Privacidad — Próximamente",
     terms: "Términos — Próximamente",
@@ -243,6 +247,21 @@ export default function BetaPage() {
 
         * {
           box-sizing: border-box;
+        }
+
+        html,
+        body {
+          min-height: 100%;
+          height: auto !important;
+          overflow-x: hidden !important;
+          overflow-y: auto !important;
+        }
+
+        body > .mc-app-frame,
+        .mc-app-frame {
+          min-height: 100dvh !important;
+          height: auto !important;
+          overflow: visible !important;
         }
 
         .mc-beta-page {
@@ -372,6 +391,14 @@ export default function BetaPage() {
           margin-top: 30px;
         }
 
+        .mc-beta-application-guidance {
+          max-width: 640px;
+          margin: 13px 0 0;
+          color: ${MC_NAVY_MUTED};
+          font-size: 13px;
+          line-height: 1.5;
+        }
+
         .mc-beta-button {
           min-height: 50px;
           padding: 13px 18px;
@@ -440,11 +467,10 @@ export default function BetaPage() {
           height: 40px;
           flex: 0 0 auto;
           border-radius: 12px;
+          overflow: hidden;
           display: grid;
           place-items: center;
           background: #fff;
-          color: ${MC_NAVY};
-          font-weight: 900;
         }
 
         .mc-beta-preview-title {
@@ -868,11 +894,20 @@ export default function BetaPage() {
               {content.supportCta}
             </a>
           </div>
+          <p className="mc-beta-application-guidance">{content.applicationGuidance}</p>
         </div>
 
         <div className="mc-beta-preview" aria-label="MinderCart preview">
           <div className="mc-beta-preview-top">
-            <div className="mc-beta-preview-mark">M</div>
+            <div className="mc-beta-preview-mark">
+              <Image
+                src="/mindercart-avatar.png"
+                alt="MinderCart"
+                width={40}
+                height={40}
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+            </div>
             <div>
               <div className="mc-beta-preview-title">MinderCart</div>
               <div className="mc-beta-preview-subtitle">
@@ -980,6 +1015,7 @@ export default function BetaPage() {
                   {content.primaryCta}
                   <ArrowIcon />
                 </a>
+                <p className="mc-beta-note">{content.applicationGuidance}</p>
               </div>
             </div>
 
