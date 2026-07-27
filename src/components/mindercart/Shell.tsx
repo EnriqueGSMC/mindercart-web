@@ -9,6 +9,7 @@ import { getFamilyById, getUserFamilyMembership } from "@/lib/firebase/shared-li
 import { saveUserData } from "@/lib/firebase/save-user-data";
 import { useUserBootstrap } from "@/lib/firebase/use-user-bootstrap";
 import { useMinderCartState } from "@/lib/mindercart/hooks";
+import { CHANGE_EVENT, writeState } from "@/lib/mindercart/storage";
 import { t } from "@/lib/mindercart/i18n";
 import { unitCatalogQuantityLabel } from "@/lib/mindercart/catalog";
 
@@ -21,6 +22,83 @@ const NAVY_BORDER = "rgba(255,255,255,0.18)";
 
 const SAVED_LISTS_STORAGE_KEY = "mindercart.savedLists.v1";
 const CLOUD_SYNC_DEBOUNCE_MS = 900;
+const PENDING_CLOUD_SYNC_STORAGE_PREFIX = "mindercart.pendingCloudSync.v1.";
+
+type PendingCloudSyncSnapshot = {
+  uid: string;
+  signature: string;
+  coreState: Record<string, unknown>;
+  savedLists: unknown[];
+  createdAt: number;
+};
+
+function pendingCloudSyncStorageKey(uid: string) {
+  return `${PENDING_CLOUD_SYNC_STORAGE_PREFIX}${uid}`;
+}
+
+function readPendingCloudSyncSnapshot(uid: string): PendingCloudSyncSnapshot | null {
+  if (typeof window === "undefined" || !uid) return null;
+
+  try {
+    const raw = window.localStorage.getItem(pendingCloudSyncStorageKey(uid));
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as Partial<PendingCloudSyncSnapshot> | null;
+    if (!parsed || parsed.uid !== uid || typeof parsed.signature !== "string") return null;
+    if (!parsed.coreState || typeof parsed.coreState !== "object" || Array.isArray(parsed.coreState)) return null;
+    if (!Array.isArray(parsed.savedLists)) return null;
+
+    const expectedSignature = buildCloudSyncSignature(parsed.coreState, parsed.savedLists);
+    if (parsed.signature !== expectedSignature) return null;
+
+    return {
+      uid,
+      signature: parsed.signature,
+      coreState: parsed.coreState as Record<string, unknown>,
+      savedLists: parsed.savedLists,
+      createdAt: typeof parsed.createdAt === "number" ? parsed.createdAt : 0,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writePendingCloudSyncSnapshot(snapshot: PendingCloudSyncSnapshot) {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.setItem(
+      pendingCloudSyncStorageKey(snapshot.uid),
+      JSON.stringify(snapshot),
+    );
+  } catch {
+    // Cloud sync can still continue even if the pending local backup cannot be written.
+  }
+}
+
+function clearPendingCloudSyncSnapshot(uid: string, signature: string) {
+  if (typeof window === "undefined") return;
+
+  const pending = readPendingCloudSyncSnapshot(uid);
+  if (!pending || pending.signature !== signature) return;
+
+  try {
+    window.localStorage.removeItem(pendingCloudSyncStorageKey(uid));
+  } catch {
+    // A stale pending marker can be retried safely on the next session.
+  }
+}
+
+function applyPendingCloudSyncSnapshot(snapshot: PendingCloudSyncSnapshot) {
+  if (typeof window === "undefined") return;
+
+  writeState(snapshot.coreState as never);
+  window.localStorage.setItem(
+    SAVED_LISTS_STORAGE_KEY,
+    JSON.stringify(snapshot.savedLists),
+  );
+  window.dispatchEvent(new CustomEvent(CHANGE_EVENT));
+}
 
 function readSavedListsSnapshot() {
   if (typeof window === "undefined") return [];
@@ -347,6 +425,8 @@ export function AppShell(props: {
   const { settings } = state;
   const [menuOpen, setMenuOpen] = React.useState(false);
   const syncTimeoutRef = React.useRef<number | null>(null);
+  const syncInFlightRef = React.useRef(false);
+  const queuedSyncSnapshotRef = React.useRef<PendingCloudSyncSnapshot | null>(null);
   const baselineSignatureRef = React.useRef("");
   const lastSavedSignatureRef = React.useRef("");
   const lastUidRef = React.useRef("");
@@ -356,6 +436,40 @@ export function AppShell(props: {
     setMenuOpen(searchParams.get("menu") === "1");
   }, [searchParams]);
 
+
+  function startCloudSync(snapshot: PendingCloudSyncSnapshot) {
+    if (syncInFlightRef.current) {
+      queuedSyncSnapshotRef.current = snapshot;
+      return;
+    }
+
+    syncInFlightRef.current = true;
+
+    void saveUserData({
+      uid: snapshot.uid,
+      data: {
+        coreState: snapshot.coreState,
+        savedLists: snapshot.savedLists,
+      },
+    }).then(() => {
+      lastSavedSignatureRef.current = snapshot.signature;
+      clearPendingCloudSyncSnapshot(snapshot.uid, snapshot.signature);
+    }).catch(() => {
+      // Keep the pending local snapshot for the next change or reload.
+    }).finally(() => {
+      syncInFlightRef.current = false;
+
+      const queuedSnapshot = queuedSyncSnapshotRef.current;
+      queuedSyncSnapshotRef.current = null;
+
+      if (
+        queuedSnapshot
+        && queuedSnapshot.signature !== lastSavedSignatureRef.current
+      ) {
+        startCloudSync(queuedSnapshot);
+      }
+    });
+  }
 
   React.useEffect(() => {
     const uid = String(session.user?.uid ?? "").trim();
@@ -367,6 +481,7 @@ export function AppShell(props: {
         syncTimeoutRef.current = null;
       }
 
+      queuedSyncSnapshotRef.current = null;
       baselineSignatureRef.current = "";
       lastSavedSignatureRef.current = "";
       lastUidRef.current = uid;
@@ -375,16 +490,61 @@ export function AppShell(props: {
 
     const savedLists = readSavedListsSnapshot();
     const signature = buildCloudSyncSignature(state, savedLists);
+    const currentSnapshot: PendingCloudSyncSnapshot = {
+      uid,
+      signature,
+      coreState: state as unknown as Record<string, unknown>,
+      savedLists,
+      createdAt: Date.now(),
+    };
 
     if (lastUidRef.current !== uid) {
       lastUidRef.current = uid;
       baselineSignatureRef.current = signature;
       lastSavedSignatureRef.current = signature;
-      return;
+
+      const pendingAtStartup = readPendingCloudSyncSnapshot(uid);
+
+      if (!pendingAtStartup) {
+        return;
+      }
+
+      const cloudUpdatedAt = Number(
+        bootstrap.resolution?.cloudState?.updatedAt ?? 0,
+      );
+
+      if (
+        Number.isFinite(cloudUpdatedAt)
+        && cloudUpdatedAt >= pendingAtStartup.createdAt
+      ) {
+        clearPendingCloudSyncSnapshot(uid, pendingAtStartup.signature);
+        return;
+      }
+
+      if (pendingAtStartup.signature !== signature) {
+        applyPendingCloudSyncSnapshot(pendingAtStartup);
+        return;
+      }
     }
 
-    if (signature === baselineSignatureRef.current || signature === lastSavedSignatureRef.current) {
-      return;
+    const pendingSnapshot = readPendingCloudSyncSnapshot(uid);
+    let snapshotToSync: PendingCloudSyncSnapshot;
+
+    if (pendingSnapshot?.signature === signature) {
+      snapshotToSync = pendingSnapshot;
+    } else {
+      if (
+        !pendingSnapshot
+        && (
+          signature === baselineSignatureRef.current
+          || signature === lastSavedSignatureRef.current
+        )
+      ) {
+        return;
+      }
+
+      snapshotToSync = currentSnapshot;
+      writePendingCloudSyncSnapshot(snapshotToSync);
     }
 
     if (syncTimeoutRef.current !== null) {
@@ -393,18 +553,7 @@ export function AppShell(props: {
 
     syncTimeoutRef.current = window.setTimeout(() => {
       syncTimeoutRef.current = null;
-
-      void saveUserData({
-        uid,
-        data: {
-          coreState: state as unknown as Record<string, unknown>,
-          savedLists,
-        },
-      }).then(() => {
-        lastSavedSignatureRef.current = signature;
-      }).catch(() => {
-        // Keep local work intact; user can still save on logout.
-      });
+      startCloudSync(snapshotToSync);
     }, CLOUD_SYNC_DEBOUNCE_MS);
 
     return () => {
@@ -413,7 +562,7 @@ export function AppShell(props: {
         syncTimeoutRef.current = null;
       }
     };
-  }, [bootstrap.status, session.status, session.user?.uid, state]);
+  }, [bootstrap.resolution, bootstrap.status, session.status, session.user?.uid, state]);
 
   React.useEffect(() => {
     const uid = String(session.user?.uid ?? "").trim();
