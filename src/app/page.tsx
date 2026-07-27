@@ -14,6 +14,7 @@ import {
   CHANGE_EVENT,
   readState,
   removeActiveItem,
+  resolveTrackedItemKey,
   syncSavedListItemsToCatalog,
 } from "@/lib/mindercart/storage";
 import { useMinderCartState } from "@/lib/mindercart/hooks";
@@ -628,6 +629,7 @@ export default function NeedsPage() {
     if (!canOpenCustomDraft) return;
     setSuggestions([]);
     openDraft({
+      itemKey: resolveTrackedItemKey(trimmedName),
       name: trimmedName,
       category: FALLBACK_CATEGORY,
       unit: "pza",
@@ -836,7 +838,7 @@ export default function NeedsPage() {
           );
       const nextItem: SavedListDraftItem = {
         id: existingIndex >= 0 ? savedListItemsDraft[existingIndex].id : buildLocalId("saved-list-item"),
-        itemKey: String(draft.itemKey ?? "").trim() || undefined,
+        itemKey: resolveTrackedItemKey(draft.name, draft.itemKey),
         name: draft.name.trim(),
         category: normalizeCategory(draft.category),
         unit: normalizeUnit(draft.unit),

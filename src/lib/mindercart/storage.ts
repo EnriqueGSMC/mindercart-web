@@ -665,6 +665,17 @@ export function itemKey(item: { itemKey?: string; name: string; unit: string; st
   return `${safe(item.itemKey) || normalize(item.name)}__${normalize(item.unit)}__${normalize(item.store)}`;
 }
 
+export function resolveTrackedItemKey(name: string, requestedItemKey?: string) {
+  const requested = safe(requestedItemKey);
+  if (requested) return requested;
+
+  const match = resolveCatalogMatch(readState().itemsMaster, name);
+  const catalogItemKey =
+    "itemKey" in (match || {}) ? safe((match as { itemKey?: string }).itemKey) : "";
+
+  return catalogItemKey || makeItemKey(name);
+}
+
 function upsertItemMaster(
   itemsMaster: ItemMaster[],
   input: { name: string; category: string; unit: string; store: string }
