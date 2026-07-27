@@ -20,6 +20,7 @@ import { useMinderCartState } from "@/lib/mindercart/hooks";
 import type { Suggestion } from "@/lib/mindercart/types";
 
 type DraftItem = {
+  itemKey?: string;
   name: string;
   category: string;
   unit: string;
@@ -228,6 +229,7 @@ function normalizeSavedListOccurrenceValue(value: unknown) {
 }
 
 function savedListOccurrenceKey(item: {
+  itemKey?: string | null;
   name: string;
   category: string;
   unit: string;
@@ -235,7 +237,7 @@ function savedListOccurrenceKey(item: {
   note?: string | null;
 }) {
   return [
-    normalizeSavedListOccurrenceValue(item.name),
+    normalizeSavedListOccurrenceValue(item.itemKey) || normalizeSavedListOccurrenceValue(item.name),
     normalizeSavedListOccurrenceValue(normalizeCategory(item.category)),
     normalizeSavedListOccurrenceValue(normalizeUnit(item.unit)),
     normalizeSavedListOccurrenceValue(item.store),
@@ -252,6 +254,19 @@ function readSavedListsFromBrowser() {
 
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [] as SavedListRecord[];
+
+    const catalogItemKeyByName = new Map<string, string>();
+    for (const catalogItem of readState().itemsMaster) {
+      const catalogItemKey = String(catalogItem.itemKey ?? "").trim();
+      if (!catalogItemKey) continue;
+
+      for (const catalogName of [catalogItem.name, catalogItem.nameEs, catalogItem.nameEn]) {
+        const normalizedCatalogName = normalizeSavedListOccurrenceValue(catalogName);
+        if (normalizedCatalogName && !catalogItemKeyByName.has(normalizedCatalogName)) {
+          catalogItemKeyByName.set(normalizedCatalogName, catalogItemKey);
+        }
+      }
+    }
 
     return parsed
       .map((entry) => {
@@ -271,6 +286,10 @@ function readSavedListsFromBrowser() {
 
                 return {
                   id: String(row.id ?? buildLocalId("saved-list-item")),
+                  itemKey:
+                    String(row.itemKey ?? "").trim()
+                    || catalogItemKeyByName.get(normalizeSavedListOccurrenceValue(itemName))
+                    || undefined,
                   name: itemName,
                   category: normalizeCategory(String(row.category ?? FALLBACK_CATEGORY)),
                   unit: normalizeUnit(String(row.unit ?? "pza")),
@@ -557,6 +576,7 @@ export default function NeedsPage() {
     setEditingActiveItemId(null);
     setEditingActiveItemSourceListName(null);
     setDraft({
+      itemKey: input.itemKey,
       name: input.name,
       category: normalizeCategory(input.category),
       unit: normalizeUnit(input.unit),
@@ -573,6 +593,7 @@ export default function NeedsPage() {
     unit: string;
     quantity: string;
     store: string;
+    itemKey?: string;
     sourceListName?: string;
     note?: string;
   }) {
@@ -580,6 +601,7 @@ export default function NeedsPage() {
     setEditingActiveItemId(item.id);
     setEditingActiveItemSourceListName(item.sourceListName ?? null);
     setDraft({
+      itemKey: item.itemKey,
       name: item.name,
       category: normalizeCategory(item.category),
       unit: normalizeUnit(item.unit),
@@ -593,6 +615,7 @@ export default function NeedsPage() {
     setName(suggestion.name);
     setSuggestions([]);
     openDraft({
+      itemKey: suggestion.itemKey,
       name: suggestion.name,
       category: normalizeCategory(suggestion.category),
       unit: normalizeUnit(suggestion.unit),
@@ -712,6 +735,7 @@ export default function NeedsPage() {
     return activeShoppingListItems.some(
       (activeItem) =>
         savedListOccurrenceKey({
+          itemKey: activeItem.itemKey,
           name: activeItem.name,
           category: activeItem.category,
           unit: activeItem.unit,
@@ -756,6 +780,7 @@ export default function NeedsPage() {
     try {
       addQuickNeeds(
         selectedItems.map((item) => ({
+          itemKey: item.itemKey,
           name: item.name,
           category: item.category,
           unit: item.unit,
@@ -797,6 +822,7 @@ export default function NeedsPage() {
 
     if (isSavedListEditorView) {
       const normalizedOccurrenceKey = savedListOccurrenceKey({
+        itemKey: draft.itemKey,
         name: draft.name,
         category: draft.category,
         unit: draft.unit,
@@ -810,6 +836,7 @@ export default function NeedsPage() {
           );
       const nextItem: SavedListDraftItem = {
         id: existingIndex >= 0 ? savedListItemsDraft[existingIndex].id : buildLocalId("saved-list-item"),
+        itemKey: String(draft.itemKey ?? "").trim() || undefined,
         name: draft.name.trim(),
         category: normalizeCategory(draft.category),
         unit: normalizeUnit(draft.unit),
