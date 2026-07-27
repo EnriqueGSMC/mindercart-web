@@ -50,6 +50,7 @@ type SavedListRecord = {
 
 const ADD_STORE_VALUE = "__ADD_STORE__";
 const SAVED_LISTS_STORAGE_KEY = "mindercart.savedLists.v1";
+const ONBOARDING_STORAGE_KEY = "mindercart.onboardingSeen.v1";
 
 const MC_NAVY = "#12245E";
 const MC_NAVY_SOFT = "#EEF3FF";
@@ -351,6 +352,8 @@ export default function NeedsPage() {
   const [customStores, setCustomStores] = React.useState<string[]>([]);
   const [addingStore, setAddingStore] = React.useState(false);
   const [newStoreName, setNewStoreName] = React.useState("");
+  const [onboardingChecked, setOnboardingChecked] = React.useState(false);
+  const [showOnboarding, setShowOnboarding] = React.useState(false);
 
   const [savedLists, setSavedLists] = React.useState<SavedListRecord[]>([]);
   const [savedListsLoaded, setSavedListsLoaded] = React.useState(false);
@@ -370,6 +373,29 @@ export default function NeedsPage() {
     if (!hydrated) return;
     setSuggestions(buildSuggestions(name));
   }, [hydrated, name]);
+
+  React.useEffect(() => {
+    if (!hydrated) return;
+
+    try {
+      setShowOnboarding(window.localStorage.getItem(ONBOARDING_STORAGE_KEY) !== "1");
+    } catch {
+      setShowOnboarding(false);
+    } finally {
+      setOnboardingChecked(true);
+    }
+  }, [hydrated]);
+
+  React.useEffect(() => {
+    if (!showOnboarding) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [showOnboarding]);
 
   React.useEffect(() => {
     if (!hydrated) return;
@@ -556,6 +582,16 @@ export default function NeedsPage() {
   const allOpenedSavedListItemsSelected =
     selectableOpenedSavedListItems.length > 0
     && selectableOpenedSavedListItems.every((item) => selectedOpenSavedListItemIds.includes(item.id));
+
+  function completeOnboarding() {
+    try {
+      window.localStorage.setItem(ONBOARDING_STORAGE_KEY, "1");
+    } catch {
+      // The app remains usable even if local storage is unavailable.
+    }
+
+    setShowOnboarding(false);
+  }
 
   function resetInput() {
     setName("");
@@ -903,6 +939,172 @@ export default function NeedsPage() {
     }
   }
 
+  const onboardingSteps =
+    lang === "en"
+      ? [
+          {
+            title: "Add in seconds",
+            text: "Write down what you need as soon as you remember it.",
+          },
+          {
+            title: "Reuse your lists",
+            text: "Save lists for regular shopping, recipes, or special occasions.",
+          },
+          {
+            title: "Shop with clarity",
+            text: "Check off items in Shopping as you move through the store.",
+          },
+        ]
+      : [
+          {
+            title: "Agrega en segundos",
+            text: "Escribe lo que necesitas en cuanto lo recuerdes.",
+          },
+          {
+            title: "Reutiliza tus listas",
+            text: "Guarda listas para compras frecuentes, recetas o eventos.",
+          },
+          {
+            title: "Compra con claridad",
+            text: "Marca los artículos en De Compras mientras recorres la tienda.",
+          },
+        ];
+
+  const onboardingModal = showOnboarding ? (
+    <div
+      style={{
+        ...modalOverlayStyle,
+        zIndex: 10050,
+        background: "rgba(10, 18, 45, 0.62)",
+      }}
+    >
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="mindercart-onboarding-title"
+        style={{
+          ...modalCardStyle,
+          width: "min(500px, 100%)",
+          padding: 18,
+          borderRadius: 24,
+        }}
+      >
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            minHeight: 30,
+            padding: "5px 10px",
+            borderRadius: 999,
+            background: MC_NAVY_SOFT,
+            color: MC_NAVY,
+            fontSize: s(12),
+            fontWeight: 900,
+            letterSpacing: "0.02em",
+          }}
+        >
+          MinderCart
+        </div>
+
+        <div
+          id="mindercart-onboarding-title"
+          style={{
+            marginTop: 12,
+            color: MC_NAVY,
+            fontSize: s(25),
+            fontWeight: 900,
+            lineHeight: 1.12,
+          }}
+        >
+          {lang === "en" ? "Welcome to MinderCart" : "Bienvenido a MinderCart"}
+        </div>
+
+        <div
+          style={{
+            marginTop: 6,
+            color: MC_NAVY_MUTED,
+            fontSize: s(15),
+            lineHeight: 1.35,
+          }}
+        >
+          {lang === "en" ? "Never forget what to buy." : "Nunca olvides qué comprar."}
+        </div>
+
+        <div style={{ display: "grid", gap: 10, marginTop: 18 }}>
+          {onboardingSteps.map((step, index) => (
+            <div
+              key={step.title}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "36px minmax(0, 1fr)",
+                gap: 11,
+                alignItems: "start",
+                padding: 12,
+                borderRadius: 16,
+                border: `1px solid ${MC_NAVY_LINE}`,
+                background: "#fff",
+              }}
+            >
+              <div
+                aria-hidden="true"
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 999,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background: MC_NAVY,
+                  color: "#fff",
+                  fontSize: s(14),
+                  fontWeight: 900,
+                }}
+              >
+                {index + 1}
+              </div>
+
+              <div style={{ minWidth: 0 }}>
+                <div style={{ color: MC_NAVY, fontSize: s(16), fontWeight: 900, lineHeight: 1.2 }}>
+                  {step.title}
+                </div>
+                <div
+                  style={{
+                    marginTop: 3,
+                    color: MC_NAVY_MUTED,
+                    fontSize: s(13),
+                    lineHeight: 1.35,
+                  }}
+                >
+                  {step.text}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <button
+          type="button"
+          autoFocus
+          onClick={completeOnboarding}
+          style={{
+            width: "100%",
+            marginTop: 18,
+            padding: "14px 16px",
+            borderRadius: 16,
+            border: `1px solid ${MC_NAVY}`,
+            background: MC_NAVY,
+            color: "#fff",
+            fontSize: s(15),
+            fontWeight: 900,
+            cursor: "pointer",
+          }}
+        >
+          {lang === "en" ? "Get started" : "Empezar"}
+        </button>
+      </section>
+    </div>
+  ) : null;
+
   const draftModal = draft ? (
     <div style={modalOverlayStyle} onClick={closeDraft}>
       <section style={modalCardStyle} onClick={(e) => e.stopPropagation()}>
@@ -1146,7 +1348,7 @@ export default function NeedsPage() {
     </div>
   ) : null;
 
-  if (!hydrated) {
+  if (!hydrated || !onboardingChecked) {
     return (
       <AppShell title={t("es", "myListTitle")} darkHero subtitle={t("es", "myListSubtitle")}>
         <section style={{ ...cardStyle(), padding: 18 }}>
@@ -1907,6 +2109,7 @@ export default function NeedsPage() {
         )}
 
         {draftModal}
+        {onboardingModal}
       </AppShell>
     );
   }
@@ -2115,6 +2318,7 @@ export default function NeedsPage() {
       </section>
 
       {draftModal}
+      {onboardingModal}
     </AppShell>
   );
 }
