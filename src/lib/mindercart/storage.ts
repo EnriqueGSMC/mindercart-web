@@ -665,6 +665,17 @@ export function itemKey(item: { itemKey?: string; name: string; unit: string; st
   return `${safe(item.itemKey) || normalize(item.name)}__${normalize(item.unit)}__${normalize(item.store)}`;
 }
 
+export function resolveTrackedItemKey(name: string, requestedItemKey?: string) {
+  const requested = safe(requestedItemKey);
+  if (requested) return requested;
+
+  const match = resolveCatalogMatch(readState().itemsMaster, name);
+  const catalogItemKey =
+    "itemKey" in (match || {}) ? safe((match as { itemKey?: string }).itemKey) : "";
+
+  return catalogItemKey || makeItemKey(name);
+}
+
 function upsertItemMaster(
   itemsMaster: ItemMaster[],
   input: { name: string; category: string; unit: string; store: string }
@@ -925,6 +936,7 @@ export function addQuickNeed(input: {
 }
 
 export function addQuickNeeds(inputs: Array<{
+  itemKey?: string;
   name: string;
   category: string;
   unit: string;
@@ -945,10 +957,14 @@ export function addQuickNeeds(inputs: Array<{
     const quantity = safe(input.quantity) || "1";
     const store = safe(input.store) || state.settings.preferredStore || "HEB";
     const note = safe(input.note);
-    const catalogMatch = resolveCatalogMatch(itemsMaster, name);
+    const requestedItemKey = safe(input.itemKey);
+    const requestedCatalogItem = requestedItemKey
+      ? itemsMaster.find((item) => safe(item.itemKey) === requestedItemKey)
+      : null;
+    const catalogMatch = requestedCatalogItem || resolveCatalogMatch(itemsMaster, name);
     const catalogItemKey =
       "itemKey" in (catalogMatch || {}) ? safe((catalogMatch as { itemKey?: string }).itemKey) : "";
-    const trackedItemKey = catalogItemKey || makeItemKey(name);
+    const trackedItemKey = requestedItemKey || catalogItemKey || makeItemKey(name);
 
     if (!name) throw new Error("Artículo requerido");
 
