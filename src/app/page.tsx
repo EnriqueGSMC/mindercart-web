@@ -943,30 +943,30 @@ export default function NeedsPage() {
     lang === "en"
       ? [
           {
-            title: "Add in seconds",
-            text: "Write down what you need as soon as you remember it.",
+            title: "Add what you need in seconds",
+            text: "Capture items anytime, before you forget.",
           },
           {
-            title: "Reuse your lists",
-            text: "Save lists for regular shopping, recipes, or special occasions.",
+            title: "Create and reuse your own lists",
+            text: "Save lists for weekly shopping, recipes, or special occasions.",
           },
           {
-            title: "Shop with clarity",
-            text: "Check off items in Shopping as you move through the store.",
+            title: "Shop faster, organized by category",
+            text: "Spend less time searching and backtracking through the store.",
           },
         ]
       : [
           {
-            title: "Agrega en segundos",
-            text: "Escribe lo que necesitas en cuanto lo recuerdes.",
+            title: "Agrega lo que necesitas en segundos",
+            text: "Anota artículos en cualquier momento, antes de olvidarlos.",
           },
           {
-            title: "Reutiliza tus listas",
-            text: "Guarda listas para compras frecuentes, recetas o eventos.",
+            title: "Crea y reutiliza tus propias listas",
+            text: "Guarda listas para compras semanales, recetas u ocasiones especiales.",
           },
           {
-            title: "Compra con claridad",
-            text: "Marca los artículos en De Compras mientras recorres la tienda.",
+            title: "Compra más rápido, organizado por categoría",
+            text: "Pasa menos tiempo buscando y regresando por los mismos pasillos.",
           },
         ];
 
