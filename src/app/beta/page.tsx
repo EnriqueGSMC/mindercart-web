@@ -84,7 +84,7 @@ const copy = {
       "Complete the short form to apply for the free, invitation-only private beta.",
     footerSupport: "Support",
     privacy: "Privacy",
-    terms: "Terms — Coming soon",
+    terms: "Terms",
     rights: "MinderCart. Private beta.",
   },
   es: {
@@ -157,7 +157,7 @@ const copy = {
       "Completa el formulario breve para solicitar acceso a la beta privada gratuita y solo por invitación.",
     footerSupport: "Soporte",
     privacy: "Privacidad",
-    terms: "Términos — Próximamente",
+    terms: "Términos",
     rights: "MinderCart. Beta privada.",
   },
 } as const;
@@ -1035,7 +1035,7 @@ export default function BetaPage() {
               {content.footerSupport}: {SUPPORT_EMAIL}
             </span>
             <a href="/privacy">{content.privacy}</a>
-            <span>{content.terms}</span>
+            <a href="/terms">{content.terms}</a>
           </div>
         </div>
       </footer>
