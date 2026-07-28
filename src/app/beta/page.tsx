@@ -11,6 +11,7 @@ const MC_NAVY_SOFT = "#EEF2FF";
 const MC_NAVY_LINE = "#D7DFF5";
 const MC_NAVY_MUTED = "#5C6EA6";
 const SUPPORT_EMAIL = "mindercartapp@gmail.com";
+const BETA_FORM_URL = "https://forms.gle/hBYo5seaTRWJS47v6";
 
 const copy = {
   en: {
@@ -20,7 +21,8 @@ const copy = {
     intro:
       "MinderCart helps you capture what you need, reuse your lists, and move through the store with everything organized by category.",
     primaryCta: "Request beta access",
-    supportCta: "Contact support",
+    supportCta: "Copy support email",
+    supportCopied: "Email copied",
     benefitsTitle: "A simpler way to prepare and shop",
     benefits: [
       {
@@ -78,31 +80,12 @@ const copy = {
       "Your biggest shopping-list problem",
       "Why you would like to test MinderCart",
     ],
-    applicationGuidance:
-      "Answer the questions in the email and send it to complete your beta application.",
     applicationNote:
-      "The button opens a prepared email with the application questions. A short form will replace it in the next step.",
+      "Complete the short form to apply for the free, invitation-only private beta.",
     footerSupport: "Support",
     privacy: "Privacy — Coming soon",
     terms: "Terms — Coming soon",
     rights: "MinderCart. Private beta.",
-    mailSubject: "MinderCart Private Beta Request",
-    mailBody: `Hello MinderCart team,
-
-I would like to request access to the private beta.
-
-Name:
-Email:
-Preferred language:
-Phone: iPhone / Android
-How often do you shop for groceries?
-How many people do you normally shop for?
-Who helps create your shopping list?
-How do you make your list today?
-What is your biggest shopping-list problem?
-Why would you like to test MinderCart?
-
-Thank you.`,
   },
   es: {
     languageLabel: "Idioma",
@@ -111,7 +94,8 @@ Thank you.`,
     intro:
       "MinderCart te ayuda a anotar lo que necesitas, reutilizar tus listas y recorrer la tienda con todo organizado por categoría.",
     primaryCta: "Solicitar acceso a la beta",
-    supportCta: "Contactar a soporte",
+    supportCta: "Copiar correo de soporte",
+    supportCopied: "Correo copiado",
     benefitsTitle: "Una forma más sencilla de preparar y realizar tus compras",
     benefits: [
       {
@@ -169,31 +153,12 @@ Thank you.`,
       "Cuál es tu principal problema con las compras",
       "Por qué te gustaría probar MinderCart",
     ],
-    applicationGuidance:
-      "Responde las preguntas del correo y envíalo para completar tu solicitud de acceso a la beta.",
     applicationNote:
-      "El botón abre un correo preparado con las preguntas de la solicitud. En el siguiente paso será sustituido por un formulario breve.",
+      "Completa el formulario breve para solicitar acceso a la beta privada gratuita y solo por invitación.",
     footerSupport: "Soporte",
     privacy: "Privacidad — Próximamente",
     terms: "Términos — Próximamente",
     rights: "MinderCart. Beta privada.",
-    mailSubject: "Solicitud para la beta privada de MinderCart",
-    mailBody: `Hola equipo de MinderCart:
-
-Me gustaría solicitar acceso a la beta privada.
-
-Nombre:
-Correo:
-Idioma preferido:
-Teléfono: iPhone / Android
-¿Con qué frecuencia haces compras de supermercado?
-¿Para cuántas personas haces normalmente las compras?
-¿Quién participa en la creación de tu lista?
-¿Cómo preparas actualmente tu lista?
-¿Cuál es tu principal problema con las compras?
-¿Por qué te gustaría probar MinderCart?
-
-Gracias.`,
   },
 } as const;
 
@@ -216,6 +181,7 @@ function ArrowIcon() {
 
 export default function BetaPage() {
   const [language, setLanguage] = React.useState<Language>("en");
+  const [supportEmailCopied, setSupportEmailCopied] = React.useState(false);
   const content = copy[language];
 
   React.useEffect(() => {
@@ -232,11 +198,29 @@ export default function BetaPage() {
     };
   }, [language]);
 
-  const mailToHref = React.useMemo(() => {
-    const subject = encodeURIComponent(content.mailSubject);
-    const body = encodeURIComponent(content.mailBody);
-    return `mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`;
-  }, [content.mailBody, content.mailSubject]);
+  async function copySupportEmail() {
+    let copied = false;
+
+    try {
+      await window.navigator.clipboard.writeText(SUPPORT_EMAIL);
+      copied = true;
+    } catch {
+      const textarea = document.createElement("textarea");
+      textarea.value = SUPPORT_EMAIL;
+      textarea.setAttribute("readonly", "");
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      copied = document.execCommand("copy");
+      document.body.removeChild(textarea);
+    }
+
+    if (!copied) return;
+
+    setSupportEmailCopied(true);
+    window.setTimeout(() => setSupportEmailCopied(false), 2200);
+  }
 
   return (
     <main className="mc-beta-page">
@@ -391,14 +375,6 @@ export default function BetaPage() {
           margin-top: 30px;
         }
 
-        .mc-beta-application-guidance {
-          max-width: 640px;
-          margin: 13px 0 0;
-          color: ${MC_NAVY_MUTED};
-          font-size: 13px;
-          line-height: 1.5;
-        }
-
         .mc-beta-button {
           min-height: 50px;
           padding: 13px 18px;
@@ -414,6 +390,7 @@ export default function BetaPage() {
           font-weight: 900;
           text-decoration: none;
           box-shadow: 0 12px 28px rgba(18, 36, 94, 0.2);
+          cursor: pointer;
         }
 
         .mc-beta-button svg {
@@ -886,15 +863,24 @@ export default function BetaPage() {
           <p className="mc-beta-hero-copy">{content.intro}</p>
 
           <div className="mc-beta-actions">
-            <a className="mc-beta-button" href={mailToHref}>
+            <a
+              className="mc-beta-button"
+              href={BETA_FORM_URL}
+              target="_blank"
+              rel="noreferrer"
+            >
               {content.primaryCta}
               <ArrowIcon />
             </a>
-            <a className="mc-beta-button mc-beta-button--secondary" href={`mailto:${SUPPORT_EMAIL}`}>
-              {content.supportCta}
-            </a>
+            <button
+              type="button"
+              className="mc-beta-button mc-beta-button--secondary"
+              onClick={copySupportEmail}
+              aria-live="polite"
+            >
+              {supportEmailCopied ? content.supportCopied : content.supportCta}
+            </button>
           </div>
-          <p className="mc-beta-application-guidance">{content.applicationGuidance}</p>
         </div>
 
         <div className="mc-beta-preview" aria-label="MinderCart preview">
@@ -1011,11 +997,15 @@ export default function BetaPage() {
               </ul>
 
               <div className="mc-beta-cta-row">
-                <a className="mc-beta-button" href={mailToHref}>
+                <a
+                  className="mc-beta-button"
+                  href={BETA_FORM_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                >
                   {content.primaryCta}
                   <ArrowIcon />
                 </a>
-                <p className="mc-beta-note">{content.applicationGuidance}</p>
               </div>
             </div>
 
@@ -1041,9 +1031,9 @@ export default function BetaPage() {
         <div className="mc-beta-container mc-beta-footer-inner">
           <div className="mc-beta-footer-left">{content.rights}</div>
           <div className="mc-beta-footer-links">
-            <a href={`mailto:${SUPPORT_EMAIL}`}>
+            <span>
               {content.footerSupport}: {SUPPORT_EMAIL}
-            </a>
+            </span>
             <span>{content.privacy}</span>
             <span>{content.terms}</span>
           </div>
