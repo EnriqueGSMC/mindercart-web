@@ -9,6 +9,7 @@ import {
   CATEGORY_OPTIONS,
   STORE_OPTIONS,
   addQuickNeed,
+  addQuickNeedWithResult,
   addQuickNeeds,
   buildSuggestions,
   CHANGE_EVENT,
@@ -931,7 +932,17 @@ export default function NeedsPage() {
     }
 
     try {
-      addQuickNeed(draft);
+      const result = addQuickNeedWithResult(draft);
+
+      if (!result.added) {
+        setMessage(
+          lang === "en"
+            ? `⚠ ${draft.name} could not be added. Please select it again or recreate the custom item.`
+            : `⚠ No se pudo agregar ${draft.name}. Selecciónalo nuevamente o vuelve a crear el artículo personalizado.`
+        );
+        return;
+      }
+
       setMessage(`✅ ${draft.name} ${t(lang, "addedToList")}`);
       closeDraft();
     } catch (e: unknown) {

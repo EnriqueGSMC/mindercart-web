@@ -838,7 +838,15 @@ function addQuickNeedInternal(input: {
 
   if (!name) throw new Error("Artículo requerido");
 
-  if (requestedItemKey && !requestedCatalogItem && !requestedSeedItem) {
+  const isDirectNewCustomItem =
+    !safe(input.sourceListName) && requestedItemKey === makeItemKey(name);
+
+  if (
+    requestedItemKey
+    && !requestedCatalogItem
+    && !requestedSeedItem
+    && !isDirectNewCustomItem
+  ) {
     return {
       state,
       added: false,
