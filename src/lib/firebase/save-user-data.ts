@@ -54,6 +54,8 @@ type ActiveFamilyMembership = {
   role: string | null;
 };
 
+const inFlightSaves = new Map<string, Promise<SaveUserDataResult>>();
+
 function safe(value: unknown) {
   return String(value ?? "").trim();
 }
@@ -238,7 +240,18 @@ function buildPayload(input: SaveUserDataInput, savedAt: number, target: Workspa
   return payload;
 }
 
-export async function saveUserData(input: SaveUserDataInput): Promise<SaveUserDataResult> {
+function buildInFlightSaveKey(input: SaveUserDataInput) {
+  return JSON.stringify({
+    uid: requireUid(input.uid),
+    data: requireData(input.data),
+    bootstrapPayload: input.bootstrapPayload ?? null,
+    workspaceType: input.workspaceType ?? null,
+    familyId: safe(input.familyId) || null,
+    ownerUid: safe(input.ownerUid) || null,
+  });
+}
+
+async function saveUserDataOnce(input: SaveUserDataInput): Promise<SaveUserDataResult> {
   const uid = requireUid(input.uid);
   const savedAt = Date.now();
   const target = await resolveWorkspaceTarget(input);
@@ -254,4 +267,20 @@ export async function saveUserData(input: SaveUserDataInput): Promise<SaveUserDa
     workspaceType: target.workspaceType,
     targetPath: target.targetPath,
   };
+}
+
+export async function saveUserData(input: SaveUserDataInput): Promise<SaveUserDataResult> {
+  const inFlightKey = buildInFlightSaveKey(input);
+  const inFlight = inFlightSaves.get(inFlightKey);
+  if (inFlight) return inFlight;
+
+  let save: Promise<SaveUserDataResult>;
+  save = saveUserDataOnce(input).finally(() => {
+    if (inFlightSaves.get(inFlightKey) === save) {
+      inFlightSaves.delete(inFlightKey);
+    }
+  });
+
+  inFlightSaves.set(inFlightKey, save);
+  return save;
 }
