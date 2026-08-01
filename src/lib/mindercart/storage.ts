@@ -1362,6 +1362,10 @@ export function syncSavedListItemsToCatalog(
 
   if (!changed) return state;
 
+  if (JSON.stringify(nextItemsMaster) === JSON.stringify(state.itemsMaster)) {
+    return state;
+  }
+
   const next: MinderCartState = {
     ...state,
     itemsMaster: nextItemsMaster,
