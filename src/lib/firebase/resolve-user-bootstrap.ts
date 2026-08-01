@@ -44,6 +44,8 @@ const EMPTY_LOCAL_SUMMARY: LocalStateMigrationSummary = {
   fontScale: "normal",
 };
 
+const inFlightResolutions = new Map<string, Promise<UserBootstrapResolution>>();
+
 function safe(value: unknown) {
   return String(value ?? "").trim();
 }
@@ -98,7 +100,7 @@ function getActiveFamilyId(cloudState: UserBootstrapCloudState): string | null {
   return familyId;
 }
 
-export async function resolveUserBootstrap(uid: string): Promise<UserBootstrapResolution> {
+async function resolveUserBootstrapOnce(uid: string): Promise<UserBootstrapResolution> {
   const normalizedUid = safe(uid);
   const localSummary = readLocalSummarySafely();
   const hasLocalDataToMigrate = localSummary.hasDataToMigrate;
@@ -183,4 +185,25 @@ export async function resolveUserBootstrap(uid: string): Promise<UserBootstrapRe
       error: error instanceof Error ? error.message : "Cloud bootstrap error",
     };
   }
+}
+
+export function resolveUserBootstrap(uid: string): Promise<UserBootstrapResolution> {
+  const normalizedUid = safe(uid);
+
+  if (!normalizedUid) {
+    return resolveUserBootstrapOnce("");
+  }
+
+  const inFlight = inFlightResolutions.get(normalizedUid);
+  if (inFlight) return inFlight;
+
+  let resolution: Promise<UserBootstrapResolution>;
+  resolution = resolveUserBootstrapOnce(normalizedUid).finally(() => {
+    if (inFlightResolutions.get(normalizedUid) === resolution) {
+      inFlightResolutions.delete(normalizedUid);
+    }
+  });
+
+  inFlightResolutions.set(normalizedUid, resolution);
+  return resolution;
 }
