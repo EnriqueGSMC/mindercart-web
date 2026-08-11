@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import React from "react";
+import { createPortal } from "react-dom";
 import { AppShell, QtyUnitText, cardStyle, scalePx } from "@/components/mindercart/Shell";
 import { categoryLabel, t } from "@/lib/mindercart/i18n";
 import {
@@ -981,8 +982,9 @@ export default function NeedsPage() {
           },
         ];
 
-  const onboardingModal = showOnboarding ? (
-    <div
+  const onboardingModal = showOnboarding
+    ? createPortal(
+      <div
       style={{
         ...modalOverlayStyle,
         zIndex: 10050,
@@ -1113,8 +1115,10 @@ export default function NeedsPage() {
           {lang === "en" ? "Get started" : "Empezar"}
         </button>
       </section>
-    </div>
-  ) : null;
+      </div>,
+      document.body
+    )
+    : null;
 
   const draftModal = draft ? (
     <div style={modalOverlayStyle} onClick={closeDraft}>
