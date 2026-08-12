@@ -1423,8 +1423,8 @@ export default function NeedsPage() {
 
                   const shouldLeave = window.confirm(
                     lang === "en"
-                      ? "Leave without saving this list? The list name and added items will be lost."
-                      : "¿Salir sin guardar esta lista? Se perderán el nombre y los artículos agregados."
+                      ? "Do you want to go back without saving this list?\n\nAll information for this list will be lost."
+                      : "¿Quieres regresar sin guardar esta lista?\n\nSe perderá toda la información de esta lista."
                   );
 
                   if (!shouldLeave) event.preventDefault();
