@@ -16,6 +16,16 @@ import { saveUserData } from "@/lib/firebase/save-user-data";
 import { CHANGE_EVENT, readState, resetStateForLogout, saveSettings } from "@/lib/mindercart/storage";
 
 const SAVED_LISTS_STORAGE_KEY = "mindercart.savedLists.v1";
+const PENDING_CLOUD_SYNC_STORAGE_PREFIX = "mindercart.pendingCloudSync.v1.";
+const LOGOUT_CLOUD_SAVE_TIMEOUT_MS = 6000;
+
+type LogoutCloudSnapshot = {
+  uid: string;
+  signature: string;
+  coreState: ReturnType<typeof readState>;
+  savedLists: unknown[];
+  createdAt: number;
+};
 
 export type AuthActionErrorCode =
   | "invalid-input"
@@ -84,6 +94,80 @@ function clearSavedListsForLogout() {
   window.dispatchEvent(new CustomEvent(CHANGE_EVENT));
 }
 
+function pendingCloudSyncStorageKey(uid: string) {
+  return `${PENDING_CLOUD_SYNC_STORAGE_PREFIX}${uid}`;
+}
+
+function buildLogoutCloudSnapshot(
+  uid: string,
+  coreState: ReturnType<typeof readState>,
+  savedLists: unknown[]
+): LogoutCloudSnapshot {
+  return {
+    uid,
+    signature: JSON.stringify({ coreState, savedLists }),
+    coreState,
+    savedLists,
+    createdAt: Date.now(),
+  };
+}
+
+function writePendingLogoutSnapshot(snapshot: LogoutCloudSnapshot) {
+  if (typeof window === "undefined") return false;
+
+  try {
+    window.localStorage.setItem(
+      pendingCloudSyncStorageKey(snapshot.uid),
+      JSON.stringify(snapshot)
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function clearPendingLogoutSnapshot(snapshot: LogoutCloudSnapshot) {
+  if (typeof window === "undefined") return;
+
+  try {
+    const key = pendingCloudSyncStorageKey(snapshot.uid);
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return;
+
+    const pending = JSON.parse(raw) as Partial<LogoutCloudSnapshot> | null;
+    if (pending?.signature === snapshot.signature) {
+      window.localStorage.removeItem(key);
+    }
+  } catch {
+    // Keep an unreadable marker rather than interrupting logout.
+  }
+}
+
+async function saveBeforeLogout(snapshot: LogoutCloudSnapshot) {
+  let timeoutId: number | null = null;
+
+  const save = saveUserData({
+    uid: snapshot.uid,
+    data: {
+      coreState: snapshot.coreState,
+      savedLists: snapshot.savedLists,
+    },
+  }).then(() => {
+    clearPendingLogoutSnapshot(snapshot);
+    return true;
+  }).catch(() => false);
+
+  const timeout = new Promise<boolean>((resolve) => {
+    timeoutId = window.setTimeout(() => resolve(false), LOGOUT_CLOUD_SAVE_TIMEOUT_MS);
+  });
+
+  await Promise.race([save, timeout]);
+
+  if (timeoutId !== null) {
+    window.clearTimeout(timeoutId);
+  }
+}
+
 function readUiPreferencesForLogout() {
   const state = readState();
 
@@ -139,13 +223,20 @@ export async function signOutUser() {
     const savedLists = readSavedListsForLogout();
 
     if (uid) {
-      await saveUserData({
-        uid,
-        data: {
-          coreState,
-          savedLists,
-        },
-      });
+      const pendingSnapshot = buildLogoutCloudSnapshot(uid, coreState, savedLists);
+      const hasRecoverableBackup = writePendingLogoutSnapshot(pendingSnapshot);
+
+      if (hasRecoverableBackup) {
+        await saveBeforeLogout(pendingSnapshot);
+      } else {
+        await saveUserData({
+          uid,
+          data: {
+            coreState,
+            savedLists,
+          },
+        });
+      }
     }
 
     await signOut(auth);

@@ -1414,6 +1414,21 @@ export default function NeedsPage() {
             <section style={{ ...cardStyle(), padding: "14px 14px" }}>
               <Link
                 href="/?view=saved-lists"
+                onClick={(event) => {
+                  const hasUnsavedNewList =
+                    isNewSavedListView &&
+                    (savedListName.trim().length > 0 || savedListItemsDraft.length > 0);
+
+                  if (!hasUnsavedNewList) return;
+
+                  const shouldLeave = window.confirm(
+                    lang === "en"
+                      ? "Do you want to go back without saving this list?\n\nAll information for this list will be lost."
+                      : "¿Quieres regresar sin guardar esta lista?\n\nSe perderá toda la información de esta lista."
+                  );
+
+                  if (!shouldLeave) event.preventDefault();
+                }}
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
