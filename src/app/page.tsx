@@ -1120,9 +1120,25 @@ export default function NeedsPage() {
     )
     : null;
 
-  const draftModal = draft ? (
-    <div style={modalOverlayStyle} onClick={closeDraft}>
-      <section style={modalCardStyle} onClick={(e) => e.stopPropagation()}>
+  const draftModal = draft
+    ? createPortal(
+    <div
+      style={{
+        ...modalOverlayStyle,
+        alignItems: "flex-start",
+        boxSizing: "border-box",
+        zIndex: 10040,
+      }}
+      onClick={closeDraft}
+    >
+      <section
+        style={{
+          ...modalCardStyle,
+          boxSizing: "border-box",
+          flexShrink: 0,
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div style={{ fontSize: s(21), fontWeight: 900 }}>{draft.name}</div>
         <div style={{ marginTop: 4, fontSize: s(13), color: MC_NAVY_MUTED }}>{addArticleModalHelp}</div>
 
@@ -1361,8 +1377,10 @@ export default function NeedsPage() {
           </div>
         ) : null}
       </section>
-    </div>
-  ) : null;
+    </div>,
+    document.body
+  )
+    : null;
 
   if (!hydrated || !onboardingChecked) {
     return (
