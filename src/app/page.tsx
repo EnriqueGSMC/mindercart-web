@@ -1128,6 +1128,30 @@ export default function NeedsPage() {
 
         <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
           <div>
+            <div style={{ fontSize: s(12), fontWeight: 700, marginBottom: 5 }}>
+              {lang === "en" ? "Note or preference (optional)" : "Nota o preferencia (opcional)"}
+            </div>
+            <input
+              value={draft.note ?? ""}
+              maxLength={80}
+              onChange={(e) => updateDraftField("note", e.target.value)}
+              placeholder={
+                lang === "en"
+                  ? "e.g. Cherry, sugar-free, preferred brand"
+                  : "ej. Cherry, sin azúcar, marca preferida"
+              }
+              style={{
+                width: "100%",
+                padding: "12px 14px",
+                borderRadius: 14,
+                border: `1px solid ${MC_NAVY_LINE}`,
+                boxSizing: "border-box",
+                fontSize: s(15),
+              }}
+            />
+          </div>
+
+          <div>
             <div style={{ fontSize: s(12), fontWeight: 700, marginBottom: 5 }}>{t(lang, "category")}</div>
             <select
               value={draft.category}
@@ -1222,29 +1246,6 @@ export default function NeedsPage() {
             </select>
           </div>
 
-          <div>
-            <div style={{ fontSize: s(12), fontWeight: 700, marginBottom: 5 }}>
-              {lang === "en" ? "Note or preference (optional)" : "Nota o preferencia (opcional)"}
-            </div>
-            <input
-              value={draft.note ?? ""}
-              maxLength={80}
-              onChange={(e) => updateDraftField("note", e.target.value)}
-              placeholder={
-                lang === "en"
-                  ? "e.g. Cherry, sugar-free, preferred brand"
-                  : "ej. Cherry, sin azúcar, marca preferida"
-              }
-              style={{
-                width: "100%",
-                padding: "12px 14px",
-                borderRadius: 14,
-                border: `1px solid ${MC_NAVY_LINE}`,
-                boxSizing: "border-box",
-                fontSize: s(15),
-              }}
-            />
-          </div>
         </div>
 
         <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
