@@ -356,6 +356,11 @@ export default function NeedsPage() {
   const [newStoreName, setNewStoreName] = React.useState("");
   const [onboardingChecked, setOnboardingChecked] = React.useState(false);
   const [showOnboarding, setShowOnboarding] = React.useState(false);
+  const [draftModalViewport, setDraftModalViewport] = React.useState<{
+    top: number;
+    bottom: number;
+  } | null>(null);
+  const draftOpen = draft !== null;
 
   const [savedLists, setSavedLists] = React.useState<SavedListRecord[]>([]);
   const [savedListsLoaded, setSavedListsLoaded] = React.useState(false);
@@ -398,6 +403,41 @@ export default function NeedsPage() {
       document.body.style.overflow = previousOverflow;
     };
   }, [showOnboarding]);
+
+  React.useLayoutEffect(() => {
+    if (!draftOpen) {
+      setDraftModalViewport(null);
+      return;
+    }
+
+    const appHeader = document.querySelector("main > header");
+    const bottomNavigation = document.querySelector(".mc-bottom-nav");
+
+    const updateDraftModalViewport = () => {
+      const top = Math.max(0, Math.round(appHeader?.getBoundingClientRect().bottom ?? 0));
+      const bottomNavigationTop = bottomNavigation?.getBoundingClientRect().top ?? window.innerHeight;
+      const bottom = Math.max(0, Math.round(window.innerHeight - bottomNavigationTop));
+
+      setDraftModalViewport((previous) =>
+        previous?.top === top && previous.bottom === bottom ? previous : { top, bottom }
+      );
+    };
+
+    updateDraftModalViewport();
+
+    const resizeObserver =
+      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(updateDraftModalViewport);
+    if (appHeader) resizeObserver?.observe(appHeader);
+    if (bottomNavigation) resizeObserver?.observe(bottomNavigation);
+    window.addEventListener("resize", updateDraftModalViewport);
+    window.visualViewport?.addEventListener("resize", updateDraftModalViewport);
+
+    return () => {
+      resizeObserver?.disconnect();
+      window.removeEventListener("resize", updateDraftModalViewport);
+      window.visualViewport?.removeEventListener("resize", updateDraftModalViewport);
+    };
+  }, [draftOpen]);
 
   React.useEffect(() => {
     if (!hydrated) return;
@@ -1120,13 +1160,19 @@ export default function NeedsPage() {
     )
     : null;
 
-  const draftModal = draft
+  const draftModal = draft && draftModalViewport
     ? createPortal(
     <div
       style={{
         ...modalOverlayStyle,
+        inset: "auto",
+        top: draftModalViewport.top,
+        right: 0,
+        bottom: draftModalViewport.bottom,
+        left: 0,
         alignItems: "flex-start",
         boxSizing: "border-box",
+        padding: 12,
         zIndex: 10040,
       }}
       onClick={closeDraft}
@@ -1136,6 +1182,7 @@ export default function NeedsPage() {
           ...modalCardStyle,
           boxSizing: "border-box",
           flexShrink: 0,
+          maxHeight: "100%",
         }}
         onClick={(e) => e.stopPropagation()}
       >
