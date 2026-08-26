@@ -343,8 +343,8 @@ export default function NeedsPage() {
   const addArticleLabel = lang === "en" ? "Add item" : "Agregar artículo";
   const addArticleModalHelp =
     lang === "en"
-      ? "It is not in the list. You can add it."
-      : "No está en la lista. Puedes agregarlo.";
+      ? "Complete or adjust the item to suit your needs."
+      : "Completa o ajusta el artículo según tus necesidades.";
   const itemPlaceholder = lang === "en" ? "e.g. milk" : "ej. leche";
 
   const [name, setName] = React.useState("");
@@ -356,6 +356,11 @@ export default function NeedsPage() {
   const [newStoreName, setNewStoreName] = React.useState("");
   const [onboardingChecked, setOnboardingChecked] = React.useState(false);
   const [showOnboarding, setShowOnboarding] = React.useState(false);
+  const [draftModalViewport, setDraftModalViewport] = React.useState<{
+    top: number;
+    bottom: number;
+  } | null>(null);
+  const draftOpen = draft !== null;
 
   const [savedLists, setSavedLists] = React.useState<SavedListRecord[]>([]);
   const [savedListsLoaded, setSavedListsLoaded] = React.useState(false);
@@ -398,6 +403,51 @@ export default function NeedsPage() {
       document.body.style.overflow = previousOverflow;
     };
   }, [showOnboarding]);
+
+  React.useLayoutEffect(() => {
+    if (!draftOpen) {
+      setDraftModalViewport(null);
+      return;
+    }
+
+    const appHeader = document.querySelector("main > header");
+    const bottomNavigation = document.querySelector(".mc-bottom-nav");
+    const savedListsHeaderBand = isSavedListsView
+      ? document.querySelector("main > header > div:nth-of-type(2)")
+      : null;
+
+    const updateDraftModalViewport = () => {
+      const headerBottom = appHeader?.getBoundingClientRect().bottom ?? 0;
+      const savedListsHeaderBottom =
+        savedListsHeaderBand?.getBoundingClientRect().bottom ?? headerBottom;
+      const top = Math.max(
+        0,
+        Math.round(isSavedListsView ? savedListsHeaderBottom : headerBottom)
+      );
+      const bottomNavigationTop = bottomNavigation?.getBoundingClientRect().top ?? window.innerHeight;
+      const bottom = Math.max(0, Math.round(window.innerHeight - bottomNavigationTop));
+
+      setDraftModalViewport((previous) =>
+        previous?.top === top && previous.bottom === bottom ? previous : { top, bottom }
+      );
+    };
+
+    updateDraftModalViewport();
+
+    const resizeObserver =
+      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(updateDraftModalViewport);
+    if (appHeader) resizeObserver?.observe(appHeader);
+    if (bottomNavigation) resizeObserver?.observe(bottomNavigation);
+    if (savedListsHeaderBand) resizeObserver?.observe(savedListsHeaderBand);
+    window.addEventListener("resize", updateDraftModalViewport);
+    window.visualViewport?.addEventListener("resize", updateDraftModalViewport);
+
+    return () => {
+      resizeObserver?.disconnect();
+      window.removeEventListener("resize", updateDraftModalViewport);
+      window.visualViewport?.removeEventListener("resize", updateDraftModalViewport);
+    };
+  }, [draftOpen, isSavedListsView]);
 
   React.useEffect(() => {
     if (!hydrated) return;
@@ -1120,13 +1170,60 @@ export default function NeedsPage() {
     )
     : null;
 
-  const draftModal = draft ? (
-    <div style={modalOverlayStyle} onClick={closeDraft}>
-      <section style={modalCardStyle} onClick={(e) => e.stopPropagation()}>
+  const draftModal = draft && draftModalViewport
+    ? createPortal(
+    <div
+      style={{
+        ...modalOverlayStyle,
+        inset: "auto",
+        top: draftModalViewport.top,
+        right: 0,
+        bottom: draftModalViewport.bottom,
+        left: 0,
+        alignItems: "flex-start",
+        boxSizing: "border-box",
+        padding: 12,
+        zIndex: 10040,
+      }}
+      onClick={closeDraft}
+    >
+      <section
+        style={{
+          ...modalCardStyle,
+          boxSizing: "border-box",
+          flexShrink: 0,
+          maxHeight: "100%",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div style={{ fontSize: s(21), fontWeight: 900 }}>{draft.name}</div>
         <div style={{ marginTop: 4, fontSize: s(13), color: MC_NAVY_MUTED }}>{addArticleModalHelp}</div>
 
         <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
+          <div>
+            <div style={{ fontSize: s(12), fontWeight: 700, marginBottom: 5 }}>
+              {lang === "en" ? "Note or preference (optional)" : "Nota o preferencia (opcional)"}
+            </div>
+            <input
+              value={draft.note ?? ""}
+              maxLength={80}
+              onChange={(e) => updateDraftField("note", e.target.value)}
+              placeholder={
+                lang === "en"
+                  ? "e.g. Cherry, sugar-free, preferred brand"
+                  : "ej. Cherry, sin azúcar, marca preferida"
+              }
+              style={{
+                width: "100%",
+                padding: "12px 14px",
+                borderRadius: 14,
+                border: `1px solid ${MC_NAVY_LINE}`,
+                boxSizing: "border-box",
+                fontSize: s(15),
+              }}
+            />
+          </div>
+
           <div>
             <div style={{ fontSize: s(12), fontWeight: 700, marginBottom: 5 }}>{t(lang, "category")}</div>
             <select
@@ -1222,29 +1319,6 @@ export default function NeedsPage() {
             </select>
           </div>
 
-          <div>
-            <div style={{ fontSize: s(12), fontWeight: 700, marginBottom: 5 }}>
-              {lang === "en" ? "Note or preference (optional)" : "Nota o preferencia (opcional)"}
-            </div>
-            <input
-              value={draft.note ?? ""}
-              maxLength={80}
-              onChange={(e) => updateDraftField("note", e.target.value)}
-              placeholder={
-                lang === "en"
-                  ? "e.g. Cherry, sugar-free, preferred brand"
-                  : "ej. Cherry, sin azúcar, marca preferida"
-              }
-              style={{
-                width: "100%",
-                padding: "12px 14px",
-                borderRadius: 14,
-                border: `1px solid ${MC_NAVY_LINE}`,
-                boxSizing: "border-box",
-                fontSize: s(15),
-              }}
-            />
-          </div>
         </div>
 
         <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
@@ -1277,7 +1351,7 @@ export default function NeedsPage() {
               fontSize: s(14),
             }}
           >
-            {t(lang, "add")}
+            {lang === "en" ? "Save" : "Guardar"}
           </button>
         </div>
 
@@ -1360,8 +1434,10 @@ export default function NeedsPage() {
           </div>
         ) : null}
       </section>
-    </div>
-  ) : null;
+    </div>,
+    document.body
+  )
+    : null;
 
   if (!hydrated || !onboardingChecked) {
     return (

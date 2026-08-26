@@ -18,8 +18,6 @@ import {
 import { useMinderCartState } from "@/lib/mindercart/hooks";
 import type { ActiveShoppingListItem, GeneralListItem, ItemMaster } from "@/lib/mindercart/types";
 
-const MODAL_TOP_OFFSET = "calc(env(safe-area-inset-top) + 148px)";
-const MODAL_BOTTOM_OFFSET = "calc(env(safe-area-inset-bottom) + 84px)";
 const CATEGORY_FOOTER_INSET = 112;
 const CHECKED_ROW_BG = "#EAF1FF";
 const CHECKED_ROW_BORDER = "#C9D8FF";
@@ -78,6 +76,7 @@ type ActiveCategoryGroup = {
 
 type ActiveItemEditDraft = {
   original: ActiveShoppingListItem;
+  note: string;
   category: string;
   unit: string;
   quantity: string;
@@ -86,11 +85,10 @@ type ActiveItemEditDraft = {
 
 const modalOverlayStyle: React.CSSProperties = {
   position: "fixed",
-  top: MODAL_TOP_OFFSET,
   right: 0,
-  bottom: MODAL_BOTTOM_OFFSET,
   left: 0,
-  padding: "0 12px 0",
+  padding: 12,
+  boxSizing: "border-box",
   zIndex: 30,
   pointerEvents: "none",
 };
@@ -222,9 +220,58 @@ export default function CartPage() {
   const s = (px: number) => scalePx(settings.fontScale, px);
   const [openCategory, setOpenCategory] = React.useState<string | null>(null);
   const [activeItemDraft, setActiveItemDraft] = React.useState<ActiveItemEditDraft | null>(null);
+  const [activeItemModalViewport, setActiveItemModalViewport] = React.useState<{
+    top: number;
+    bottom: number;
+  } | null>(null);
   const [customStores, setCustomStores] = React.useState<string[]>([]);
   const [addingStore, setAddingStore] = React.useState(false);
   const [newStoreName, setNewStoreName] = React.useState("");
+  const activeItemDraftOpen = activeItemDraft !== null;
+
+  React.useLayoutEffect(() => {
+    if (!activeItemDraftOpen) {
+      setActiveItemModalViewport(null);
+      return;
+    }
+
+    const appHeader = document.querySelector("main > header");
+    const cartHeaderBand = document.querySelector("main > header > div:nth-of-type(2)");
+    const bottomNavigation = document.querySelector(".mc-bottom-nav");
+
+    const updateActiveItemModalViewport = () => {
+      const headerBottom = appHeader?.getBoundingClientRect().bottom ?? 0;
+      const top = Math.max(
+        0,
+        Math.round(cartHeaderBand?.getBoundingClientRect().bottom ?? headerBottom)
+      );
+      const bottomNavigationTop =
+        bottomNavigation?.getBoundingClientRect().top ?? window.innerHeight;
+      const bottom = Math.max(0, Math.round(window.innerHeight - bottomNavigationTop));
+
+      setActiveItemModalViewport((previous) =>
+        previous?.top === top && previous.bottom === bottom ? previous : { top, bottom }
+      );
+    };
+
+    updateActiveItemModalViewport();
+
+    const resizeObserver =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(updateActiveItemModalViewport);
+    if (appHeader) resizeObserver?.observe(appHeader);
+    if (cartHeaderBand) resizeObserver?.observe(cartHeaderBand);
+    if (bottomNavigation) resizeObserver?.observe(bottomNavigation);
+    window.addEventListener("resize", updateActiveItemModalViewport);
+    window.visualViewport?.addEventListener("resize", updateActiveItemModalViewport);
+
+    return () => {
+      resizeObserver?.disconnect();
+      window.removeEventListener("resize", updateActiveItemModalViewport);
+      window.visualViewport?.removeEventListener("resize", updateActiveItemModalViewport);
+    };
+  }, [activeItemDraftOpen]);
 
   React.useEffect(() => {
     setOpenCategory(searchParams.get("category"));
@@ -535,6 +582,7 @@ export default function CartPage() {
     setNewStoreName("");
     setActiveItemDraft({
       original: item,
+      note: item.note || "",
       category: item.category,
       unit: item.unit,
       quantity: String(item.quantity || "1"),
@@ -569,7 +617,7 @@ export default function CartPage() {
   function saveActiveItemDraft() {
     if (!activeItemDraft) return;
 
-    const { original, category, unit, quantity, store } = activeItemDraft;
+    const { original, note, category, unit, quantity, store } = activeItemDraft;
     const { id: originalId, ...rest } = original as ActiveShoppingListItem & Record<string, unknown>;
 
     removeActiveItem(originalId);
@@ -577,6 +625,7 @@ export default function CartPage() {
     addQuickNeed({
       ...(rest as Record<string, unknown>),
       name: original.name,
+      note: note.trim(),
       category,
       unit,
       quantity,
@@ -753,8 +802,14 @@ export default function CartPage() {
         </div>
       </section>
 
-      {activeItemDraft ? (
-        <div style={modalOverlayStyle}>
+      {activeItemDraft && activeItemModalViewport ? (
+        <div
+          style={{
+            ...modalOverlayStyle,
+            top: activeItemModalViewport.top,
+            bottom: activeItemModalViewport.bottom,
+          }}
+        >
           <section style={modalCardStyle}>
             <div
               style={{
@@ -771,7 +826,7 @@ export default function CartPage() {
                 gap: 12,
               }}
             >
-              <div style={{ minWidth: 0 }}>
+              <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{ fontSize: s(20), fontWeight: 900 }}>
                   {activeItemDraft.original.name}
                   {activeItemDraft.original.sourceListName ? (
@@ -780,40 +835,7 @@ export default function CartPage() {
                     </span>
                   ) : null}
                 </div>
-                {activeItemDraft.original.note ? (
-                  <div
-                    style={{
-                      marginTop: 3,
-                      fontSize: s(13),
-                      fontWeight: 400,
-                      color: "#5b6b9a",
-                      lineHeight: 1.25,
-                    }}
-                  >
-                    {activeItemDraft.original.note}
-                  </div>
-                ) : null}
-                <div style={{ marginTop: 6, fontSize: s(14), color: "#5b6b9a" }}>
-                  {lang === "en"
-                    ? "Update category, unit, quantity, or store for this item."
-                    : "Actualiza categoría, unidad, cantidad o tienda de este artículo."}
-                </div>
               </div>
-
-              <button
-                type="button"
-                onClick={closeActiveItemDraft}
-                style={{
-                  border: "1px solid #dbe3ff",
-                  background: "#fff",
-                  color: MC_NAVY,
-                  borderRadius: 999,
-                  padding: "8px 12px",
-                  fontWeight: 800,
-                }}
-              >
-                {lang === "en" ? "Close" : "Cerrar"}
-              </button>
             </div>
 
             <div
@@ -828,6 +850,33 @@ export default function CartPage() {
                 maxHeight: "min(58vh, 100%)",
               }}
             >
+              <label style={{ display: "grid", gap: 6 }}>
+                <span style={{ fontSize: s(13), fontWeight: 800, color: "#374151" }}>
+                  {lang === "en" ? "Note or preference (optional)" : "Nota o preferencia (opcional)"}
+                </span>
+                <input
+                  value={activeItemDraft.note}
+                  maxLength={80}
+                  onChange={(e) =>
+                    setActiveItemDraft((current) =>
+                      current ? { ...current, note: e.target.value } : current
+                    )
+                  }
+                  placeholder={
+                    lang === "en"
+                      ? "e.g. Cherry, sugar-free, preferred brand"
+                      : "ej. Cherry, sin azúcar, marca preferida"
+                  }
+                  style={{
+                    width: "100%",
+                    borderRadius: 14,
+                    border: "1px solid #dbe3ff",
+                    padding: "12px 14px",
+                    fontSize: s(16),
+                  }}
+                />
+              </label>
+
               <label style={{ display: "grid", gap: 6 }}>
                 <span style={{ fontSize: s(13), fontWeight: 800, color: "#374151" }}>
                   {lang === "en" ? "Category" : "Categoría"}
@@ -939,7 +988,6 @@ export default function CartPage() {
                 borderTop: "1px solid #e6ecff",
                 padding: 16,
                 display: "flex",
-                justifyContent: "flex-end",
                 gap: 10,
                 flexShrink: 0,
               }}
@@ -948,26 +996,29 @@ export default function CartPage() {
                 type="button"
                 onClick={closeActiveItemDraft}
                 style={{
+                  flex: 1,
+                  padding: "13px 14px",
+                  borderRadius: 14,
                   border: "1px solid #dbe3ff",
                   background: "#fff",
-                  color: MC_NAVY,
-                  borderRadius: 999,
-                  padding: "10px 14px",
                   fontWeight: 800,
+                  fontSize: s(14),
                 }}
               >
-                {lang === "en" ? "Cancel" : "Cancelar"}
+                {lang === "en" ? "Back" : "Regresar"}
               </button>
               <button
                 type="button"
                 onClick={saveActiveItemDraft}
                 style={{
-                  border: "none",
+                  flex: 1,
+                  padding: "13px 14px",
+                  borderRadius: 14,
+                  border: `1px solid ${MC_NAVY}`,
                   background: MC_NAVY,
                   color: "#fff",
-                  borderRadius: 999,
-                  padding: "10px 16px",
                   fontWeight: 900,
+                  fontSize: s(14),
                 }}
               >
                 {lang === "en" ? "Save" : "Guardar"}
@@ -977,10 +1028,12 @@ export default function CartPage() {
         </div>
       ) : null}
 
-      {addingStore && activeItemDraft ? (
+      {addingStore && activeItemDraft && activeItemModalViewport ? (
         <div
           style={{
             ...modalOverlayStyle,
+            top: activeItemModalViewport.top,
+            bottom: activeItemModalViewport.bottom,
             zIndex: 40,
             background: "rgba(17,24,39,0.22)",
             pointerEvents: "auto",
