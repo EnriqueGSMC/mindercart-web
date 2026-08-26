@@ -412,9 +412,17 @@ export default function NeedsPage() {
 
     const appHeader = document.querySelector("main > header");
     const bottomNavigation = document.querySelector(".mc-bottom-nav");
+    const savedListsEditorStart = isSavedListsView
+      ? document.querySelector("[data-mindercart-saved-lists-editor-start]")
+      : null;
 
     const updateDraftModalViewport = () => {
-      const top = Math.max(0, Math.round(appHeader?.getBoundingClientRect().bottom ?? 0));
+      const headerBottom = appHeader?.getBoundingClientRect().bottom ?? 0;
+      const savedListsTop = savedListsEditorStart?.getBoundingClientRect().top ?? headerBottom;
+      const top = Math.max(
+        0,
+        Math.round(isSavedListsView ? Math.max(headerBottom, savedListsTop) : headerBottom)
+      );
       const bottomNavigationTop = bottomNavigation?.getBoundingClientRect().top ?? window.innerHeight;
       const bottom = Math.max(0, Math.round(window.innerHeight - bottomNavigationTop));
 
@@ -429,6 +437,7 @@ export default function NeedsPage() {
       typeof ResizeObserver === "undefined" ? null : new ResizeObserver(updateDraftModalViewport);
     if (appHeader) resizeObserver?.observe(appHeader);
     if (bottomNavigation) resizeObserver?.observe(bottomNavigation);
+    if (savedListsEditorStart) resizeObserver?.observe(savedListsEditorStart);
     window.addEventListener("resize", updateDraftModalViewport);
     window.visualViewport?.addEventListener("resize", updateDraftModalViewport);
 
@@ -437,7 +446,7 @@ export default function NeedsPage() {
       window.removeEventListener("resize", updateDraftModalViewport);
       window.visualViewport?.removeEventListener("resize", updateDraftModalViewport);
     };
-  }, [draftOpen]);
+  }, [draftOpen, isSavedListsView]);
 
   React.useEffect(() => {
     if (!hydrated) return;
@@ -1477,7 +1486,10 @@ export default function NeedsPage() {
       <AppShell title={savedListsTitle} darkHero subtitle={savedListsSubtitle}>
         {isSavedListEditorView ? (
           <>
-            <section style={{ ...cardStyle(), padding: "14px 14px" }}>
+            <section
+              data-mindercart-saved-lists-editor-start
+              style={{ ...cardStyle(), padding: "14px 14px" }}
+            >
               <Link
                 href="/?view=saved-lists"
                 onClick={(event) => {
