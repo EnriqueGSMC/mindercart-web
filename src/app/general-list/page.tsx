@@ -826,7 +826,7 @@ export default function CartPage() {
                 gap: 12,
               }}
             >
-              <div style={{ minWidth: 0 }}>
+              <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{ fontSize: s(20), fontWeight: 900 }}>
                   {activeItemDraft.original.name}
                   {activeItemDraft.original.sourceListName ? (
@@ -834,11 +834,6 @@ export default function CartPage() {
                       {" "}({activeItemDraft.original.sourceListName})
                     </span>
                   ) : null}
-                </div>
-                <div style={{ marginTop: 6, fontSize: s(14), color: "#5b6b9a" }}>
-                  {lang === "en"
-                    ? "Update note, category, unit, quantity, or store for this item."
-                    : "Actualiza nota, categoría, unidad, cantidad o tienda de este artículo."}
                 </div>
               </div>
 
@@ -852,6 +847,7 @@ export default function CartPage() {
                   borderRadius: 999,
                   padding: "8px 12px",
                   fontWeight: 800,
+                  flexShrink: 0,
                 }}
               >
                 {lang === "en" ? "Close" : "Cerrar"}
@@ -1008,7 +1004,6 @@ export default function CartPage() {
                 borderTop: "1px solid #e6ecff",
                 padding: 16,
                 display: "flex",
-                justifyContent: "flex-end",
                 gap: 10,
                 flexShrink: 0,
               }}
@@ -1017,26 +1012,29 @@ export default function CartPage() {
                 type="button"
                 onClick={closeActiveItemDraft}
                 style={{
+                  flex: 1,
+                  padding: "13px 14px",
+                  borderRadius: 14,
                   border: "1px solid #dbe3ff",
                   background: "#fff",
-                  color: MC_NAVY,
-                  borderRadius: 999,
-                  padding: "10px 14px",
                   fontWeight: 800,
+                  fontSize: s(14),
                 }}
               >
-                {lang === "en" ? "Cancel" : "Cancelar"}
+                {lang === "en" ? "Back" : "Regresar"}
               </button>
               <button
                 type="button"
                 onClick={saveActiveItemDraft}
                 style={{
-                  border: "none",
+                  flex: 1,
+                  padding: "13px 14px",
+                  borderRadius: 14,
+                  border: `1px solid ${MC_NAVY}`,
                   background: MC_NAVY,
                   color: "#fff",
-                  borderRadius: 999,
-                  padding: "10px 16px",
                   fontWeight: 900,
+                  fontSize: s(14),
                 }}
               >
                 {lang === "en" ? "Save" : "Guardar"}
