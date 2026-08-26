@@ -343,8 +343,8 @@ export default function NeedsPage() {
   const addArticleLabel = lang === "en" ? "Add item" : "Agregar artículo";
   const addArticleModalHelp =
     lang === "en"
-      ? "It is not in the list. You can add it."
-      : "No está en la lista. Puedes agregarlo.";
+      ? "Complete or adjust the item to suit your needs."
+      : "Completa o ajusta el artículo según tus necesidades.";
   const itemPlaceholder = lang === "en" ? "e.g. milk" : "ej. leche";
 
   const [name, setName] = React.useState("");
@@ -1351,7 +1351,7 @@ export default function NeedsPage() {
               fontSize: s(14),
             }}
           >
-            {t(lang, "add")}
+            {lang === "en" ? "Save" : "Guardar"}
           </button>
         </div>
 
