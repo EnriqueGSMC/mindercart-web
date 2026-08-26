@@ -836,22 +836,6 @@ export default function CartPage() {
                   ) : null}
                 </div>
               </div>
-
-              <button
-                type="button"
-                onClick={closeActiveItemDraft}
-                style={{
-                  border: "1px solid #dbe3ff",
-                  background: "#fff",
-                  color: MC_NAVY,
-                  borderRadius: 999,
-                  padding: "8px 12px",
-                  fontWeight: 800,
-                  flexShrink: 0,
-                }}
-              >
-                {lang === "en" ? "Close" : "Cerrar"}
-              </button>
             </div>
 
             <div
