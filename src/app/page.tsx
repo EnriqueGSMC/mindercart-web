@@ -412,16 +412,17 @@ export default function NeedsPage() {
 
     const appHeader = document.querySelector("main > header");
     const bottomNavigation = document.querySelector(".mc-bottom-nav");
-    const savedListsEditorStart = isSavedListsView
-      ? document.querySelector("[data-mindercart-saved-lists-editor-start]")
+    const savedListsHeaderBand = isSavedListsView
+      ? document.querySelector("main > header > div:nth-of-type(2)")
       : null;
 
     const updateDraftModalViewport = () => {
       const headerBottom = appHeader?.getBoundingClientRect().bottom ?? 0;
-      const savedListsTop = savedListsEditorStart?.getBoundingClientRect().top ?? headerBottom;
+      const savedListsHeaderBottom =
+        savedListsHeaderBand?.getBoundingClientRect().bottom ?? headerBottom;
       const top = Math.max(
         0,
-        Math.round(isSavedListsView ? Math.max(headerBottom, savedListsTop) : headerBottom)
+        Math.round(isSavedListsView ? savedListsHeaderBottom : headerBottom)
       );
       const bottomNavigationTop = bottomNavigation?.getBoundingClientRect().top ?? window.innerHeight;
       const bottom = Math.max(0, Math.round(window.innerHeight - bottomNavigationTop));
@@ -437,7 +438,7 @@ export default function NeedsPage() {
       typeof ResizeObserver === "undefined" ? null : new ResizeObserver(updateDraftModalViewport);
     if (appHeader) resizeObserver?.observe(appHeader);
     if (bottomNavigation) resizeObserver?.observe(bottomNavigation);
-    if (savedListsEditorStart) resizeObserver?.observe(savedListsEditorStart);
+    if (savedListsHeaderBand) resizeObserver?.observe(savedListsHeaderBand);
     window.addEventListener("resize", updateDraftModalViewport);
     window.visualViewport?.addEventListener("resize", updateDraftModalViewport);
 
@@ -1486,10 +1487,7 @@ export default function NeedsPage() {
       <AppShell title={savedListsTitle} darkHero subtitle={savedListsSubtitle}>
         {isSavedListEditorView ? (
           <>
-            <section
-              data-mindercart-saved-lists-editor-start
-              style={{ ...cardStyle(), padding: "14px 14px" }}
-            >
+            <section style={{ ...cardStyle(), padding: "14px 14px" }}>
               <Link
                 href="/?view=saved-lists"
                 onClick={(event) => {
