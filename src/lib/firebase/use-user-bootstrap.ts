@@ -9,6 +9,7 @@ import {
 import { CHANGE_EVENT, readState, writeState } from "@/lib/mindercart/storage";
 
 const SAVED_LISTS_STORAGE_KEY = "mindercart.savedLists.v1";
+const PENDING_CLOUD_SYNC_STORAGE_PREFIX = "mindercart.pendingCloudSync.v1.";
 
 export type UserBootstrapHookStatus = "loading" | "ready" | "error";
 
@@ -39,6 +40,30 @@ function safe(value: unknown) {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function hasNewerPendingCloudSnapshot(
+  uid: string,
+  cloudState: Record<string, unknown> | null,
+): boolean {
+  if (typeof window === "undefined" || !uid) return false;
+
+  try {
+    const raw = window.localStorage.getItem(`${PENDING_CLOUD_SYNC_STORAGE_PREFIX}${uid}`);
+    if (!raw) return false;
+
+    const pending = JSON.parse(raw) as Record<string, unknown> | null;
+    if (!pending || safe(pending.uid) !== uid) return false;
+
+    const pendingCreatedAt = Number(pending.createdAt ?? 0);
+    const cloudUpdatedAt = Number(cloudState?.updatedAt ?? 0);
+
+    return Number.isFinite(pendingCreatedAt)
+      && pendingCreatedAt > 0
+      && (!Number.isFinite(cloudUpdatedAt) || pendingCreatedAt > cloudUpdatedAt);
+  } catch {
+    return false;
+  }
 }
 
 function emitSavedListsChange() {
@@ -141,7 +166,11 @@ export function useUserBootstrap(): UserBootstrapState {
 
         if (cancelled) return;
 
-        if (session.status === "authenticated" && resolution.hasCloudData) {
+        if (
+          session.status === "authenticated"
+          && resolution.hasCloudData
+          && !hasNewerPendingCloudSnapshot(uid, resolution.cloudState)
+        ) {
           const signature = buildApplySignature(uid, resolution);
 
           if (signature && signature !== appliedSignatureRef.current) {
