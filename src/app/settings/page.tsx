@@ -1244,7 +1244,7 @@ export default function SettingsPage() {
         method: "POST",
         headers: { Authorization: `Bearer ${idToken}` },
       });
-      const result = await response.json() as { token?: string; error?: string };
+      const result = await response.json() as { token?: string; error?: string; diagnostic?: string };
       if (!response.ok || !result.token) throw new Error(result.error || "Voice access error");
 
       setVoiceEnabled(true);
