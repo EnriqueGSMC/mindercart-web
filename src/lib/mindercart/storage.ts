@@ -26,9 +26,9 @@ function now() {
   return Date.now();
 }
 
-function emitChange() {
+function emitChange(state?: MinderCartState) {
   if (typeof window === "undefined") return;
-  window.dispatchEvent(new CustomEvent(CHANGE_EVENT));
+  window.dispatchEvent(new CustomEvent(CHANGE_EVENT, { detail: state }));
 }
 
 function safe(v: unknown) {
@@ -482,7 +482,7 @@ export function readState(): MinderCartState {
 export function writeState(state: MinderCartState) {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  emitChange();
+  emitChange(state);
 }
 
 export function resetStateForLogout() {

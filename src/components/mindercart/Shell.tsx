@@ -12,6 +12,7 @@ import { useMinderCartState } from "@/lib/mindercart/hooks";
 import { CHANGE_EVENT, writeState } from "@/lib/mindercart/storage";
 import { t } from "@/lib/mindercart/i18n";
 import { unitCatalogQuantityLabel } from "@/lib/mindercart/catalog";
+import { compactJsonSignature } from "@/lib/mindercart/compact-signature";
 
 export const MC_NAVY = "#12245E";
 export const MC_NAVY_TEXT = "#172554";
@@ -49,11 +50,15 @@ function readPendingCloudSyncSnapshot(uid: string): PendingCloudSyncSnapshot | n
     if (!Array.isArray(parsed.savedLists)) return null;
 
     const expectedSignature = buildCloudSyncSignature(parsed.coreState, parsed.savedLists);
-    if (parsed.signature !== expectedSignature) return null;
+    const legacySignature = JSON.stringify({
+      coreState: parsed.coreState,
+      savedLists: parsed.savedLists,
+    });
+    if (parsed.signature !== expectedSignature && parsed.signature !== legacySignature) return null;
 
     return {
       uid,
-      signature: parsed.signature,
+      signature: expectedSignature,
       coreState: parsed.coreState as Record<string, unknown>,
       savedLists: parsed.savedLists,
       createdAt: typeof parsed.createdAt === "number" ? parsed.createdAt : 0,
@@ -114,7 +119,7 @@ function readSavedListsSnapshot() {
 }
 
 function buildCloudSyncSignature(coreState: unknown, savedLists: unknown) {
-  return JSON.stringify({
+  return compactJsonSignature({
     coreState,
     savedLists,
   });

@@ -16,8 +16,11 @@ import {
 } from "firebase/firestore";
 import type { InitialCloudBootstrapPayload } from "@/lib/mindercart/storage";
 import { clientApp } from "./client";
+import { withOperationTimeout } from "./operation-timeout";
+import { compactJsonSignature } from "@/lib/mindercart/compact-signature";
 
 const REMOTE_HISTORY_LIMIT = 20;
+const FIRESTORE_WRITE_TIMEOUT_MS = 10000;
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -241,7 +244,7 @@ function buildPayload(input: SaveUserDataInput, savedAt: number, target: Workspa
 }
 
 function buildInFlightSaveKey(input: SaveUserDataInput) {
-  return JSON.stringify({
+  return compactJsonSignature({
     uid: requireUid(input.uid),
     data: requireData(input.data),
     bootstrapPayload: input.bootstrapPayload ?? null,
@@ -254,10 +257,18 @@ function buildInFlightSaveKey(input: SaveUserDataInput) {
 async function saveUserDataOnce(input: SaveUserDataInput): Promise<SaveUserDataResult> {
   const uid = requireUid(input.uid);
   const savedAt = Date.now();
-  const target = await resolveWorkspaceTarget(input);
+  const target = await withOperationTimeout(
+    resolveWorkspaceTarget(input),
+    FIRESTORE_WRITE_TIMEOUT_MS,
+    "Resolve cloud workspace",
+  );
   const payload = buildPayload(input, savedAt, target);
 
-  await setDoc(target.ref, payload, { merge: true });
+  await withOperationTimeout(
+    setDoc(target.ref, payload, { merge: true }),
+    FIRESTORE_WRITE_TIMEOUT_MS,
+    "Save cloud workspace",
+  );
 
   return {
     uid,
@@ -274,8 +285,7 @@ export async function saveUserData(input: SaveUserDataInput): Promise<SaveUserDa
   const inFlight = inFlightSaves.get(inFlightKey);
   if (inFlight) return inFlight;
 
-  let save: Promise<SaveUserDataResult>;
-  save = saveUserDataOnce(input).finally(() => {
+  const save: Promise<SaveUserDataResult> = saveUserDataOnce(input).finally(() => {
     if (inFlightSaves.get(inFlightKey) === save) {
       inFlightSaves.delete(inFlightKey);
     }
