@@ -30,6 +30,7 @@ import {
   removeFamilyMember,
   revokeFamilyInvite,
 } from "@/lib/firebase/shared-list-actions";
+import { withOperationTimeout } from "@/lib/firebase/operation-timeout";
 import type { FamilyInviteRecord, FamilyMemberRecord, FamilyRecord } from "@/lib/firebase/shared-list-types";
 import { SEED_GENERAL_ITEMS } from "@/lib/mindercart/seed-items";
 import type { FontScale, ItemMaster, Language, StoreProfile } from "@/lib/mindercart/types";
@@ -466,8 +467,7 @@ export default function SettingsPage() {
       setFamilyStatusState("loading");
       setFamilyError("");
 
-      const retryDelays = [0, 450, 1200];
-      let lastError: unknown = null;
+      const retryDelays = [0];
 
       for (const delay of retryDelays) {
         if (delay) {
@@ -477,7 +477,11 @@ export default function SettingsPage() {
         if (cancelled) return;
 
         try {
-          const ownerFamily = await getFamilyByOwnerUid(session.user.uid);
+          const ownerFamily = await withOperationTimeout(
+            getFamilyByOwnerUid(session.user.uid),
+            6000,
+            "Check owned group",
+          );
 
           if (cancelled) return;
 
@@ -494,12 +498,20 @@ export default function SettingsPage() {
             return;
           }
 
-          const membership = await getUserFamilyMembership(session.user.uid).catch(() => null);
+          const membership = await withOperationTimeout(
+            getUserFamilyMembership(session.user.uid),
+            6000,
+            "Check group membership",
+          ).catch(() => null);
 
           if (cancelled) return;
 
           if (membership?.status === "active" && membership.familyId) {
-            const memberFamily = await getFamilyById(membership.familyId).catch(() => null);
+            const memberFamily = await withOperationTimeout(
+              getFamilyById(membership.familyId),
+              6000,
+              "Load member group",
+            ).catch(() => null);
 
             if (cancelled) return;
 
@@ -520,7 +532,11 @@ export default function SettingsPage() {
           let inviteMatch: PendingFamilyInviteMatch | null = null;
 
           if (session.user.email) {
-            const pendingInvite = await getPendingFamilyInviteForEmail(session.user.email);
+            const pendingInvite = await withOperationTimeout(
+              getPendingFamilyInviteForEmail(session.user.email),
+              6000,
+              "Check pending group invitation",
+            );
 
             if (cancelled) return;
 
@@ -539,8 +555,8 @@ export default function SettingsPage() {
           setFamilyPendingInvites([]);
           setFamilyStatusState("ready");
           return;
-        } catch (error) {
-          lastError = error;
+        } catch {
+          // The card exposes an explicit retry action below.
         }
       }
 

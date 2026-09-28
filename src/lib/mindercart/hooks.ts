@@ -22,8 +22,9 @@ export function useMinderCartState() {
   const [hydrated, setHydrated] = React.useState(false);
 
   React.useEffect(() => {
-    const reload = () => {
-      setState(readState());
+    const reload = (event?: Event) => {
+      const nextState = event instanceof CustomEvent ? event.detail : null;
+      setState(nextState && typeof nextState === "object" ? nextState as MinderCartState : readState());
       setHydrated(true);
     };
 

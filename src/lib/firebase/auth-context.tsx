@@ -25,6 +25,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let unsubscribe: (() => void) | null = null;
+    const authTimeout = window.setTimeout(() => {
+      setSession((current) => current.status === "loading"
+        ? {
+            enabled: true,
+            status: "guest",
+            user: null,
+            error: "Session check timed out",
+          }
+        : current);
+    }, 8000);
 
     try {
       const auth = clientAuth();
@@ -32,6 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       unsubscribe = onAuthStateChanged(
         auth,
         (user) => {
+          window.clearTimeout(authTimeout);
           setSession({
             enabled: true,
             status: user ? "authenticated" : "guest",
@@ -40,6 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           });
         },
         (error) => {
+          window.clearTimeout(authTimeout);
           setSession({
             enabled: true,
             status: "guest",
@@ -49,6 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       );
     } catch (error) {
+      window.clearTimeout(authTimeout);
       setSession({
         enabled: false,
         status: "guest",
@@ -58,6 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     return () => {
+      window.clearTimeout(authTimeout);
       if (unsubscribe) unsubscribe();
     };
   }, []);

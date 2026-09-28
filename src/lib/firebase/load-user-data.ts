@@ -3,6 +3,9 @@
 
 import { getFirestore, doc, getDoc } from "firebase/firestore";
 import { clientApp } from "./client";
+import { withOperationTimeout } from "./operation-timeout";
+
+const FIRESTORE_READ_TIMEOUT_MS = 8000;
 
 export type WorkspaceType = "individual" | "family";
 
@@ -71,7 +74,11 @@ export async function loadUserData(input: LoadUserDataInput) {
   const { uid, workspaceType, familyId } = resolveInput(input);
 
   if (workspaceType === "family" && familyId) {
-    const familySnap = await getDoc(familyWorkspaceDocRef(familyId));
+    const familySnap = await withOperationTimeout(
+      getDoc(familyWorkspaceDocRef(familyId)),
+      FIRESTORE_READ_TIMEOUT_MS,
+      "Load family workspace",
+    );
 
     if (familySnap.exists()) {
       return familySnap.data();
@@ -80,7 +87,11 @@ export async function loadUserData(input: LoadUserDataInput) {
     return null;
   }
 
-  const userSnap = await getDoc(userDocRef(uid));
+  const userSnap = await withOperationTimeout(
+    getDoc(userDocRef(uid)),
+    FIRESTORE_READ_TIMEOUT_MS,
+    "Load user workspace",
+  );
 
   if (userSnap.exists()) {
     return userSnap.data();

@@ -224,10 +224,15 @@ export default function CartPage() {
     top: number;
     bottom: number;
   } | null>(null);
+  const [categoryModalViewport, setCategoryModalViewport] = React.useState<{
+    top: number;
+    bottom: number;
+  } | null>(null);
   const [customStores, setCustomStores] = React.useState<string[]>([]);
   const [addingStore, setAddingStore] = React.useState(false);
   const [newStoreName, setNewStoreName] = React.useState("");
   const activeItemDraftOpen = activeItemDraft !== null;
+  const categoryModalOpen = openCategory !== null;
 
   React.useLayoutEffect(() => {
     if (!activeItemDraftOpen) {
@@ -272,6 +277,54 @@ export default function CartPage() {
       window.visualViewport?.removeEventListener("resize", updateActiveItemModalViewport);
     };
   }, [activeItemDraftOpen]);
+
+  React.useLayoutEffect(() => {
+    if (!categoryModalOpen) {
+      setCategoryModalViewport(null);
+      return;
+    }
+
+    const appHeader = document.querySelector("main > header");
+    const cartHeaderBand = document.querySelector("main > header > div:nth-of-type(2)");
+    const actionFooter = document.querySelector("main > footer");
+    const bottomNavigation = document.querySelector(".mc-bottom-nav");
+
+    const updateCategoryModalViewport = () => {
+      const headerBottom = appHeader?.getBoundingClientRect().bottom ?? 0;
+      const top = Math.max(
+        0,
+        Math.round(cartHeaderBand?.getBoundingClientRect().bottom ?? headerBottom)
+      );
+      const lowerBoundaryTop =
+        actionFooter?.getBoundingClientRect().top ??
+        bottomNavigation?.getBoundingClientRect().top ??
+        window.innerHeight;
+      const bottom = Math.max(0, Math.round(window.innerHeight - lowerBoundaryTop));
+
+      setCategoryModalViewport((previous) =>
+        previous?.top === top && previous.bottom === bottom ? previous : { top, bottom }
+      );
+    };
+
+    updateCategoryModalViewport();
+
+    const resizeObserver =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(updateCategoryModalViewport);
+    if (appHeader) resizeObserver?.observe(appHeader);
+    if (cartHeaderBand) resizeObserver?.observe(cartHeaderBand);
+    if (actionFooter) resizeObserver?.observe(actionFooter);
+    if (bottomNavigation) resizeObserver?.observe(bottomNavigation);
+    window.addEventListener("resize", updateCategoryModalViewport);
+    window.visualViewport?.addEventListener("resize", updateCategoryModalViewport);
+
+    return () => {
+      resizeObserver?.disconnect();
+      window.removeEventListener("resize", updateCategoryModalViewport);
+      window.visualViewport?.removeEventListener("resize", updateCategoryModalViewport);
+    };
+  }, [categoryModalOpen]);
 
   React.useEffect(() => {
     setOpenCategory(searchParams.get("category"));
@@ -1113,9 +1166,19 @@ export default function CartPage() {
         </div>
       ) : null}
 
-      {selectedCategoryGroup ? (
-        <div style={modalOverlayStyle}>
-          <section style={modalCardStyle}>
+      {selectedCategoryGroup && categoryModalViewport ? (
+        <div
+          style={{
+            ...modalOverlayStyle,
+            top: categoryModalViewport.top,
+            bottom: categoryModalViewport.bottom,
+            pointerEvents: "auto",
+            overflow: "hidden",
+          }}
+          onTouchMove={(event) => event.stopPropagation()}
+          onWheel={(event) => event.stopPropagation()}
+        >
+          <section style={{ ...modalCardStyle, height: "100%" }}>
             <div
               style={{
                 position: "sticky",
@@ -1150,7 +1213,8 @@ export default function CartPage() {
                 padding: 16,
                 display: "grid",
                 gap: 10,
-                maxHeight: "min(52vh, 100%)",
+                flex: 1,
+                minHeight: 0,
               }}
             >
               {selectedCategoryGroup.items.map((item) => {

@@ -333,25 +333,34 @@ export async function getPendingFamilyInviteForEmail(email: string): Promise<Pen
 
   let bestMatch: PendingFamilyInviteMatch | null = null;
   let bestTimestamp = 0;
+  const batchSize = 4;
 
-  for (const family of activeFamilies) {
-    const inviteSnap = await getDocs(
-      query(invitesCollection(family.id), where("email", "==", normalizedEmail), limit(10)),
+  for (let start = 0; start < activeFamilies.length; start += batchSize) {
+    const familyBatch = activeFamilies.slice(start, start + batchSize);
+    const inviteResults = await Promise.all(
+      familyBatch.map(async (family) => ({
+        family,
+        snap: await getDocs(
+          query(invitesCollection(family.id), where("email", "==", normalizedEmail), limit(10)),
+        ),
+      })),
     );
 
-    for (const docSnap of inviteSnap.docs) {
-      const invite = docSnap.data() as FamilyInviteRecord;
-      if (invite.status !== "pending") {
-        continue;
-      }
-      const stamp = toMillis(invite.createdAt);
-      if (!bestMatch || stamp > bestTimestamp) {
-        bestMatch = {
-          familyId: family.id,
-          familyName: family.name,
-          invite,
-        };
-        bestTimestamp = stamp;
+    for (const { family, snap: inviteSnap } of inviteResults) {
+      for (const docSnap of inviteSnap.docs) {
+        const invite = docSnap.data() as FamilyInviteRecord;
+        if (invite.status !== "pending") {
+          continue;
+        }
+        const stamp = toMillis(invite.createdAt);
+        if (!bestMatch || stamp > bestTimestamp) {
+          bestMatch = {
+            familyId: family.id,
+            familyName: family.name,
+            invite,
+          };
+          bestTimestamp = stamp;
+        }
       }
     }
   }
