@@ -358,6 +358,11 @@ export default function SettingsPage() {
   const [familyAcceptInviteBusy, setFamilyAcceptInviteBusy] = React.useState(false);
   const [familyStatusState, setFamilyStatusState] = React.useState<"loading" | "ready" | "error">("loading");
   const [familyStatusRetryToken, setFamilyStatusRetryToken] = React.useState(0);
+  const [voiceEnabled, setVoiceEnabled] = React.useState(false);
+  const [voiceToken, setVoiceToken] = React.useState("");
+  const [voiceBusy, setVoiceBusy] = React.useState(false);
+  const [voiceMessage, setVoiceMessage] = React.useState("");
+  const [voiceError, setVoiceError] = React.useState("");
 
   const refreshSettingsDerivedState = React.useCallback(() => {
     setStoreProfiles(mcStorage.listStoreProfiles());
@@ -373,6 +378,33 @@ export default function SettingsPage() {
     refreshSettingsDerivedState();
     setStoreDraft(emptyStoreDraft(settings.preferredStore));
   }, [hydrated, refreshSettingsDerivedState, settings.language, settings.preferredStore, settings.fontScale]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+
+    async function loadVoiceStatus() {
+      if (session.status !== "authenticated" || !session.user) {
+        setVoiceEnabled(false);
+        setVoiceToken("");
+        return;
+      }
+
+      try {
+        const idToken = await session.user.getIdToken();
+        const response = await fetch("/api/voice/access", {
+          headers: { Authorization: `Bearer ${idToken}` },
+        });
+        if (!response.ok) return;
+        const result = await response.json() as { enabled?: boolean };
+        if (!cancelled) setVoiceEnabled(result.enabled === true);
+      } catch {
+        // Voice access is optional; do not interrupt the rest of Settings.
+      }
+    }
+
+    void loadVoiceStatus();
+    return () => { cancelled = true; };
+  }, [session.status, session.user]);
 
   React.useEffect(() => {
     if (!hydrated) return;
@@ -1200,6 +1232,72 @@ export default function SettingsPage() {
     }
   }
 
+  async function onEnableVoiceAccess() {
+    if (!session.user) return;
+
+    try {
+      setVoiceBusy(true);
+      setVoiceError("");
+      setVoiceMessage("");
+      const idToken = await session.user.getIdToken();
+      const response = await fetch("/api/voice/access", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${idToken}` },
+      });
+      const result = await response.json() as { token?: string; error?: string };
+      if (!response.ok || !result.token) throw new Error(result.error || "Voice access error");
+
+      setVoiceEnabled(true);
+      setVoiceToken(result.token);
+      setVoiceMessage(
+        language === "en"
+          ? "Siri access is ready. Copy the key now; it is only shown once."
+          : "El acceso para Siri está listo. Copia la clave ahora; solo se muestra una vez."
+      );
+    } catch (error) {
+      setVoiceError(
+        error instanceof Error
+          ? error.message
+          : language === "en"
+            ? "Could not enable Siri access."
+            : "No se pudo activar el acceso para Siri."
+      );
+    } finally {
+      setVoiceBusy(false);
+    }
+  }
+
+  async function onRevokeVoiceAccess() {
+    if (!session.user) return;
+
+    try {
+      setVoiceBusy(true);
+      setVoiceError("");
+      const idToken = await session.user.getIdToken();
+      const response = await fetch("/api/voice/access", {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${idToken}` },
+      });
+      if (!response.ok) throw new Error("Voice access error");
+      setVoiceEnabled(false);
+      setVoiceToken("");
+      setVoiceMessage(language === "en" ? "Siri access was revoked." : "El acceso para Siri fue revocado.");
+    } catch {
+      setVoiceError(language === "en" ? "Could not revoke Siri access." : "No se pudo revocar el acceso para Siri.");
+    } finally {
+      setVoiceBusy(false);
+    }
+  }
+
+  async function copyVoiceValue(value: string, label: string) {
+    try {
+      await navigator.clipboard.writeText(value);
+      setVoiceMessage(language === "en" ? `${label} copied.` : `${label} copiada.`);
+    } catch {
+      setVoiceError(language === "en" ? "Could not copy it." : "No se pudo copiar.");
+    }
+  }
+
   return (
     <AppShell title={t(language, "settingsTitle")} darkHero subtitle={t(language, "settingsSubtitle")} showCart={false}>
       <section style={{ ...cardStyle(), padding: 14, paddingBottom: "max(108px, env(safe-area-inset-bottom, 0px) + 88px)" }}>
@@ -1445,6 +1543,148 @@ export default function SettingsPage() {
               <div style={{ fontSize: s(12), color: MC_NAVY_MUTED }}>{session.error}</div>
             ) : null}
           </div>
+
+          {session.status === "authenticated" ? (
+            <div
+              style={{
+                display: "grid",
+                gap: 10,
+                padding: 14,
+                borderRadius: 14,
+                border: `1px solid ${MC_NAVY_LINE}`,
+                background: "#f7faff",
+              }}
+            >
+              <div style={{ fontWeight: 900, fontSize: s(15), color: MC_NAVY }}>
+                {language === "en" ? "Add with Siri (experimental)" : "Agregar con Siri (experimental)"}
+              </div>
+              <div style={{ fontSize: s(13), color: MC_NAVY_MUTED, lineHeight: 1.45 }}>
+                {language === "en"
+                  ? "Say several items in one phrase and add them directly to My List using an Apple Shortcut."
+                  : "Di varios artículos en una sola frase y agrégalos directamente a Mi Lista mediante un Atajo de Apple."}
+              </div>
+
+              {!voiceEnabled ? (
+                <button
+                  type="button"
+                  onClick={() => void onEnableVoiceAccess()}
+                  disabled={voiceBusy}
+                  style={{
+                    width: "100%",
+                    padding: "12px 14px",
+                    borderRadius: 14,
+                    border: `1px solid ${MC_NAVY}`,
+                    background: MC_NAVY,
+                    color: "#fff",
+                    fontWeight: 900,
+                    fontSize: s(15),
+                    opacity: voiceBusy ? 0.6 : 1,
+                  }}
+                >
+                  {voiceBusy
+                    ? language === "en" ? "Enabling..." : "Activando..."
+                    : language === "en" ? "Enable Siri access" : "Activar acceso para Siri"}
+                </button>
+              ) : (
+                <>
+                  <div style={{ fontSize: s(13), color: "#027a48", fontWeight: 900 }}>
+                    {language === "en" ? "Siri access enabled" : "Acceso para Siri activado"}
+                  </div>
+
+                  {voiceToken ? (
+                    <div style={{ display: "grid", gap: 8 }}>
+                      <div style={{ fontSize: s(12), color: MC_NAVY_MUTED }}>
+                        {language === "en"
+                          ? "Private key (shown only this time)"
+                          : "Clave privada (se muestra únicamente esta vez)"}
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: 8 }}>
+                        <input
+                          readOnly
+                          value={voiceToken}
+                          aria-label={language === "en" ? "Private Siri key" : "Clave privada de Siri"}
+                          style={{
+                            minWidth: 0,
+                            width: "100%",
+                            padding: "10px 12px",
+                            borderRadius: 12,
+                            border: `1px solid ${MC_NAVY_LINE}`,
+                            boxSizing: "border-box",
+                            fontSize: s(12),
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => void copyVoiceValue(voiceToken, language === "en" ? "Key" : "Clave")}
+                          style={{
+                            border: `1px solid ${MC_NAVY_LINE}`,
+                            background: "#fff",
+                            color: MC_NAVY,
+                            borderRadius: 12,
+                            padding: "10px 12px",
+                            fontWeight: 900,
+                          }}
+                        >
+                          {language === "en" ? "Copy" : "Copiar"}
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <details style={{ fontSize: s(13), color: MC_NAVY }}>
+                    <summary style={{ cursor: "pointer", fontWeight: 900 }}>
+                      {language === "en" ? "Configure the Apple Shortcut" : "Configurar el Atajo de Apple"}
+                    </summary>
+                    <ol style={{ margin: "10px 0 0", paddingLeft: 20, display: "grid", gap: 6, lineHeight: 1.4 }}>
+                      <li>{language === "en" ? "Create a shortcut named “Add to MinderCart”." : "Crea un atajo llamado “Agregar a MinderCart”."}</li>
+                      <li>{language === "en" ? "Add the Dictate Text action." : "Agrega la acción Dictar texto."}</li>
+                      <li>{language === "en" ? "Add Get Contents of URL and select POST." : "Agrega Obtener contenido de URL y selecciona POST."}</li>
+                      <li>{language === "en" ? "Use the URL shown below." : "Usa la dirección que aparece abajo."}</li>
+                      <li>{language === "en" ? "Add Authorization header: Bearer followed by your private key." : "Agrega el encabezado Authorization: Bearer seguido de tu clave privada."}</li>
+                      <li>{language === "en" ? "Send JSON with utterance set to Dictated Text." : "Envía JSON con utterance igual a Texto dictado."}</li>
+                    </ol>
+                    <button
+                      type="button"
+                      onClick={() => void copyVoiceValue(`${window.location.origin}/api/voice/add-items`, "URL")}
+                      style={{
+                        marginTop: 10,
+                        width: "100%",
+                        padding: "10px 12px",
+                        borderRadius: 12,
+                        border: `1px solid ${MC_NAVY_LINE}`,
+                        background: "#fff",
+                        color: MC_NAVY,
+                        fontWeight: 900,
+                      }}
+                    >
+                      {language === "en" ? "Copy connection URL" : "Copiar URL de conexión"}
+                    </button>
+                  </details>
+
+                  <button
+                    type="button"
+                    onClick={() => void onRevokeVoiceAccess()}
+                    disabled={voiceBusy}
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      borderRadius: 12,
+                      border: `1px solid ${MC_NAVY_LINE}`,
+                      background: "#fff",
+                      color: MC_NAVY,
+                      fontWeight: 900,
+                      opacity: voiceBusy ? 0.6 : 1,
+                    }}
+                  >
+                    {language === "en" ? "Revoke Siri access" : "Revocar acceso para Siri"}
+                  </button>
+                </>
+              )}
+
+              {voiceMessage ? <div style={{ fontSize: s(13), color: "#027a48", fontWeight: 800 }}>{voiceMessage}</div> : null}
+              {voiceError ? <div style={{ fontSize: s(13), color: "#b42318", fontWeight: 800 }}>{voiceError}</div> : null}
+            </div>
+          ) : null}
 
           {session.status === "authenticated" ? (
             <div

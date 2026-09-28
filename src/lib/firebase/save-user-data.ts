@@ -243,6 +243,51 @@ function buildPayload(input: SaveUserDataInput, savedAt: number, target: Workspa
   return payload;
 }
 
+function mergePendingVoiceItems(
+  data: Record<string, unknown>,
+  remote: Record<string, unknown> | null,
+) {
+  const pending = Array.isArray(remote?.pendingVoiceItems)
+    ? remote.pendingVoiceItems.filter(isRecord)
+    : [];
+  if (!pending.length || !isRecord(data.coreState)) return data;
+
+  const remoteCoreState = isRecord(remote?.coreState) ? remote.coreState : {};
+  const localCoreState = data.coreState;
+  const localGeneral = Array.isArray(localCoreState.generalListItems)
+    ? localCoreState.generalListItems.filter(isRecord)
+    : [];
+  const remoteGeneral = Array.isArray(remoteCoreState.generalListItems)
+    ? remoteCoreState.generalListItems.filter(isRecord)
+    : [];
+  const localMaster = Array.isArray(localCoreState.itemsMaster)
+    ? localCoreState.itemsMaster.filter(isRecord)
+    : [];
+  const remoteMaster = Array.isArray(remoteCoreState.itemsMaster)
+    ? remoteCoreState.itemsMaster.filter(isRecord)
+    : [];
+
+  const pendingKeys = new Set(pending.map((item) => safe(item.itemKey)).filter(Boolean));
+  const voiceGeneral = remoteGeneral.filter((item) => pendingKeys.has(safe(item.itemKey)));
+  const voiceMaster = remoteMaster.filter((item) => pendingKeys.has(safe(item.itemKey)));
+  const withoutVoiceGeneral = localGeneral.filter((item) => !pendingKeys.has(safe(item.itemKey)));
+  const localMasterKeys = new Set(localMaster.map((item) => safe(item.itemKey)).filter(Boolean));
+
+  return {
+    ...data,
+    coreState: {
+      ...localCoreState,
+      generalListItems: [...voiceGeneral, ...withoutVoiceGeneral],
+      itemsMaster: [
+        ...voiceMaster.filter((item) => !localMasterKeys.has(safe(item.itemKey))),
+        ...localMaster,
+      ],
+    },
+    pendingVoiceItems: [],
+    voiceConsumedAt: Number(remote?.voiceUpdatedAt ?? Date.now()),
+  };
+}
+
 function buildInFlightSaveKey(input: SaveUserDataInput) {
   return compactJsonSignature({
     uid: requireUid(input.uid),
@@ -262,7 +307,16 @@ async function saveUserDataOnce(input: SaveUserDataInput): Promise<SaveUserDataR
     FIRESTORE_WRITE_TIMEOUT_MS,
     "Resolve cloud workspace",
   );
-  const payload = buildPayload(input, savedAt, target);
+  const remoteSnap = await withOperationTimeout(
+    getDoc(target.ref),
+    FIRESTORE_WRITE_TIMEOUT_MS,
+    "Check pending voice items",
+  );
+  const mergedData = mergePendingVoiceItems(
+    requireData(input.data),
+    remoteSnap.exists() ? remoteSnap.data() : null,
+  );
+  const payload = buildPayload({ ...input, data: mergedData }, savedAt, target);
 
   await withOperationTimeout(
     setDoc(target.ref, payload, { merge: true }),
