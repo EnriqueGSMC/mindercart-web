@@ -118,7 +118,42 @@ function findCatalogItem(name: string, catalog: VoiceCatalogItem[]) {
   const target = normalizeVoiceText(name);
   if (!target) return null;
 
-  return catalog.find((item) => catalogTerms(item).includes(target)) || null;
+  const exact = catalog.find((item) => catalogTerms(item).includes(target));
+  if (exact) return exact;
+  // Only accept a plural alias when it identifies a single catalog entry.
+  const matches = catalog.filter((item) => catalogTerms(item).some((term) =>
+    target === `${term}s` || term === `${target}s`
+  ));
+  return matches.length === 1 ? matches[0] : null;
+}
+
+function splitKnownItems(value: string, catalog: VoiceCatalogItem[]): string[] {
+  // Preserve complete names (including multi-word custom items).
+  if (findCatalogItem(value, catalog)) return [value];
+  const words = value.trim().split(/\s+/);
+  if (words.length > 60) return [value];
+  const memo = new Map<number, string[][]>();
+  function segment(start: number): string[][] {
+    if (start === words.length) return [[]];
+    const cached = memo.get(start);
+    if (cached) return cached;
+    const results: string[][] = [];
+    for (let end = words.length; end > start; end--) {
+      const phrase = words.slice(start, end).join(" ");
+      const { rest } = readQuantity(phrase);
+      const { rest: name } = readUnit(rest);
+      if (!findCatalogItem(name.replace(/^de\s+/i, ""), catalog)) continue;
+      for (const tail of segment(end)) {
+        results.push([phrase, ...tail]);
+        if (results.length === 2) break;
+      }
+      if (results.length === 2) break;
+    }
+    memo.set(start, results);
+    return results;
+  }
+  const alternatives = segment(0);
+  return alternatives.length === 1 ? alternatives[0] : [value];
 }
 
 export function parseVoiceUtterance(
@@ -126,7 +161,10 @@ export function parseVoiceUtterance(
   catalog: VoiceCatalogItem[],
   preferredStore = "",
 ): ParsedVoiceItem[] {
-  return splitItems(utterance).flatMap((rawPart) => {
+  return splitItems(utterance)
+    .flatMap((part) => splitKnownItems(part, catalog))
+    .slice(0, 20)
+    .flatMap((rawPart) => {
     const { quantity, rest: afterQuantity } = readQuantity(rawPart);
     const { unit: spokenUnit, rest: afterUnit } = readUnit(afterQuantity);
     const cleanedName = afterUnit.replace(/^(?:de|del)\s+/i, "").trim();

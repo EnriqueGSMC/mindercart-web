@@ -116,8 +116,9 @@ export async function addVoiceItems(req: Request, utterance: string) {
       defaultStore: safe(item.defaultStore),
     }));
 
-    if (!catalog.length) {
-      catalog.push(...SEED_GENERAL_ITEMS.map((item) => ({
+    {
+      const existingKeys = new Set(catalog.map((item) => item.itemKey));
+      catalog.push(...SEED_GENERAL_ITEMS.filter((item) => !existingKeys.has(item.itemKey)).map((item) => ({
         itemKey: item.itemKey,
         name: item.nameEs,
         nameEs: item.nameEs,
