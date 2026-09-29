@@ -68,7 +68,8 @@ function stripCommand(value: string) {
 function splitItems(value: string) {
   return stripCommand(value)
     .replace(/\s+(?:tambien|ademas)\s+/gi, ",")
-    .split(/\s*,\s*|\s*;\s*|\s+\by\b\s+|\s+\band\b\s+/i)
+    .replace(/\s+(?:coma|comma)\s+/gi, ",")
+    .split(/\s*[,;\n\r•]+\s*|\s+\b(?:y|e|and)\b\s+/i)
     .map((part) => part.trim())
     .filter(Boolean)
     .slice(0, 20);

@@ -6,6 +6,7 @@ import {
   resolveUserBootstrap,
   type UserBootstrapResolution,
 } from "@/lib/firebase/resolve-user-bootstrap";
+import { saveUserData } from "@/lib/firebase/save-user-data";
 import { CHANGE_EVENT, readState, writeState } from "@/lib/mindercart/storage";
 
 const SAVED_LISTS_STORAGE_KEY = "mindercart.savedLists.v1";
@@ -69,6 +70,54 @@ function hasNewerPendingCloudSnapshot(
 function emitSavedListsChange() {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new CustomEvent(CHANGE_EVENT));
+}
+
+function applyPendingVoiceItemsToLocal(
+  cloudState: Record<string, unknown> | null,
+): ReturnType<typeof readState> | null {
+  if (typeof window === "undefined" || !isRecord(cloudState)) return null;
+
+  const pending = Array.isArray(cloudState.pendingVoiceItems)
+    ? cloudState.pendingVoiceItems.filter(isRecord)
+    : [];
+  const remoteCoreState = isRecord(cloudState.coreState) ? cloudState.coreState : null;
+  if (!pending.length || !remoteCoreState) return null;
+
+  const pendingKeys = new Set(
+    pending.map((item) => safe(item.itemKey)).filter(Boolean),
+  );
+  if (!pendingKeys.size) return null;
+
+  const localState = readState();
+  const remoteGeneral = Array.isArray(remoteCoreState.generalListItems)
+    ? remoteCoreState.generalListItems.filter(isRecord)
+    : [];
+  const remoteMaster = Array.isArray(remoteCoreState.itemsMaster)
+    ? remoteCoreState.itemsMaster.filter(isRecord)
+    : [];
+  const voiceGeneral = remoteGeneral.filter((item) => pendingKeys.has(safe(item.itemKey)));
+  const voiceMaster = remoteMaster.filter((item) => pendingKeys.has(safe(item.itemKey)));
+
+  if (!voiceGeneral.length) return null;
+
+  const nextState = {
+    ...localState,
+    generalListItems: [
+      ...voiceGeneral,
+      ...localState.generalListItems.filter(
+        (item) => !pendingKeys.has(safe(item.itemKey)),
+      ),
+    ],
+    itemsMaster: [
+      ...voiceMaster,
+      ...localState.itemsMaster.filter(
+        (item) => !pendingKeys.has(safe(item.itemKey)),
+      ),
+    ],
+  } as ReturnType<typeof readState>;
+
+  writeState(nextState);
+  return nextState;
 }
 
 function buildLiveSettingsOverride(
@@ -140,7 +189,24 @@ function buildApplySignature(uid: string, resolution: UserBootstrapResolution) {
 export function useUserBootstrap(): UserBootstrapState {
   const session = useAuthSession();
   const [state, setState] = useState<UserBootstrapState>(INITIAL_STATE);
+  const [refreshRevision, setRefreshRevision] = useState(0);
   const appliedSignatureRef = useRef("");
+
+  useEffect(() => {
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") {
+        setRefreshRevision((current) => current + 1);
+      }
+    };
+
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+
+    return () => {
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -169,16 +235,36 @@ export function useUserBootstrap(): UserBootstrapState {
         if (
           session.status === "authenticated"
           && resolution.hasCloudData
-          && !hasNewerPendingCloudSnapshot(uid, resolution.cloudState)
         ) {
-          const signature = buildApplySignature(uid, resolution);
+          const hasNewerLocalSnapshot = hasNewerPendingCloudSnapshot(
+            uid,
+            resolution.cloudState,
+          );
+          const stateWithVoiceItems = applyPendingVoiceItemsToLocal(
+            resolution.cloudState,
+          );
 
-          if (signature && signature !== appliedSignatureRef.current) {
-            const settingsNow = readState().settings;
-            const liveSettingsOverride = buildLiveSettingsOverride(settingsAtStart, settingsNow);
+          if (stateWithVoiceItems) {
+            void saveUserData({
+              uid,
+              data: { coreState: stateWithVoiceItems },
+              workspaceType: resolution.workspaceType,
+              familyId: resolution.familyId,
+            }).catch(() => {
+              // Pending voice items remain in Firestore and can be retried on focus.
+            });
+          }
 
-            applyCloudStateToLocal(resolution.cloudState, liveSettingsOverride);
-            appliedSignatureRef.current = signature;
+          if (!hasNewerLocalSnapshot) {
+            const signature = buildApplySignature(uid, resolution);
+
+            if (signature && signature !== appliedSignatureRef.current) {
+              const settingsNow = readState().settings;
+              const liveSettingsOverride = buildLiveSettingsOverride(settingsAtStart, settingsNow);
+
+              applyCloudStateToLocal(resolution.cloudState, liveSettingsOverride);
+              appliedSignatureRef.current = signature;
+            }
           }
         }
 
@@ -213,7 +299,7 @@ export function useUserBootstrap(): UserBootstrapState {
     return () => {
       cancelled = true;
     };
-  }, [session.enabled, session.error, session.status, session.user?.uid]);
+  }, [refreshRevision, session.enabled, session.error, session.status, session.user?.uid]);
 
   return state;
 }
