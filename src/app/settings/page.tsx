@@ -1540,7 +1540,18 @@ export default function SettingsPage() {
             ) : null}
 
             {session.error ? (
-              <div style={{ fontSize: s(12), color: MC_NAVY_MUTED }}>{session.error}</div>
+              <div style={{ fontSize: s(12), color: MC_NAVY_MUTED }} role="status">
+                {session.error === "auth/check-delayed"
+                  ? (language === "en"
+                    ? "Checking your session is taking longer than expected. You can retry without signing out."
+                    : "La comprobación de tu sesión está tardando más de lo esperado. Puedes reintentar sin cerrar sesión.")
+                  : (language === "en"
+                    ? "We could not verify your session. Check your connection and retry."
+                    : "No pudimos comprobar tu sesión. Revisa tu conexión y vuelve a intentar.")}
+                <button type="button" onClick={session.retry} style={{ display: "block", marginTop: 8 }}>
+                  {language === "en" ? "Retry session check" : "Reintentar comprobación"}
+                </button>
+              </div>
             ) : null}
           </div>
 
