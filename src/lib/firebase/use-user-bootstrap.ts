@@ -89,6 +89,11 @@ function applyPendingVoiceItemsToLocal(
   if (!pendingKeys.size) return null;
 
   const localState = readState();
+  const remoteActive = Array.isArray(remoteCoreState.activeShoppingListItems)
+    ? remoteCoreState.activeShoppingListItems.filter(isRecord)
+    : [];
+  const voiceActive = remoteActive.filter((item) => pendingKeys.has(safe(item.itemKey)));
+  const voiceActiveIds = new Set(voiceActive.map((item) => safe(item.id)));
   const remoteGeneral = Array.isArray(remoteCoreState.generalListItems)
     ? remoteCoreState.generalListItems.filter(isRecord)
     : [];
@@ -102,6 +107,12 @@ function applyPendingVoiceItemsToLocal(
 
   const nextState = {
     ...localState,
+    activeShoppingListItems: [
+      ...voiceActive,
+      ...localState.activeShoppingListItems.filter(
+        (item) => !voiceActiveIds.has(safe(item.id)),
+      ),
+    ],
     generalListItems: [
       ...voiceGeneral,
       ...localState.generalListItems.filter(
@@ -240,21 +251,6 @@ export function useUserBootstrap(): UserBootstrapState {
             uid,
             resolution.cloudState,
           );
-          const stateWithVoiceItems = applyPendingVoiceItemsToLocal(
-            resolution.cloudState,
-          );
-
-          if (stateWithVoiceItems) {
-            void saveUserData({
-              uid,
-              data: { coreState: stateWithVoiceItems },
-              workspaceType: resolution.workspaceType,
-              familyId: resolution.familyId,
-            }).catch(() => {
-              // Pending voice items remain in Firestore and can be retried on focus.
-            });
-          }
-
           if (!hasNewerLocalSnapshot) {
             const signature = buildApplySignature(uid, resolution);
 
@@ -265,6 +261,19 @@ export function useUserBootstrap(): UserBootstrapState {
               applyCloudStateToLocal(resolution.cloudState, liveSettingsOverride);
               appliedSignatureRef.current = signature;
             }
+          }
+
+          // Merge into the selected local/cloud baseline, then acknowledge it.
+          const stateWithVoiceItems = applyPendingVoiceItemsToLocal(resolution.cloudState);
+          if (stateWithVoiceItems) {
+            void saveUserData({
+              uid,
+              data: { coreState: stateWithVoiceItems },
+              workspaceType: resolution.workspaceType,
+              familyId: resolution.familyId,
+            }).catch(() => {
+              // Retry pending voice items on the next refresh.
+            });
           }
         }
 

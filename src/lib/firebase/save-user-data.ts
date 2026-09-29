@@ -254,6 +254,12 @@ function mergePendingVoiceItems(
 
   const remoteCoreState = isRecord(remote?.coreState) ? remote.coreState : {};
   const localCoreState = data.coreState;
+  const localActive = Array.isArray(localCoreState.activeShoppingListItems)
+    ? localCoreState.activeShoppingListItems.filter(isRecord)
+    : [];
+  const remoteActive = Array.isArray(remoteCoreState.activeShoppingListItems)
+    ? remoteCoreState.activeShoppingListItems.filter(isRecord)
+    : [];
   const localGeneral = Array.isArray(localCoreState.generalListItems)
     ? localCoreState.generalListItems.filter(isRecord)
     : [];
@@ -269,6 +275,8 @@ function mergePendingVoiceItems(
 
   const pendingKeys = new Set(pending.map((item) => safe(item.itemKey)).filter(Boolean));
   const voiceGeneral = remoteGeneral.filter((item) => pendingKeys.has(safe(item.itemKey)));
+  const voiceActive = remoteActive.filter((item) => pendingKeys.has(safe(item.itemKey)));
+  const voiceActiveIds = new Set(voiceActive.map((item) => safe(item.id)));
   const voiceMaster = remoteMaster.filter((item) => pendingKeys.has(safe(item.itemKey)));
   const withoutVoiceGeneral = localGeneral.filter((item) => !pendingKeys.has(safe(item.itemKey)));
   const localMasterKeys = new Set(localMaster.map((item) => safe(item.itemKey)).filter(Boolean));
@@ -277,6 +285,10 @@ function mergePendingVoiceItems(
     ...data,
     coreState: {
       ...localCoreState,
+      activeShoppingListItems: [
+        ...voiceActive,
+        ...localActive.filter((item) => !voiceActiveIds.has(safe(item.id))),
+      ],
       generalListItems: [...voiceGeneral, ...withoutVoiceGeneral],
       itemsMaster: [
         ...voiceMaster.filter((item) => !localMasterKeys.has(safe(item.itemKey))),

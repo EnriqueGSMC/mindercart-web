@@ -133,6 +133,9 @@ export async function addVoiceItems(req: Request, utterance: string) {
     if (!parsed.length) throw new Error("NO_ITEMS");
 
     let nextMaster = [...itemsMaster];
+    let nextActive = Array.isArray(coreState.activeShoppingListItems)
+      ? coreState.activeShoppingListItems.filter(isRecord)
+      : [];
     let nextGeneral = Array.isArray(coreState.generalListItems)
       ? coreState.generalListItems.filter(isRecord)
       : [];
@@ -171,6 +174,34 @@ export async function addVoiceItems(req: Request, utterance: string) {
       nextGeneral = existingIndex >= 0
         ? nextGeneral.map((entry, index) => index === existingIndex ? nextItem : entry)
         : [nextItem, ...nextGeneral];
+
+      const activeIndex = nextActive.findIndex((entry) =>
+        sameListItem(entry, item.itemKey)
+        && safe(entry.unit) === item.unit
+        && safe(entry.store) === item.store
+      );
+      const previousActive = activeIndex >= 0 ? nextActive[activeIndex] : {};
+      const activeItem = {
+        ...previousActive,
+        id: safe(previousActive.id) || randomUUID(),
+        itemKey: item.itemKey,
+        name: item.name,
+        category: item.category,
+        unit: item.unit,
+        quantity: item.quantity,
+        store: item.store,
+        note: "",
+        checked: false,
+        sourceTypes: Array.from(new Set([
+          ...(Array.isArray(previousActive.sourceTypes) ? previousActive.sourceTypes : []),
+          "voice",
+        ])),
+        sourceRefs: Array.isArray(previousActive.sourceRefs) ? previousActive.sourceRefs : [],
+        createdAt: Number(previousActive.createdAt) || now,
+      };
+      nextActive = activeIndex >= 0
+        ? nextActive.map((entry, index) => index === activeIndex ? activeItem : entry)
+        : [activeItem, ...nextActive];
     }
 
     const previousPending = Array.isArray(targetData.pendingVoiceItems)
@@ -184,6 +215,7 @@ export async function addVoiceItems(req: Request, utterance: string) {
         ...coreState,
         itemsMaster: nextMaster,
         generalListItems: nextGeneral,
+        activeShoppingListItems: nextActive,
       },
       updatedAt: now,
       voiceUpdatedAt: now,
