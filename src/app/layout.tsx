@@ -1,6 +1,7 @@
 /* FILE: src/app/layout.tsx */
 import type { Metadata } from "next";
 import Script from "next/script";
+import Link from "next/link";
 import React from "react";
 import { AuthProvider } from "@/lib/firebase/auth-context";
 import "./globals.css";
@@ -298,9 +299,10 @@ function BottomNavigation() {
             const isCartItem = item.href === "/general-list";
 
             return (
-              <a
+              <Link
                 key={item.href}
                 href={item.href}
+                prefetch={false}
                 className="mc-bottom-nav__item"
                 data-nav-href={item.href}
                 data-nav-match={item.match.join("|")}
@@ -322,7 +324,7 @@ function BottomNavigation() {
                   </span>
                   <span className="mc-bottom-nav__label">{item.labelEs}</span>
                 </span>
-              </a>
+              </Link>
             );
           })}
         </div>
