@@ -308,6 +308,11 @@ function removeCustomItemCompat(item: Pick<ItemMaster, "itemKey" | "name">) {
 
 
 export default function SettingsPage() {
+  const [testingShortcutAvailable, setTestingShortcutAvailable] = React.useState(false);
+  React.useEffect(() => {
+    // This shared shortcut has a fixed testing endpoint. Never offer it on production.
+    setTestingShortcutAvailable(window.location.hostname === "mindercart-web-git-testing-enrique-sanchezs-projects.vercel.app");
+  }, []);
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnTo = searchParams.get("returnTo") || "/";
@@ -1642,17 +1647,39 @@ export default function SettingsPage() {
                     </div>
                   ) : null}
 
+                  {testingShortcutAvailable ? (
+                    <div style={{ display: "grid", gap: 10, fontSize: s(13), color: MC_NAVY, lineHeight: 1.5 }}>
+                      <div style={{ fontWeight: 900 }}>{language === "en" ? "iPhone: install the ready-made shortcut" : "iPhone: instalar el atajo listo"}</div>
+                      <ol style={{ margin: 0, paddingLeft: 20, display: "grid", gap: 6 }}>
+                        <li>{language === "en" ? "Copy your connection using the button below. It is private; do not share it." : "Copia tu conexión con el botón de abajo. Es privada; no la compartas."}</li>
+                        <li>{language === "en" ? "Tap Install for Siri (testing), then Configure Shortcut. Paste your connection in the Text field and tap Add Shortcut." : "Toca Instalar para Siri (testing) y luego Configurar atajo. Pega tu conexión en el campo Texto y toca Agregar atajo."}</li>
+                        <li>{language === "en" ? "Run the installed shortcut, dictate one product and wait silently. Allow sending text to MinderCart testing when asked, then check My List." : "Ejecuta el atajo instalado, dicta un producto y espera en silencio. Cuando lo pida, permite enviar texto a MinderCart testing y luego revisa Mi Lista."}</li>
+                      </ol>
+                      {voiceToken ? (
+                        <button type="button" onClick={() => void copyVoiceValue(`Bearer ${voiceToken}`, language === "en" ? "Connection" : "Conexión")} style={{ width: "100%", padding: "12px 14px", borderRadius: 12, border: `1px solid ${MC_NAVY_LINE}`, background: "#fff", color: MC_NAVY, fontWeight: 900 }}>
+                          {language === "en" ? "Copy complete Authorization value" : "Copiar valor completo de Authorization"}
+                        </button>
+                      ) : (
+                        <p style={{ margin: 0 }}>{language === "en" ? "If your shortcut already works, you do not need to install it again. Your connection is only displayed when access is enabled. To reuse it, copy the complete Authorization value from your existing shortcut; do not share it. Revoking access invalidates the old connection." : "Si tu atajo ya funciona, no necesitas instalarlo otra vez. Tu conexión solo se muestra al activar el acceso. Para reutilizarla, copia el valor completo de Authorization de tu atajo existente; no lo compartas. Revocar el acceso invalida la conexión anterior."}</p>
+                      )}
+                      <a href="https://www.icloud.com/shortcuts/0cf4ad15df9949a998b5465996fc934e" target="_blank" rel="noopener noreferrer" style={{ display: "block", textAlign: "center", padding: "12px 14px", borderRadius: 12, background: MC_NAVY, color: "#fff", fontWeight: 900, textDecoration: "none" }}>
+                        {language === "en" ? "Install for Siri (testing)" : "Instalar para Siri (testing)"}
+                      </a>
+                      <p style={{ margin: 0 }}>{language === "en" ? "This shortcut uses Spanish dictation and connects only to testing, not production. Never share an installed copy containing your connection." : "Este atajo dicta en español y se conecta solo a testing, no a producción. Nunca compartas una copia instalada que contenga tu conexión."}</p>
+                    </div>
+                  ) : null}
+
                   <details style={{ fontSize: s(13), color: MC_NAVY }}>
                     <summary style={{ cursor: "pointer", fontWeight: 900 }}>
-                      {language === "en" ? "Configure the Apple Shortcut" : "Configurar el Atajo de Apple"}
+                      {language === "en" ? "Technical help: manual shortcut setup" : "Ayuda técnica: configurar el atajo manualmente"}
                     </summary>
                     <ol style={{ margin: "10px 0 0", paddingLeft: 20, display: "grid", gap: 6, lineHeight: 1.4 }}>
-                      <li>{language === "en" ? "Create a shortcut named “Add to MinderCart”." : "Crea un atajo llamado “Agregar a MinderCart”."}</li>
-                      <li>{language === "en" ? "Add the Dictate Text action." : "Agrega la acción Dictar texto."}</li>
-                      <li>{language === "en" ? "Add Get Contents of URL and select POST." : "Agrega Obtener contenido de URL y selecciona POST."}</li>
-                      <li>{language === "en" ? "Use the URL shown below." : "Usa la dirección que aparece abajo."}</li>
-                      <li>{language === "en" ? "Add Authorization header: Bearer followed by your private key." : "Agrega el encabezado Authorization: Bearer seguido de tu clave privada."}</li>
-                      <li>{language === "en" ? "Send JSON with utterance set to Dictated Text." : "Envía JSON con utterance igual a Texto dictado."}</li>
+                      <li>{language === "en" ? "Open Apple's Shortcuts app. Tap + and name the shortcut “Add to MinderCart”." : "Abre la app Atajos de Apple. Toca + y ponle el nombre “Agregar a MinderCart”."}</li>
+                      <li>{language === "en" ? "Add Dictate Text. Select your language and stop listening After Pause." : "Busca y agrega Dictar texto. Elige Español (México) y dejar de escuchar Después de la pausa."}</li>
+                      <li>{language === "en" ? "Add Get Contents of URL. Paste the connection URL as fixed text, not as the Dictated Text variable. Expand the blue arrow and change GET to POST." : "Agrega Obtener contenido de URL. Pega la URL de conexión como texto fijo, no como la variable Texto dictado. Abre la flecha azul y cambia GET a POST."}</li>
+                      <li>{language === "en" ? "Under Headers, add a header. Key: Authorization. Value: Bearer, one space, then your private key. The value is not a URL." : "En Encabezados, toca Agregar nuevo encabezado. Clave: Authorization. Valor: Bearer, un espacio y tu clave privada. El valor no es una URL."}</li>
+                      <li>{language === "en" ? "Set Request Body to JSON. Add a Text field with the lowercase key utterance. For its value, select the variable produced by Dictate Text; do not type the words “Dictated Text”." : "En Solicitar cuerpo, elige JSON. Agrega un campo de tipo Texto con la clave utterance, en minúsculas. En el valor, selecciona la variable que sale de Dictar texto; no escribas las palabras “Texto dictado”."}</li>
+                      <li>{language === "en" ? "For the first test, add Quick Look after the request, using Contents of URL. Run with ▶, dictate milk, and wait silently. If asked, allow sending text only to the MinderCart address you selected." : "Para la primera prueba, agrega Vista rápida después de la solicitud, usando Contenido de URL. Ejecuta con ▶, dicta leche y espera en silencio. Si pide permiso, permite enviar texto solo a la dirección de MinderCart que elegiste."}</li>
                     </ol>
                     <button
                       type="button"
@@ -1670,6 +1697,25 @@ export default function SettingsPage() {
                     >
                       {language === "en" ? "Copy connection URL" : "Copiar URL de conexión"}
                     </button>
+                    {voiceToken ? (
+                      <button
+                        type="button"
+                        onClick={() => void copyVoiceValue(`Bearer ${voiceToken}`, language === "en" ? "Authorization value" : "Valor de Authorization")}
+                        style={{ marginTop: 8, width: "100%", padding: "10px 12px", borderRadius: 12, border: `1px solid ${MC_NAVY_LINE}`, background: "#fff", color: MC_NAVY, fontWeight: 900 }}
+                      >
+                        {language === "en" ? "Copy complete Authorization value" : "Copiar valor completo de Authorization"}
+                      </button>
+                    ) : (
+                      <p>{language === "en" ? "The private key is not shown again. If your shortcut already works, keep it; do not revoke access. If you lost the key and need a new shortcut, revoking and enabling again will invalidate the old key." : "La clave privada no vuelve a mostrarse. Si tu atajo ya funciona, consérvalo; no revoques el acceso. Si perdiste la clave y necesitas un atajo nuevo, revocar y activar de nuevo invalida la clave anterior."}</p>
+                    )}
+                  </details>
+
+                  <details style={{ fontSize: s(13), color: MC_NAVY, lineHeight: 1.5 }}>
+                    <summary style={{ cursor: "pointer", fontWeight: 900 }}>{language === "en" ? "iPhone: daily use and spoken notes" : "iPhone: uso diario y notas por voz"}</summary>
+                    <p>{language === "en" ? "Run your shortcut, speak, then wait silently. Do not press the red stop button: it cancels the shortcut. Return to My List in the same MinderCart version used to configure it." : "Ejecuta tu atajo, habla y espera en silencio. No pulses el botón rojo de detener: cancela el atajo. Regresa a Mi Lista en la misma versión de MinderCart donde lo configuraste."}</p>
+                    <p>{language === "en" ? "Without notes: “leche, huevos y arroz”. For notes, use the Spanish markers nota and siguiente artículo, for example:" : "Sin notas: “leche, huevos y arroz”. Con notas, di nota antes de la nota y siguiente artículo para empezar otro producto:"}</p>
+                    <p style={{ fontWeight: 800 }}>Agua mineral nota naranja, siguiente artículo agua mineral nota toronja, siguiente artículo coca.</p>
+                    <p>{language === "en" ? "This creates two Mineral Water rows with different notes, plus Coca without a note. Words after nota belong to that note until siguiente artículo." : "Esto agrega dos renglones de Agua Mineral con notas diferentes y Coca sin nota. Todo lo que digas después de nota pertenece a esa nota hasta siguiente artículo."}</p>
                   </details>
 
                   <button
@@ -1696,6 +1742,18 @@ export default function SettingsPage() {
               {voiceError ? <div style={{ fontSize: s(13), color: "#b42318", fontWeight: 800 }}>{voiceError}</div> : null}
             </div>
           ) : null}
+
+          <details style={{ padding: 14, borderRadius: 14, border: `1px solid ${MC_NAVY_LINE}`, color: MC_NAVY, fontSize: s(13), lineHeight: 1.5 }}>
+            <summary style={{ cursor: "pointer", fontWeight: 900 }}>{language === "en" ? "Android: basic voice typing" : "Android: dictado básico"}</summary>
+            <p>{language === "en" ? "Android does not use Apple's Shortcuts. There is currently no equivalent MinderCart integration with Google Assistant or Gemini." : "Android no usa Atajos de Apple. Por ahora MinderCart no tiene una integración equivalente con Google Assistant o Gemini."}</p>
+            <ol style={{ paddingLeft: 20 }}>
+              <li>{language === "en" ? "Open My List and tap the product search field to show the keyboard." : "Abre Mi Lista y toca el campo para buscar un producto; aparecerá el teclado."}</li>
+              <li>{language === "en" ? "If your keyboard supports voice typing (for example Gboard), tap its microphone and say one product name." : "Si tu teclado permite dictado (por ejemplo Gboard), toca su micrófono y di el nombre de un solo producto."}</li>
+              <li>{language === "en" ? "Check the text and select/add the product as usual. To dictate a note, tap the product's note field and use the keyboard microphone there." : "Revisa el texto y selecciona o agrega el producto como siempre. Para dictar una nota, toca el campo de nota del producto y usa ahí el micrófono del teclado."}</li>
+            </ol>
+            <p>{language === "en" ? "Keyboard voice typing only fills the selected field; it does not submit a shopping list or interpret nota / siguiente artículo commands." : "El dictado del teclado solo llena el campo seleccionado; no envía una lista de compras ni interpreta los comandos nota / siguiente artículo."}</p>
+            <a href="https://support.google.com/gboard/answer/2781851?co=GENIE.Platform%3DAndroid&hl=es" target="_blank" rel="noopener noreferrer">{language === "en" ? "Google's voice typing guide" : "Ayuda de Google para dictar con el teclado"}</a>
+          </details>
 
           {session.status === "authenticated" ? (
             <div
