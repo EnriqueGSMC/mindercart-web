@@ -48,6 +48,7 @@ function makeItemKey(value: unknown) {
 
 function titleCase(value: string) {
   return value
+    .replace(/^\s*(?:add\s+(?:to\s+my\s+list\s+)?|i\s+need\s+)/i, "")
     .split(/\s+/)
     .filter(Boolean)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
@@ -77,9 +78,9 @@ function splitItems(value: string) {
 }
 
 function splitNotedItems(value: string) {
-  return stripCommand(value).split(/\s*[,;]?\s*\bsiguiente\s+art[ií]culo\b\s*[:,;]?\s*/i)
+  return stripCommand(value).split(/\s*[,;]?\s*\b(?:siguiente\s+art[ií]culo|next\s+item)\b\s*[:,;]?\s*/i)
     .flatMap((part) => {
-      const marker = /\s+nota\b\s*:?\s*/i.exec(part);
+      const marker = /\s+(?:nota|note)\b\s*:?\s*/i.exec(part);
       if (!marker) return splitItems(part).map((name) => ({ name, note: "" }));
       return [{
         name: part.slice(0, marker.index).trim().replace(/[,;]+$/, ""),
