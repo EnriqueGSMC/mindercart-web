@@ -36,6 +36,23 @@ Si ya tienes un atajo que funciona, no hace falta reinstalarlo ni revocar el acc
 
 Nunca compartas la copia instalada después de pegar tu conexión. Para distribuir a otros usuarios, usa únicamente el enlace de la plantilla sin credenciales.
 
+## Siri en inglés (testing)
+
+En Configuración, al seleccionar English, el botón de instalación ofrece la [plantilla Add to MinderCart en inglés](https://www.icloud.com/shortcuts/2935edde59394686a820dbe3f23a6840). La plantilla no contiene credenciales y no incluye pantallas de Vista rápida. Sigue el mismo procedimiento de copiar tu conexión, configurar el atajo y pegarla. No compartas la copia instalada con tu conexión.
+
+Para usarla sin abrir Atajos:
+
+1. Activa Siri y di **Add to MinderCart**.
+2. Espera a que pregunte **What's the text?**.
+3. Di **Milk note cold** y guarda silencio.
+4. Revisa My List en testing.
+
+Para varios productos, usa **next item**: «Milk note cold, next item eggs». No digas el nombre del atajo y los productos seguidos sin esperar la pregunta de Siri. Las notas no se traducen.
+
+El flujo con Siri se probó con una copia instalada. La instalación del enlace final sin vistas rápidas queda pendiente de comprobar. El intento aislado que no llegó a la lista todavía no tiene causa confirmada; no se considera resuelto. Si no aparece un producto, evita repetirlo inmediatamente para no generar otra variante por diferencias del reconocimiento.
+
+La plantilla escucha English (US) y apunta únicamente a testing. Cambiar el idioma de MinderCart no cambia el idioma de los atajos ya instalados. El enlace en español se conserva por separado.
+
 ## Ayuda técnica: configuración manual (solo como respaldo)
 
 En MinderCart, entra en **Configuración → Agregar con Siri**. Activa el acceso y guarda la clave privada mientras se muestra. No la compartas ni la incluyas en capturas.

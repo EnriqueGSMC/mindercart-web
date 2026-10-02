@@ -1662,10 +1662,10 @@ export default function SettingsPage() {
                       ) : (
                         <p style={{ margin: 0 }}>{language === "en" ? "If your shortcut already works, you do not need to install it again. Your connection is only displayed when access is enabled. To reuse it, copy the complete Authorization value from your existing shortcut; do not share it. Revoking access invalidates the old connection." : "Si tu atajo ya funciona, no necesitas instalarlo otra vez. Tu conexión solo se muestra al activar el acceso. Para reutilizarla, copia el valor completo de Authorization de tu atajo existente; no lo compartas. Revocar el acceso invalida la conexión anterior."}</p>
                       )}
-                      <a href="https://www.icloud.com/shortcuts/0cf4ad15df9949a998b5465996fc934e" target="_blank" rel="noopener noreferrer" style={{ display: "block", textAlign: "center", padding: "12px 14px", borderRadius: 12, background: MC_NAVY, color: "#fff", fontWeight: 900, textDecoration: "none" }}>
-                        {language === "en" ? "Install for Siri (testing)" : "Instalar para Siri (testing)"}
+                      <a href={language === "en" ? "https://www.icloud.com/shortcuts/2935edde59394686a820dbe3f23a6840" : "https://www.icloud.com/shortcuts/0cf4ad15df9949a998b5465996fc934e"} target="_blank" rel="noopener noreferrer" style={{ display: "block", textAlign: "center", padding: "12px 14px", borderRadius: 12, background: MC_NAVY, color: "#fff", fontWeight: 900, textDecoration: "none" }}>
+                        {language === "en" ? "Install English Siri shortcut (testing)" : "Instalar para Siri en español (testing)"}
                       </a>
-                      <p style={{ margin: 0 }}>{language === "en" ? "This shortcut uses Spanish dictation and connects only to testing, not production. Never share an installed copy containing your connection." : "Este atajo dicta en español y se conecta solo a testing, no a producción. Nunca compartas una copia instalada que contenga tu conexión."}</p>
+                      <p style={{ margin: 0 }}>{language === "en" ? "This shortcut listens in English (US) and connects only to testing, not production. Changing MinderCart's language does not change an already installed shortcut. Never share a copy containing your connection." : "Este atajo dicta en español y se conecta solo a testing, no a producción. Cambiar el idioma de MinderCart no cambia un atajo ya instalado. Nunca compartas una copia que contenga tu conexión."}</p>
                     </div>
                   ) : null}
 
@@ -1712,10 +1712,10 @@ export default function SettingsPage() {
 
                   <details style={{ fontSize: s(13), color: MC_NAVY, lineHeight: 1.5 }}>
                     <summary style={{ cursor: "pointer", fontWeight: 900 }}>{language === "en" ? "iPhone: daily use and spoken notes" : "iPhone: uso diario y notas por voz"}</summary>
-                    <p>{language === "en" ? "Run your shortcut, speak, then wait silently. Do not press the red stop button: it cancels the shortcut. Return to My List in the same MinderCart version used to configure it." : "Ejecuta tu atajo, habla y espera en silencio. No pulses el botón rojo de detener: cancela el atajo. Regresa a Mi Lista en la misma versión de MinderCart donde lo configuraste."}</p>
-                    <p>{language === "en" ? "Without notes: “leche, huevos y arroz”. For notes, use the Spanish markers nota and siguiente artículo, for example:" : "Sin notas: “leche, huevos y arroz”. Con notas, di nota antes de la nota y siguiente artículo para empezar otro producto:"}</p>
-                    <p style={{ fontWeight: 800 }}>Agua mineral nota naranja, siguiente artículo agua mineral nota toronja, siguiente artículo coca.</p>
-                    <p>{language === "en" ? "This creates two Mineral Water rows with different notes, plus Coca without a note. Words after nota belong to that note until siguiente artículo." : "Esto agrega dos renglones de Agua Mineral con notas diferentes y Coca sin nota. Todo lo que digas después de nota pertenece a esa nota hasta siguiente artículo."}</p>
+                    <p>{language === "en" ? "Activate Siri and say “Add to MinderCart”. Wait for “What's the text?”, then say your products and wait silently. You do not need to open Shortcuts each time. Do not press the red stop button: it cancels the shortcut. Check My List in testing." : "Ejecuta tu atajo, habla y espera en silencio. No pulses el botón rojo de detener: cancela el atajo. Regresa a Mi Lista en la misma versión de MinderCart donde lo configuraste."}</p>
+                    <p>{language === "en" ? "Start with a short phrase: “Milk note cold”. For several products, say next item between them, for example:" : "Sin notas: “leche, huevos y arroz”. Con notas, di nota antes de la nota y siguiente artículo para empezar otro producto:"}</p>
+                    <p style={{ fontWeight: 800 }}>{language === "en" ? "Milk note cold, next item eggs." : "Agua mineral nota naranja, siguiente artículo agua mineral nota toronja, siguiente artículo coca."}</p>
+                    <p>{language === "en" ? "Words after note belong to that note until next item. Notes keep your dictated wording; they are not translated. The English template has no technical Quick Look screens. If nothing appears, do not immediately repeat the dictation: it may still be syncing." : "Esto agrega dos renglones de Agua Mineral con notas diferentes y Coca sin nota. Todo lo que digas después de nota pertenece a esa nota hasta siguiente artículo. Las notas conservan tus palabras; no se traducen."}</p>
                   </details>
 
                   <button
