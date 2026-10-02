@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { VoiceShoppingPanel } from "@/components/VoiceShoppingPanel";
 import { useRouter, useSearchParams } from "next/navigation";
 import React from "react";
 import { createPortal } from "react-dom";
@@ -2230,6 +2231,7 @@ export default function NeedsPage() {
       <section style={{ ...cardStyle(), padding: 14 }}>
         <div style={{ display: "grid", gap: 12 }}>
           <div style={{ fontSize: s(16), fontWeight: 700 }}>{lang === "en" ? "I need" : "Necesito"}</div>
+          <VoiceShoppingPanel lang={lang} />
 
           <input
             value={name}
