@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { VoiceShoppingPanel } from "@/components/VoiceShoppingPanel";
+import { DictationInput } from "@/components/DictationInput";
 import { useRouter, useSearchParams } from "next/navigation";
 import React from "react";
 import { createPortal } from "react-dom";
@@ -2230,13 +2230,15 @@ export default function NeedsPage() {
     >
       <section style={{ ...cardStyle(), padding: 14 }}>
         <div style={{ display: "grid", gap: 12 }}>
-          <div style={{ fontSize: s(16), fontWeight: 700 }}>{lang === "en" ? "I need" : "Necesito"}</div>
-          <VoiceShoppingPanel lang={lang} />
-
-          <input
+          <DictationInput
+            lang={lang}
+            dictation="search"
+            dictationReplace
+            ariaLabel={lang === "en" ? "I need" : "Necesito"}
+            onDictationError={() => setMessage(lang === "en" ? "Use your keyboard microphone or type the product name." : "Usa el micrófono del teclado o escribe el nombre del producto.")}
             value={name}
-            onChange={(e) => {
-              setName(e.target.value);
+            onChange={(value) => {
+              setName(value);
               setMessage("");
             }}
             onKeyDown={(e) => {
@@ -2245,8 +2247,8 @@ export default function NeedsPage() {
                 openCustomDraft();
               }
             }}
-            placeholder={itemPlaceholder}
-            style={{
+            placeholder={`${lang === "en" ? "I need" : "Necesito"}… ${itemPlaceholder}`}
+            inputStyle={{
               width: "100%",
               padding: "16px 18px",
               borderRadius: 18,
