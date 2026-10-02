@@ -7,6 +7,7 @@ import {
   type UserBootstrapResolution,
 } from "@/lib/firebase/resolve-user-bootstrap";
 import { saveUserData } from "@/lib/firebase/save-user-data";
+import { voiceItemIdentity } from "@/lib/voice/item-identity";
 import { CHANGE_EVENT, readState, writeState } from "@/lib/mindercart/storage";
 
 const SAVED_LISTS_STORAGE_KEY = "mindercart.savedLists.v1";
@@ -87,12 +88,13 @@ function applyPendingVoiceItemsToLocal(
     pending.map((item) => safe(item.itemKey)).filter(Boolean),
   );
   if (!pendingKeys.size) return null;
+  const pendingIdentities = new Set(pending.map(voiceItemIdentity));
 
   const localState = readState();
   const remoteActive = Array.isArray(remoteCoreState.activeShoppingListItems)
     ? remoteCoreState.activeShoppingListItems.filter(isRecord)
     : [];
-  const voiceActive = remoteActive.filter((item) => pendingKeys.has(safe(item.itemKey)));
+  const voiceActive = remoteActive.filter((item) => pendingIdentities.has(voiceItemIdentity(item)));
   const voiceActiveIds = new Set(voiceActive.map((item) => safe(item.id)));
   const remoteGeneral = Array.isArray(remoteCoreState.generalListItems)
     ? remoteCoreState.generalListItems.filter(isRecord)
@@ -100,7 +102,7 @@ function applyPendingVoiceItemsToLocal(
   const remoteMaster = Array.isArray(remoteCoreState.itemsMaster)
     ? remoteCoreState.itemsMaster.filter(isRecord)
     : [];
-  const voiceGeneral = remoteGeneral.filter((item) => pendingKeys.has(safe(item.itemKey)));
+  const voiceGeneral = remoteGeneral.filter((item) => pendingIdentities.has(voiceItemIdentity(item)));
   const voiceMaster = remoteMaster.filter((item) => pendingKeys.has(safe(item.itemKey)));
 
   if (!voiceGeneral.length) return null;
@@ -110,13 +112,13 @@ function applyPendingVoiceItemsToLocal(
     activeShoppingListItems: [
       ...voiceActive,
       ...localState.activeShoppingListItems.filter(
-        (item) => !voiceActiveIds.has(safe(item.id)),
+        (item) => !voiceActiveIds.has(safe(item.id)) && !pendingIdentities.has(voiceItemIdentity(item)),
       ),
     ],
     generalListItems: [
       ...voiceGeneral,
       ...localState.generalListItems.filter(
-        (item) => !pendingKeys.has(safe(item.itemKey)),
+        (item) => !pendingIdentities.has(voiceItemIdentity(item)),
       ),
     ],
     itemsMaster: [

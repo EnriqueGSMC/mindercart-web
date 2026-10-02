@@ -2,6 +2,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { adminAuth, adminDb } from "@/lib/firebase/admin";
 import { SEED_GENERAL_ITEMS } from "@/lib/mindercart/seed-items";
 import { parseVoiceUtterance, normalizeVoiceText, type VoiceCatalogItem } from "./parse-utterance";
+import { voiceItemIdentity } from "./item-identity";
 
 const VOICE_TOKEN_PREFIX = "mc_voice_";
 const VOICE_TOKEN_COLLECTION = "voiceAccessTokens";
@@ -70,9 +71,9 @@ function bearerToken(req: Request) {
   return authorization.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
 }
 
-function sameListItem(a: Record<string, unknown>, itemKey: string) {
+function sameListItem(a: Record<string, unknown>, item: { itemKey: string; note: string; unit: string; store: string }) {
   const currentKey = safe(a.itemKey) || normalizeVoiceText(a.name).replace(/\s+/g, "-");
-  return currentKey === itemKey && !safe(a.note) && !safe(a.sourceListName);
+  return voiceItemIdentity({ ...a, itemKey: currentKey }) === voiceItemIdentity(item) && !safe(a.sourceListName);
 }
 
 export async function addVoiceItems(req: Request, utterance: string) {
@@ -157,7 +158,7 @@ export async function addVoiceItems(req: Request, utterance: string) {
         }, ...nextMaster];
       }
 
-      const existingIndex = nextGeneral.findIndex((entry) => sameListItem(entry, item.itemKey));
+      const existingIndex = nextGeneral.findIndex((entry) => sameListItem(entry, item));
       const nextItem = {
         ...(existingIndex >= 0 ? nextGeneral[existingIndex] : {}),
         id: existingIndex >= 0 ? safe(nextGeneral[existingIndex].id) || randomUUID() : randomUUID(),
@@ -167,7 +168,7 @@ export async function addVoiceItems(req: Request, utterance: string) {
         unit: item.unit,
         quantity: item.quantity,
         store: item.store,
-        note: "",
+        note: item.note,
         active: true,
         lastUsedAt: now,
       };
@@ -177,7 +178,7 @@ export async function addVoiceItems(req: Request, utterance: string) {
         : [nextItem, ...nextGeneral];
 
       const activeIndex = nextActive.findIndex((entry) =>
-        sameListItem(entry, item.itemKey)
+        sameListItem(entry, item)
         && safe(entry.unit) === item.unit
         && safe(entry.store) === item.store
       );
@@ -191,7 +192,7 @@ export async function addVoiceItems(req: Request, utterance: string) {
         unit: item.unit,
         quantity: item.quantity,
         store: item.store,
-        note: "",
+        note: item.note,
         checked: false,
         sourceTypes: Array.from(new Set([
           ...(Array.isArray(previousActive.sourceTypes) ? previousActive.sourceTypes : []),
@@ -208,8 +209,8 @@ export async function addVoiceItems(req: Request, utterance: string) {
     const previousPending = Array.isArray(targetData.pendingVoiceItems)
       ? targetData.pendingVoiceItems.filter(isRecord)
       : [];
-    const pendingByKey = new Map(previousPending.map((item) => [safe(item.itemKey), item]));
-    parsed.forEach((item) => pendingByKey.set(item.itemKey, { ...item, voiceAddedAt: now }));
+    const pendingByKey = new Map(previousPending.map((item) => [voiceItemIdentity(item), item]));
+    parsed.forEach((item) => pendingByKey.set(voiceItemIdentity(item), { ...item, voiceAddedAt: now }));
 
     transaction.set(targetRef, {
       coreState: {
@@ -225,8 +226,8 @@ export async function addVoiceItems(req: Request, utterance: string) {
     transaction.update(tokenRef, { lastUsedAt: now });
 
     return {
-      added: parsed.map(({ itemKey, name, quantity, unit, category, store, isCustom }) => ({
-        itemKey, name, quantity, unit, category, store, isCustom,
+      added: parsed.map(({ itemKey, name, quantity, unit, category, store, note, isCustom }) => ({
+        itemKey, name, quantity, unit, category, store, note, isCustom,
       })),
       message: parsed.length === 1
         ? `Listo. Agregué ${parsed[0].name} a Mi Lista.`

@@ -16,6 +16,7 @@ import {
 } from "firebase/firestore";
 import type { InitialCloudBootstrapPayload } from "@/lib/mindercart/storage";
 import { clientApp } from "./client";
+import { voiceItemIdentity } from "@/lib/voice/item-identity";
 import { withOperationTimeout } from "./operation-timeout";
 import { compactJsonSignature } from "@/lib/mindercart/compact-signature";
 
@@ -274,11 +275,12 @@ function mergePendingVoiceItems(
     : [];
 
   const pendingKeys = new Set(pending.map((item) => safe(item.itemKey)).filter(Boolean));
-  const voiceGeneral = remoteGeneral.filter((item) => pendingKeys.has(safe(item.itemKey)));
-  const voiceActive = remoteActive.filter((item) => pendingKeys.has(safe(item.itemKey)));
+  const pendingIdentities = new Set(pending.map(voiceItemIdentity));
+  const voiceGeneral = remoteGeneral.filter((item) => pendingIdentities.has(voiceItemIdentity(item)));
+  const voiceActive = remoteActive.filter((item) => pendingIdentities.has(voiceItemIdentity(item)));
   const voiceActiveIds = new Set(voiceActive.map((item) => safe(item.id)));
   const voiceMaster = remoteMaster.filter((item) => pendingKeys.has(safe(item.itemKey)));
-  const withoutVoiceGeneral = localGeneral.filter((item) => !pendingKeys.has(safe(item.itemKey)));
+  const withoutVoiceGeneral = localGeneral.filter((item) => !pendingIdentities.has(voiceItemIdentity(item)));
   const localMasterKeys = new Set(localMaster.map((item) => safe(item.itemKey)).filter(Boolean));
 
   return {
@@ -287,7 +289,7 @@ function mergePendingVoiceItems(
       ...localCoreState,
       activeShoppingListItems: [
         ...voiceActive,
-        ...localActive.filter((item) => !voiceActiveIds.has(safe(item.id))),
+        ...localActive.filter((item) => !voiceActiveIds.has(safe(item.id)) && !pendingIdentities.has(voiceItemIdentity(item))),
       ],
       generalListItems: [...voiceGeneral, ...withoutVoiceGeneral],
       itemsMaster: [

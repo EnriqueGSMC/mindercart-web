@@ -17,6 +17,7 @@ export type ParsedVoiceItem = {
   unit: string;
   quantity: string;
   store: string;
+  note: string;
   isCustom: boolean;
 };
 
@@ -73,6 +74,18 @@ function splitItems(value: string) {
     .map((part) => part.trim())
     .filter(Boolean)
     .slice(0, 20);
+}
+
+function splitNotedItems(value: string) {
+  return stripCommand(value).split(/\s*[,;]?\s*\bsiguiente\s+art[ií]culo\b\s*[:,;]?\s*/i)
+    .flatMap((part) => {
+      const marker = /\s+nota\b\s*:?\s*/i.exec(part);
+      if (!marker) return splitItems(part).map((name) => ({ name, note: "" }));
+      return [{
+        name: part.slice(0, marker.index).trim().replace(/[,;]+$/, ""),
+        note: part.slice(marker.index + marker[0].length).trim().replace(/[,;]+$/, ""),
+      }];
+    });
 }
 
 function readQuantity(value: string) {
@@ -161,10 +174,11 @@ export function parseVoiceUtterance(
   catalog: VoiceCatalogItem[],
   preferredStore = "",
 ): ParsedVoiceItem[] {
-  return splitItems(utterance)
-    .flatMap((part) => splitKnownItems(part, catalog))
+  return splitNotedItems(utterance)
+    .flatMap((part) => (part.note ? [part.name] : splitKnownItems(part.name, catalog))
+      .map((name) => ({ name, note: part.note })))
     .slice(0, 20)
-    .flatMap((rawPart) => {
+    .flatMap(({ name: rawPart, note }) => {
     const { quantity, rest: afterQuantity } = readQuantity(rawPart);
     const { unit: spokenUnit, rest: afterUnit } = readUnit(afterQuantity);
     const cleanedName = afterUnit.replace(/^(?:de|del)\s+/i, "").trim();
@@ -180,6 +194,7 @@ export function parseVoiceUtterance(
       unit: spokenUnit || safe(match?.unit) || DEFAULT_UNIT_VALUE,
       quantity,
       store: safe(match?.defaultStore) || safe(preferredStore),
+      note,
       isCustom: !match,
     }];
   });
