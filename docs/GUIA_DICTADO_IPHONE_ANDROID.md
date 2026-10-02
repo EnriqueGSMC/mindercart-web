@@ -38,7 +38,7 @@ Nunca compartas la copia instalada después de pegar tu conexión. Para distribu
 
 ## Siri en inglés (testing)
 
-En Configuración, al seleccionar English, el botón de instalación ofrece la [plantilla Add to MinderCart en inglés](https://www.icloud.com/shortcuts/2935edde59394686a820dbe3f23a6840). La plantilla no contiene credenciales y no incluye pantallas de Vista rápida. Sigue el mismo procedimiento de copiar tu conexión, configurar el atajo y pegarla. No compartas la copia instalada con tu conexión.
+En Configuración, al seleccionar English, el botón de instalación ofrece la [plantilla Add to MinderCart en inglés](https://www.icloud.com/shortcuts/9d27765075a844b68dec4ad99cea03a3). La plantilla no contiene credenciales y no incluye pantallas de Vista rápida. Sigue el mismo procedimiento de copiar tu conexión, configurar el atajo y pegarla. No compartas la copia instalada con tu conexión.
 
 Para usarla sin abrir Atajos:
 
