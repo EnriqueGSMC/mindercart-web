@@ -21,6 +21,8 @@ Debe agregar Agua Mineral con nota naranja, otra Agua Mineral con nota toronja y
 
 ## iPhone: instalar el atajo listo (testing)
 
+La guía y los botones de copiar/instalar aparecen solo durante la configuración inicial, cuando la conexión recién generada está disponible. Al terminar, pulsa **Terminar configuración / Finish setup**: oculta la conexión y las instrucciones sin revocar el acceso. Si regresas con acceso ya activado, Settings muestra el estado y **Revocar acceso / Revoke Siri access**, no instrucciones que apuntan a un botón ausente. Revocar requiere confirmar que todos los atajos con esa conexión dejarán de funcionar. El botón de instalación nunca copia la conexión automáticamente.
+
 No necesitas crear acciones, encabezados ni campos JSON.
 
 1. En MinderCart **testing**, inicia sesión y entra en **Configuración → Agregar con Siri**. Si aún no está activado, activa el acceso.

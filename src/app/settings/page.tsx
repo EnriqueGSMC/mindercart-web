@@ -1277,6 +1277,9 @@ export default function SettingsPage() {
 
   async function onRevokeVoiceAccess() {
     if (!session.user) return;
+    if (!window.confirm(language === "en"
+      ? "Revoke Siri access? All shortcuts using this connection will stop working. You will need a new connection to configure them again."
+      : "¿Revocar el acceso para Siri? Todos los atajos que usan esta conexión dejarán de funcionar. Necesitarás una conexión nueva para configurarlos otra vez.")) return;
 
     try {
       setVoiceBusy(true);
@@ -1586,11 +1589,11 @@ export default function SettingsPage() {
               <div style={{ fontWeight: 900, fontSize: s(15), color: MC_NAVY }}>
                 {language === "en" ? "Add with Siri (experimental)" : "Agregar con Siri (experimental)"}
               </div>
-              <div style={{ fontSize: s(13), color: MC_NAVY_MUTED, lineHeight: 1.45 }}>
+              {!voiceEnabled ? <div style={{ fontSize: s(13), color: MC_NAVY_MUTED, lineHeight: 1.45 }}>
                 {language === "en"
                   ? "Say several items in one phrase and add them directly to My List using an Apple Shortcut."
                   : "Di varios artículos en una sola frase y agrégalos directamente a Mi Lista mediante un Atajo de Apple."}
-              </div>
+              </div> : null}
 
               {!voiceEnabled ? (
                 <button
@@ -1619,6 +1622,7 @@ export default function SettingsPage() {
                     {language === "en" ? "Siri access enabled" : "Acceso para Siri activado"}
                   </div>
 
+                  {voiceToken ? <div data-testid="siri-initial-setup" style={{ display: "grid", gap: 10 }}>
                   {voiceToken ? (
                     <div style={{ display: "grid", gap: 8 }}>
                       <div style={{ fontSize: s(12), color: MC_NAVY_MUTED }}>
@@ -1663,7 +1667,7 @@ export default function SettingsPage() {
                     <div style={{ display: "grid", gap: 10, fontSize: s(13), color: MC_NAVY, lineHeight: 1.5 }}>
                       <div style={{ fontWeight: 900 }}>{language === "en" ? "iPhone: install the ready-made shortcut" : "iPhone: instalar el atajo listo"}</div>
                       <ol style={{ margin: 0, paddingLeft: 20, display: "grid", gap: 6 }}>
-                        <li>{language === "en" ? "Copy your connection using the button below. It is private; do not share it." : "Copia tu conexión con el botón de abajo. Es privada; no la compartas."}</li>
+                        <li>{language === "en" ? "Tap Copy complete Authorization value. Then tap Install English Siri shortcut (testing). Installing does not copy your connection; you must paste it in Text. Keep it private." : "Toca Copiar valor completo de Authorization. Después toca Instalar para Siri en español (testing). Instalar no copia tu conexión: debes pegarla en Texto. Es privada; no la compartas."}</li>
                         <li>{language === "en" ? "Tap Install English Siri shortcut (testing), then Configure Shortcut. Paste your connection in Text and tap Add Shortcut. Do not choose Skip Setup or paste the iCloud link." : "Toca Instalar para Siri en español (testing) y luego Configurar atajo. Pega tu conexión en Texto y toca Agregar atajo. No elijas Omitir configuración ni pegues el enlace de iCloud."}</li>
                         <li>{language === "en" ? "First test: open Shortcuts and tap the installed Shopping Voice tile, not its three dots. Allow speech recognition, connection and sending text to the MinderCart testing address when prompted. Say Milk note cold when it listens, wait silently, then check My List. You do not need to activate Siri for this first test." : "Primera prueba: abre Atajos y toca el recuadro instalado Agregar a MinderCart, no sus tres puntos. Autoriza reconocimiento de voz, conexión y envío de texto a la dirección de MinderCart testing cuando lo pida. Cuando escuche, di Leche nota fría, espera en silencio y revisa Mi Lista. En esta primera prueba no necesitas activar Siri."}</li>
                         <li>{language === "en" ? "The shortcut installs as Shopping Voice; no renaming or editing is needed. If you already have a working shortcut with this name, keep it rather than installing again." : "El atajo se instala con el nombre Agregar a MinderCart; no necesitas renombrarlo ni editarlo. Si ya tienes uno que funciona con ese nombre, consérvalo: no necesitas reinstalarlo ni revocar su acceso."}</li>
@@ -1731,6 +1735,18 @@ export default function SettingsPage() {
                     <p style={{ fontWeight: 800 }}>{language === "en" ? "Milk note cold, next item eggs." : "Agua mineral nota naranja, siguiente artículo agua mineral nota toronja, siguiente artículo coca."}</p>
                     <p>{language === "en" ? "Words after note belong to that note until next item. Notes keep your dictated wording; they are not translated. The English template has no technical Quick Look screens. If nothing appears, do not immediately repeat the dictation: it may still be syncing." : "Esto agrega dos renglones de Agua Mineral con notas diferentes y Coca sin nota. Todo lo que digas después de nota pertenece a esa nota hasta siguiente artículo. Las notas conservan tus palabras; no se traducen."}</p>
                   </details>
+
+                  <button type="button" onClick={() => {
+                    if (!window.confirm(language === "en"
+                      ? "Have you installed and tested your shortcut? Finishing hides the private connection; it cannot be displayed again from Settings. Your shortcut will keep working."
+                      : "¿Ya instalaste y probaste tu atajo? Al terminar se ocultará la conexión privada; no podrás volver a verla desde Configuración. Tu atajo seguirá funcionando.")) return;
+                    setVoiceToken("");
+                    setVoiceMessage("");
+                    setVoiceError("");
+                  }} style={{ padding: "12px 14px", borderRadius: 12, background: MC_NAVY, color: "#fff", fontWeight: 900 }}>
+                    {language === "en" ? "Finish setup" : "Terminar configuración"}
+                  </button>
+                  </div> : null}
 
                   <button
                     type="button"
