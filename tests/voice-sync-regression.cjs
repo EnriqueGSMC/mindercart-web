@@ -80,10 +80,21 @@ console.log('PASS: pending deletion survives newer Siri timestamp, note variants
 let notifySnapshot;
 let watchedPath;
 let unsubscribed = false;
+let intervalCallback;
+let intervalCleared = false;
+let serverReads = 0;
+let serverData = remote;
+const listeners = new Map();
+const browserDocument = {
+  visibilityState: 'visible',
+  addEventListener: (name, callback) => listeners.set(name, callback),
+  removeEventListener: (name) => listeners.delete(name),
+};
 const live = load('src/lib/firebase/load-user-data.ts', {
   'firebase/firestore': {
     getFirestore: () => ({}),
     doc: (_db, ...path) => path.join('/'),
+    getDocFromServer: async () => { serverReads++; return { data: () => serverData }; },
     onSnapshot: (reference, _options, callback) => {
       watchedPath = reference;
       notifySnapshot = callback;
@@ -91,7 +102,15 @@ const live = load('src/lib/firebase/load-user-data.ts', {
     },
   },
   './client': { clientApp: () => ({}) },
-  './operation-timeout': {},
+  './operation-timeout': { withOperationTimeout: (promise) => promise },
+}, '', {
+  window: {
+    setInterval: (callback, delay) => { assert.equal(delay, 15000); intervalCallback = callback; return 1; },
+    clearInterval: () => { intervalCleared = true; },
+    addEventListener: (name, callback) => listeners.set(name, callback),
+    removeEventListener: (name) => listeners.delete(name),
+  },
+  document: browserDocument,
 });
 let notifications = 0;
 const stop = live.watchPendingVoiceItems('u', () => { notifications++; });
@@ -112,6 +131,32 @@ emit({ ...remote, updatedAt: 300 });
 assert.equal(notifications, 2, 'A later Siri addition must refresh automatically');
 stop();
 assert.equal(unsubscribed, true);
-live.watchPendingVoiceItems({ uid: 'u', workspaceType: 'family', familyId: 'f' }, () => {});
+assert.equal(intervalCleared, true);
+assert.equal(listeners.size, 0);
+const stopFamily = live.watchPendingVoiceItems({ uid: 'u', workspaceType: 'family', familyId: 'f' }, () => {});
 assert.equal(watchedPath, 'families/f/workspace/core');
+stopFamily();
 console.log('PASS: live Siri notifications, cache filtering, deduplication, cleanup and family workspace');
+
+(async () => {
+  let recovered;
+  const stopRecovery = live.watchPendingVoiceItems('u', (data) => { recovered = data; });
+  browserDocument.visibilityState = 'hidden';
+  intervalCallback();
+  await new Promise(setImmediate);
+  assert.equal(serverReads, 0, 'Hidden pages must not poll');
+  browserDocument.visibilityState = 'visible';
+  intervalCallback();
+  await new Promise(setImmediate);
+  assert.equal(recovered, remote, 'Siri overlay must recover without focus event');
+  recovered = undefined;
+  intervalCallback();
+  await new Promise(setImmediate);
+  assert.equal(recovered, undefined, 'Unchanged pending snapshot must not loop');
+  serverData = { ...remote, updatedAt: 400 };
+  intervalCallback();
+  stopRecovery();
+  await new Promise(setImmediate);
+  assert.equal(recovered, undefined, 'A read finishing after cleanup must be ignored');
+  console.log('PASS: visible server recovery, hidden pause, deduplication and late-read cleanup');
+})().catch((error) => { console.error(error); process.exitCode = 1; });

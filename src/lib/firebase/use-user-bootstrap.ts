@@ -211,8 +211,14 @@ export function useUserBootstrap(): UserBootstrapState {
   useEffect(() => {
     const uid = safe(session.user?.uid);
     if (session.status !== "authenticated" || !uid || !workspaceType) return;
-    return watchPendingVoiceItems({ uid, workspaceType, familyId }, () => {
-      setRefreshRevision((current) => current + 1);
+    return watchPendingVoiceItems({ uid, workspaceType, familyId }, (cloudState) => {
+      // Apply the confirmed snapshot directly. Re-fetching bootstrap here can
+      // race an older in-flight read and lose the only live notification.
+      const merged = applyPendingVoiceItemsToLocal(cloudState);
+      if (!merged) return;
+      void saveUserData({ uid, data: { coreState: merged }, workspaceType, familyId }).catch(() => {
+        // Bootstrap/focus refresh will retry unacknowledged additions.
+      });
     });
   }, [session.status, session.user?.uid, workspaceType, familyId]);
 
