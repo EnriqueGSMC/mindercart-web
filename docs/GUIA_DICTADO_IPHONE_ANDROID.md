@@ -25,8 +25,11 @@ No necesitas crear acciones, encabezados ni campos JSON.
 
 1. En MinderCart **testing**, inicia sesión y entra en **Configuración → Agregar con Siri**. Si aún no está activado, activa el acceso.
 2. Toca **Copiar valor completo de Authorization** mientras tu conexión esté visible. Es privada: no la envíes a nadie.
-3. Toca **Instalar para Siri (testing)** y después **Configurar atajo**. Pega la conexión en el campo Texto y toca **Agregar atajo**.
-4. Ejecuta el atajo instalado (**MinderCart Plantilla**), di un producto y espera en silencio. Permite enviar texto a la dirección de testing de MinderCart cuando el iPhone lo solicite. Regresa a **Mi Lista** para comprobar el producto.
+3. Toca **Instalar para Siri en español (testing)** y después **Configurar atajo**. Pega la conexión en el campo Texto y toca **Agregar atajo**. No elijas **Omitir configuración** ni pegues el enlace de iCloud.
+4. **Primera prueba, sin Siri:** en Atajos toca el recuadro instalado (**MinderCart Plantilla**), no sus tres puntos. Autoriza reconocimiento de voz, conexión y envío de texto a la dirección de testing de MinderCart cuando el iPhone lo solicite. Cuando escuche, di «Leche nota fría» y espera en silencio. Regresa a **Mi Lista** para comprobar el producto.
+5. **Uso diario con Siri en español:** activa Siri, di solo «MinderCart Plantilla» (o el nombre exacto si lo renombraste), espera a que pida el texto y entonces di «Leche nota fría». Guarda silencio y vuelve a Mi Lista. No necesitas abrir Atajos cada vez.
+
+Los idiomas de la app, Siri y Dictar texto son independientes. Evita atajos duplicados con el mismo nombre: conserva los que funcionan y renombra las plantillas sin configurar. La plantilla española publicada aún incluye Vista rápida técnica; falta limpiarla y verificar de extremo a extremo su instalación e invocación en otro iPhone antes de considerar equivalente la experiencia final en ambos idiomas.
 
 La instalación por enlace se probó en un iPhone y agregó Peras correctamente. [Enlace de la plantilla sin credenciales](https://www.icloud.com/shortcuts/0cf4ad15df9949a998b5465996fc934e).
 
@@ -51,7 +54,7 @@ Para usarla sin abrir Atajos:
 
 Para varios productos, usa **next item**: «Milk note cold, next item eggs». No digas el nombre del atajo y los productos seguidos sin esperar la pregunta de Siri. Las notas no se traducen.
 
-El flujo con Siri se probó con una copia instalada. La instalación del enlace final sin vistas rápidas queda pendiente de comprobar. El intento aislado que no llegó a la lista todavía no tiene causa confirmada; no se considera resuelto. Si no aparece un producto, evita repetirlo inmediatamente para no generar otra variante por diferencias del reconocimiento.
+El enlace final se instaló y se probó con Siri en el iPhone de desarrollo, sin Vista rápida y con actualización inmediata de la lista. La prueba independiente en otro iPhone y con otra cuenta sigue pendiente. El intento aislado anterior que no llegó a la lista no tiene causa confirmada. Si no aparece un producto, evita repetirlo inmediatamente para no generar otra variante por diferencias del reconocimiento.
 
 La plantilla escucha English (US) y apunta únicamente a testing. Cambiar el idioma de MinderCart no cambia el idioma de los atajos ya instalados. El enlace en español se conserva por separado.
 
@@ -92,6 +95,21 @@ El teclado solo escribe en el campo seleccionado. No agrega varios artículos au
 - Se agrega una dirección como nombre o nota: revisa las variables del atajo. Solo utterance debe recibir la salida de Dictar texto.
 - Dos sabores deben quedar separados: usa «siguiente artículo» entre ambos productos.
 - No compartas la clave privada ni un atajo que la contenga. La plantilla compartida evita armar las acciones, pero el usuario todavía debe pegar su propia conexión y aceptar los permisos del iPhone.
+
+## Lista de aceptación para usuarios nuevos (testing)
+
+Realizar por separado en español y en inglés, idealmente en otro iPhone y con una cuenta independiente (no un grupo familiar compartido):
+
+1. Comprobar que puede agregar manualmente y que está en testing y en su propia cuenta.
+2. Activar acceso para Siri y copiar la autorización completa mientras se muestra. Nunca usar la clave de otra persona.
+3. Instalar desde Configuración y comprobar que aparece la pregunta de importación con Texto vacío; pegar autorización, no el enlace. Tras instalar, confirmar sin capturas de claves que Texto ya no dice PENDIENTE.
+4. Ejecutar una vez desde Atajos y aceptar los permisos iniciales. Verificar un producto con nota.
+5. Invocar con Siri en el idioma correspondiente: nombre del atajo, esperar pregunta, producto. Comprobar nota, cantidad, idioma del nombre y aparición sin refresh.
+6. Probar dos productos con notas distintas usando siguiente artículo / next item. Verificar que no se mezclan notas ni se duplican renglones por reintentos.
+7. Confirmar que los productos aparecen únicamente en el espacio de esa cuenta; no en la cuenta del desarrollador.
+8. Cerrar y volver a abrir la app para comprobar persistencia. Registrar permisos, errores y pantallas técnicas sin compartir credenciales.
+
+No se considera probado Android ni producción. No promover a producción con enlaces de testing. El tag inglés congelado permanece intacto; los ajustes posteriores de instrucciones requieren su propio commit.
 
 ## Referencias
 
