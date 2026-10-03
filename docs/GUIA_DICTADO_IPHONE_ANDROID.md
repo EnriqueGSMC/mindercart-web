@@ -38,11 +38,13 @@ Nunca compartas la copia instalada después de pegar tu conexión. Para distribu
 
 ## Siri en inglés (testing)
 
-En Configuración, al seleccionar English, el botón de instalación ofrece la [plantilla Add to MinderCart en inglés](https://www.icloud.com/shortcuts/9d27765075a844b68dec4ad99cea03a3). La plantilla no contiene credenciales y no incluye pantallas de Vista rápida. Sigue el mismo procedimiento de copiar tu conexión, configurar el atajo y pegarla. No compartas la copia instalada con tu conexión.
+En Configuración, al seleccionar English, el botón de instalación ofrece la [plantilla Shopping Voice en inglés](https://www.icloud.com/shortcuts/ace6e4d0434f4efba7eda56db89376ea). La plantilla no contiene credenciales y no incluye pantallas de Vista rápida. Sigue el mismo procedimiento de copiar tu conexión, configurar el atajo y pegarla. No compartas la copia instalada con tu conexión.
+
+Tras instalar, ejecuta Shopping Voice una vez desde Atajos y autoriza el reconocimiento de voz, la conexión a MinderCart y el envío del texto dictado cuando se soliciten. Antes de invocarlo con Siri, conserva un solo atajo llamado Shopping Voice; renombra cualquier plantilla sin configurar. La instalación desde iCloud y la invocación con Siri se validaron en iPhone: el producto con nota apareció en My List sin refresh manual.
 
 Para usarla sin abrir Atajos:
 
-1. Activa Siri y di **Add to MinderCart**.
+1. Con Siri en inglés, actívala y di **Shopping Voice**.
 2. Espera a que pregunte **What's the text?**.
 3. Di **Milk note cold** y guarda silencio.
 4. Revisa My List en testing.
