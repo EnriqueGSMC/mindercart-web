@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { detectVoiceDevicePlatform, type VoiceDevicePlatform } from "@/lib/voice/device-platform";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   AppShell,
@@ -308,8 +309,10 @@ function removeCustomItemCompat(item: Pick<ItemMaster, "itemKey" | "name">) {
 
 
 export default function SettingsPage() {
+  const [voiceDevice, setVoiceDevice] = React.useState<VoiceDevicePlatform>("unknown");
   const [testingShortcutAvailable, setTestingShortcutAvailable] = React.useState(false);
   React.useEffect(() => {
+    setVoiceDevice(detectVoiceDevicePlatform(navigator.userAgent, navigator.maxTouchPoints));
     // This shared shortcut has a fixed testing endpoint. Never offer it on production.
     setTestingShortcutAvailable(window.location.hostname === "mindercart-web-git-testing-enrique-sanchezs-projects.vercel.app");
   }, []);
@@ -1560,7 +1563,16 @@ export default function SettingsPage() {
             ) : null}
           </div>
 
-          {session.status === "authenticated" ? (
+          <label style={{ display: "grid", gap: 8, color: MC_NAVY, fontSize: s(13) }}>
+            {language === "en" ? "Voice setup: which device are you configuring?" : "Configurar voz: ¿qué dispositivo quieres configurar?"}
+            <select value={voiceDevice} onChange={(event) => setVoiceDevice(event.target.value as VoiceDevicePlatform)} style={{ padding: 10, borderRadius: 10, border: `1px solid ${MC_NAVY_LINE}`, background: "#fff", color: MC_NAVY }}>
+              <option value="unknown">{language === "en" ? "Choose a device" : "Elegir dispositivo"}</option>
+              <option value="ios">iPhone / iPad</option>
+              <option value="android">Android</option>
+            </select>
+          </label>
+
+          {session.status === "authenticated" && voiceDevice === "ios" ? (
             <div
               style={{
                 display: "grid",
@@ -1745,17 +1757,17 @@ export default function SettingsPage() {
             </div>
           ) : null}
 
-          <details style={{ padding: 14, borderRadius: 14, border: `1px solid ${MC_NAVY_LINE}`, color: MC_NAVY, fontSize: s(13), lineHeight: 1.5 }}>
+          {voiceDevice === "android" ? <details open style={{ padding: 14, borderRadius: 14, border: `1px solid ${MC_NAVY_LINE}`, color: MC_NAVY, fontSize: s(13), lineHeight: 1.5 }}>
             <summary style={{ cursor: "pointer", fontWeight: 900 }}>{language === "en" ? "Android: basic voice typing" : "Android: dictado básico"}</summary>
-            <p>{language === "en" ? "Android does not use Apple's Shortcuts. There is currently no equivalent MinderCart integration with Google Assistant or Gemini." : "Android no usa Atajos de Apple. Por ahora MinderCart no tiene una integración equivalente con Google Assistant o Gemini."}</p>
+            <p>{language === "en" ? "No Siri access, private key or Apple Shortcut is needed. There is currently no equivalent MinderCart integration with Google Assistant or Gemini." : "No necesitas activar Siri, una clave privada ni Atajos de Apple. Por ahora MinderCart no tiene una integración equivalente con Google Assistant o Gemini."}</p>
             <ol style={{ paddingLeft: 20 }}>
               <li>{language === "en" ? "Open My List and tap the product search field to show the keyboard." : "Abre Mi Lista y toca el campo para buscar un producto; aparecerá el teclado."}</li>
               <li>{language === "en" ? "If your keyboard supports voice typing (for example Gboard), tap its microphone and say one product name." : "Si tu teclado permite dictado (por ejemplo Gboard), toca su micrófono y di el nombre de un solo producto."}</li>
               <li>{language === "en" ? "Check the text and select/add the product as usual. To dictate a note, tap the product's note field and use the keyboard microphone there." : "Revisa el texto y selecciona o agrega el producto como siempre. Para dictar una nota, toca el campo de nota del producto y usa ahí el micrófono del teclado."}</li>
             </ol>
             <p>{language === "en" ? "Keyboard voice typing only fills the selected field; it does not submit a shopping list or interpret nota / siguiente artículo commands." : "El dictado del teclado solo llena el campo seleccionado; no envía una lista de compras ni interpreta los comandos nota / siguiente artículo."}</p>
-            <a href="https://support.google.com/gboard/answer/2781851?co=GENIE.Platform%3DAndroid&hl=es" target="_blank" rel="noopener noreferrer">{language === "en" ? "Google's voice typing guide" : "Ayuda de Google para dictar con el teclado"}</a>
-          </details>
+            <a href={`https://support.google.com/gboard/answer/2781851?co=GENIE.Platform%3DAndroid&hl=${language === "en" ? "en" : "es"}`} target="_blank" rel="noopener noreferrer">{language === "en" ? "Google's voice typing guide" : "Ayuda de Google para dictar con el teclado"}</a>
+          </details> : null}
 
           {session.status === "authenticated" ? (
             <div

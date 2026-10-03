@@ -79,6 +79,8 @@ Si perdiste la clave, no puede recuperarse desde la pantalla. Revocar y activar 
 
 ## Android: opción disponible actualmente
 
+Configuración detecta Android y muestra únicamente su ayuda de dictado, sin controles de Siri ni instalación de Atajos. En iPhone/iPad muestra la sección Siri para usuarios con sesión iniciada. En computadora o navegador no identificado pide elegir dispositivo. El selector permite corregir la detección o preparar otro teléfono; es una ayuda visual, no un control de seguridad. Verificar ambas selecciones y ambos idiomas; la simulación no sustituye una prueba real en Android.
+
 No hay todavía una integración equivalente con Google Assistant o Gemini. No se necesita activar Siri ni configurar una clave para dictar con el teclado.
 
 1. Abre **Mi Lista** y toca el campo de búsqueda de productos.
