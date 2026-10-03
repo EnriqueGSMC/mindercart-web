@@ -1,7 +1,7 @@
 // FILE: src/lib/firebase/load-user-data.ts
 "use client";
 
-import { getFirestore, doc, getDoc } from "firebase/firestore";
+import { getFirestore, doc, getDoc, onSnapshot } from "firebase/firestore";
 import { clientApp } from "./client";
 import { withOperationTimeout } from "./operation-timeout";
 
@@ -68,6 +68,31 @@ function userDocRef(uid: string) {
 function familyWorkspaceDocRef(familyId: string) {
   const db = getFirestore(clientApp());
   return doc(db, "families", familyId, "workspace", "core");
+}
+
+// Notify only for server-confirmed voice additions; ordinary local saves must
+// not cause a bootstrap/save feedback loop.
+export function watchPendingVoiceItems(input: LoadUserDataInput, onChange: () => void) {
+  const { uid, workspaceType, familyId } = resolveInput(input);
+  const reference = workspaceType === "family" && familyId
+    ? familyWorkspaceDocRef(familyId)
+    : userDocRef(uid);
+  let lastSignature = "";
+  return onSnapshot(reference, { includeMetadataChanges: true }, (snapshot) => {
+    if (snapshot.metadata.fromCache || snapshot.metadata.hasPendingWrites) return;
+    const data = snapshot.data();
+    const pending = data?.pendingVoiceItems;
+    if (!Array.isArray(pending) || !pending.length) {
+      lastSignature = "";
+      return;
+    }
+    const signature = JSON.stringify([data?.updatedAt, pending]);
+    if (signature === lastSignature) return;
+    lastSignature = signature;
+    onChange();
+  }, () => {
+    // Focus/visibility refresh remains available if the listener is unavailable.
+  });
 }
 
 export async function loadUserData(input: LoadUserDataInput) {

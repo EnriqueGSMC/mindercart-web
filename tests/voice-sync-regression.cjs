@@ -32,6 +32,7 @@ const bootstrap = load('src/lib/firebase/use-user-bootstrap.ts', {
   '@/lib/firebase/auth-context': {},
   '@/lib/firebase/resolve-user-bootstrap': {},
   '@/lib/firebase/save-user-data': {},
+  '@/lib/firebase/load-user-data': {},
   '@/lib/voice/item-identity': identity,
   '@/lib/mindercart/compact-signature': signatures,
   '@/lib/mindercart/storage': { readState: () => state, writeState: (next) => { state = next; } },
@@ -75,3 +76,42 @@ assert.equal(bootstrap.hasPendingCloudSnapshot('u'), false);
 raw = null;
 assert.equal(bootstrap.hasPendingCloudSnapshot('u'), false);
 console.log('PASS: pending deletion survives newer Siri timestamp, note variants, repeated refresh and outgoing save');
+
+let notifySnapshot;
+let watchedPath;
+let unsubscribed = false;
+const live = load('src/lib/firebase/load-user-data.ts', {
+  'firebase/firestore': {
+    getFirestore: () => ({}),
+    doc: (_db, ...path) => path.join('/'),
+    onSnapshot: (reference, _options, callback) => {
+      watchedPath = reference;
+      notifySnapshot = callback;
+      return () => { unsubscribed = true; };
+    },
+  },
+  './client': { clientApp: () => ({}) },
+  './operation-timeout': {},
+});
+let notifications = 0;
+const stop = live.watchPendingVoiceItems('u', () => { notifications++; });
+assert.equal(watchedPath, 'users/u');
+const emit = (data, metadata = {}) => notifySnapshot({
+  data: () => data,
+  metadata: { fromCache: false, hasPendingWrites: false, ...metadata },
+});
+emit(remote, { fromCache: true });
+emit(remote, { hasPendingWrites: true });
+assert.equal(notifications, 0);
+emit(remote);
+emit(remote);
+assert.equal(notifications, 1, 'Duplicate snapshots must not trigger a save loop');
+emit({ ...remote, pendingVoiceItems: [] });
+assert.equal(notifications, 1, 'Acknowledgment must not refresh bootstrap');
+emit({ ...remote, updatedAt: 300 });
+assert.equal(notifications, 2, 'A later Siri addition must refresh automatically');
+stop();
+assert.equal(unsubscribed, true);
+live.watchPendingVoiceItems({ uid: 'u', workspaceType: 'family', familyId: 'f' }, () => {});
+assert.equal(watchedPath, 'families/f/workspace/core');
+console.log('PASS: live Siri notifications, cache filtering, deduplication, cleanup and family workspace');

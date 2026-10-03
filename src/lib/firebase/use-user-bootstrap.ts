@@ -7,6 +7,7 @@ import {
   type UserBootstrapResolution,
 } from "@/lib/firebase/resolve-user-bootstrap";
 import { saveUserData } from "@/lib/firebase/save-user-data";
+import { watchPendingVoiceItems } from "@/lib/firebase/load-user-data";
 import { voiceItemIdentity } from "@/lib/voice/item-identity";
 import { compactJsonSignature } from "@/lib/mindercart/compact-signature";
 import { CHANGE_EVENT, readState, writeState } from "@/lib/mindercart/storage";
@@ -204,6 +205,16 @@ export function useUserBootstrap(): UserBootstrapState {
   const [state, setState] = useState<UserBootstrapState>(INITIAL_STATE);
   const [refreshRevision, setRefreshRevision] = useState(0);
   const appliedSignatureRef = useRef("");
+
+  const workspaceType = state.resolution?.workspaceType;
+  const familyId = state.resolution?.familyId;
+  useEffect(() => {
+    const uid = safe(session.user?.uid);
+    if (session.status !== "authenticated" || !uid || !workspaceType) return;
+    return watchPendingVoiceItems({ uid, workspaceType, familyId }, () => {
+      setRefreshRevision((current) => current + 1);
+    });
+  }, [session.status, session.user?.uid, workspaceType, familyId]);
 
   useEffect(() => {
     const refreshWhenVisible = () => {
