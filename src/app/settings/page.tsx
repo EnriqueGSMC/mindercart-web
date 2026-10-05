@@ -16,6 +16,7 @@ import * as mcStorage from "@/lib/mindercart/storage";
 import { useMinderCartState } from "@/lib/mindercart/hooks";
 import { useAuthSession } from "@/lib/firebase/auth-context";
 import { resetPasswordForUser, signInUser, signOutUser, signUpUser } from "@/lib/firebase/auth-actions";
+import { authErrorMessage, passwordResetMessage } from "@/lib/firebase/auth-messages";
 import { resolveUserBootstrap } from "@/lib/firebase/resolve-user-bootstrap";
 import { saveUserData } from "@/lib/firebase/save-user-data";
 import {
@@ -874,7 +875,7 @@ export default function SettingsPage() {
     } catch (error) {
       setAccountError(
         error instanceof Error
-          ? error.message
+          ? authErrorMessage(error, language)
           : language === "en"
             ? "Sign in failed"
             : "No se pudo iniciar sesión"
@@ -895,7 +896,7 @@ export default function SettingsPage() {
     } catch (error) {
       setAccountError(
         error instanceof Error
-          ? error.message
+          ? authErrorMessage(error, language)
           : language === "en"
             ? "Sign up failed"
             : "No se pudo crear la cuenta"
@@ -916,18 +917,18 @@ export default function SettingsPage() {
       return;
     }
 
+    if (!window.confirm(language === "en" ? `Send password recovery instructions to ${email}?` : `¿Enviar instrucciones para recuperar tu contraseña a ${email}?`)) return;
+    setAccountMessage(language === "en" ? "Sending request…" : "Enviando solicitud…");
+
     try {
       setAccountBusy(true);
       await resetPasswordForUser(email);
-      setAccountMessage(
-        language === "en"
-          ? "We sent you an email to reset your password"
-          : "Te enviamos un correo para restablecer tu contraseña"
-      );
+      setAccountMessage(passwordResetMessage(language));
     } catch (error) {
+      setAccountMessage("");
       setAccountError(
         error instanceof Error
-          ? error.message
+          ? authErrorMessage(error, language)
           : language === "en"
             ? "We could not send the reset email"
             : "No se pudo enviar el correo de recuperación"

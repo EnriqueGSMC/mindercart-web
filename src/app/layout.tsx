@@ -4,6 +4,7 @@ import Script from "next/script";
 import Link from "next/link";
 import React from "react";
 import { AuthProvider } from "@/lib/firebase/auth-context";
+import { AccessGate } from "@/components/mindercart/AccessGate";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -466,8 +467,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="es">
       <body>
         <AuthProvider>
-          <div className="mc-app-frame">{children}</div>
-          <BottomNavigation />
+          <AccessGate navigation={<BottomNavigation />}>
+            <div className="mc-app-frame">{children}</div>
+          </AccessGate>
         </AuthProvider>
       </body>
     </html>
