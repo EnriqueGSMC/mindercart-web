@@ -21,6 +21,10 @@ export default function AuthPage() {
   const [busy, setBusy] = React.useState("");
   const [error, setError] = React.useState("");
   const [message, setMessage] = React.useState("");
+  const [mode, setMode] = React.useState<"login" | "signup">("login");
+  function changeMode(next: "login" | "signup") {
+    setMode(next); setPassword(""); setVisible(false); setError(""); setMessage("");
+  }
   React.useEffect(() => { if (session.status === "authenticated") router.replace("/"); }, [session.status, router]);
   async function run(action: "login" | "signup" | "reset") {
     if (busy) return;
@@ -61,14 +65,19 @@ export default function AuthPage() {
     </header>
     <section className="mc-auth-card" aria-label={en ? "Account access" : "Acceso a tu cuenta"}>
     <label>{en ? "Language" : "Idioma"} <select value={lang} disabled={!!busy} onChange={e => { setError(""); setMessage(""); saveSettings({ ...state.settings, language: e.target.value === "en" ? "en" : "es" }); }}><option value="es">Español</option><option value="en">English</option></select></label>
-    <p>{en ? "New here? Enter your email and a password, then choose Create account." : "¿Es tu primera vez? Ingresa tu correo y una contraseña y elige Crear cuenta."}</p>
-    <form onSubmit={e => { e.preventDefault(); void run("login"); }} style={{ display: "grid", gap: 16 }}>
+    <h2>{en ? "Welcome to MinderCart" : "Bienvenido a MinderCart"}</h2>
+    <p>{en ? "Sign in or create an account to start your list." : "Inicia sesión o crea una cuenta para empezar tu lista."}</p>
+    {mode === "signup" ? <h3>{en ? "Create a new account" : "Crear cuenta nueva"}</h3> : null}
+    <form onSubmit={e => { e.preventDefault(); void run(mode); }} style={{ display: "grid", gap: 16 }}>
       <label>{en ? "Email" : "Correo"}<input style={{ width: "100%", padding: 12 }} type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} required disabled={!!busy} /></label>
-      <label>{en ? "Password" : "Contraseña"}<input style={{ width: "100%", padding: 12 }} type={visible ? "text" : "password"} autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} required disabled={!!busy} /></label>
+      <label>{en ? "Password" : "Contraseña"}<input style={{ width: "100%", padding: 12 }} type={visible ? "text" : "password"} autoComplete={mode === "signup" ? "new-password" : "current-password"} minLength={mode === "signup" ? 6 : undefined} value={password} onChange={e => setPassword(e.target.value)} required disabled={!!busy} /></label>
       <button type="button" onClick={() => setVisible(v => !v)}>{visible ? (en ? "Hide password" : "Ocultar contraseña") : (en ? "Show password" : "Mostrar contraseña")}</button>
-      <button style={{ ...button, background: "#12245e", color: "white" }} disabled={!!busy || !session.enabled} type="submit">{en ? "Sign in" : "Iniciar sesión"}</button>
-      <button style={button} disabled={!!busy || !session.enabled} type="button" onClick={() => void run("signup")}>{en ? "Create account" : "Crear cuenta"}</button>
-      <button style={button} disabled={!!busy || !session.enabled} type="button" onClick={() => void run("reset")}>{en ? "Recover password" : "Recuperar contraseña"}</button>
+      <button style={{ ...button, background: "#12245e", color: "white" }} disabled={!!busy || !session.enabled} type="submit">{mode === "login" ? (en ? "Sign in" : "Iniciar sesión") : (en ? "Create account" : "Crear cuenta")}</button>
+      {mode === "login" ? <>
+        <button style={button} disabled={!!busy || !session.enabled} type="button" onClick={() => void run("reset")}>{en ? "Forgot your password?" : "¿Olvidaste tu contraseña?"}</button>
+        <p style={{ margin: 0 }}>{en ? "Don't have an account?" : "¿No tienes cuenta?"}</p>
+        <button style={button} disabled={!!busy} type="button" onClick={() => changeMode("signup")}>{en ? "Create a new account" : "Crear cuenta nueva"}</button>
+      </> : <button style={button} disabled={!!busy} type="button" onClick={() => changeMode("login")}>{en ? "Already have an account? Sign in" : "¿Ya tienes cuenta? Iniciar sesión"}</button>}
       {busy ? <p role="status">{en ? "Processing… Please wait." : "Procesando… Espera un momento."}</p> : null}
       {error ? <p role="alert" style={{ color: "#b42318" }}>{error}</p> : null}
       {message ? <p role="status">{message}</p> : null}
