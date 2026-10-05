@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useAuthSession } from "@/lib/firebase/auth-context";
 import { signInUser, signUpUser, resetPasswordForUser } from "@/lib/firebase/auth-actions";
@@ -35,11 +36,31 @@ export default function AuthPage() {
     } catch (err) { setError(authErrorMessage(err, lang)); }
     finally { setBusy(""); }
   }
-  const button: React.CSSProperties = { padding: 14, borderRadius: 12, border: "1px solid #12245e", fontSize: 18, cursor: "pointer" };
-  return <main style={{ maxWidth: 440, margin: "32px auto", padding: 24, color: "#12245e" }}>
-    <h1>MinderCart</h1>
+  const button: React.CSSProperties = { padding: 14, borderRadius: 16, border: "1px solid #dce1ef", background: "white", color: "#12245e", fontSize: 18, fontWeight: 800, cursor: "pointer" };
+  return <main className="mc-auth-page">
+    <style>{`
+      .mc-auth-page { min-height: 100dvh; background: #f6f7fc; color: #12245e; padding-bottom: calc(100px + env(safe-area-inset-bottom)); }
+      .mc-auth-header { background: #12245e; color: white; box-shadow: 0 6px 20px rgba(18,36,94,.12); }
+      .mc-auth-brand { display: flex; align-items: center; gap: 12px; padding: calc(12px + env(safe-area-inset-top)) 16px 12px; }
+      .mc-auth-logo { width: 52px; height: 52px; border-radius: 15px; overflow: hidden; background: white; flex-shrink: 0; box-shadow: 0 4px 12px rgba(0,0,0,.12); }
+      .mc-auth-title { margin: 0; padding: 12px 16px 14px; border-top: 1px solid rgba(255,255,255,.18); font-size: 21px; line-height: 1.08; font-weight: 900; letter-spacing: -.02em; }
+      .mc-auth-card { max-width: 440px; margin: 18px auto; padding: 20px; border-radius: 24px; border: 1px solid #dce1ef; background: white; box-shadow: 0 6px 20px rgba(18,36,94,.06); }
+      .mc-auth-card input, .mc-auth-card select { box-sizing: border-box; border: 1px solid #dce1ef; border-radius: 14px; background: white; color: #12245e; font-size: 16px; }
+      .mc-auth-card select { padding: 10px; }
+      .mc-auth-card label { display: grid; gap: 8px; font-weight: 700; }
+      .mc-auth-card button:disabled { opacity: .6; cursor: wait; }
+      .mc-auth-footer { position: fixed; left: 0; right: 0; bottom: 0; height: calc(78px + env(safe-area-inset-bottom)); background: #12245e; border-top: 1px solid rgba(255,255,255,.08); box-shadow: 0 -8px 18px rgba(6,13,36,.16); pointer-events: none; }
+      @media (max-width: 480px) { .mc-auth-card { margin: 18px 16px; padding: 16px; } }
+    `}</style>
+    <header className="mc-auth-header">
+      <div className="mc-auth-brand">
+        <div className="mc-auth-logo"><Image src="/mindercart-avatar.png" alt="" width={52} height={52} priority /></div>
+        <div><div style={{ fontSize: 19, fontWeight: 900, lineHeight: 1.05, letterSpacing: "-.02em" }}>MinderCart</div><div style={{ marginTop: 4, fontSize: 12, color: "rgba(255,255,255,.88)" }}>{en ? "Never forget what to buy" : "Nunca olvides qué comprar"}</div></div>
+      </div>
+      <h1 className="mc-auth-title">{en ? "Sign in" : "Inicio de sesión"}</h1>
+    </header>
+    <section className="mc-auth-card" aria-label={en ? "Account access" : "Acceso a tu cuenta"}>
     <label>{en ? "Language" : "Idioma"} <select value={lang} disabled={!!busy} onChange={e => { setError(""); setMessage(""); saveSettings({ ...state.settings, language: e.target.value === "en" ? "en" : "es" }); }}><option value="es">Español</option><option value="en">English</option></select></label>
-    <h2>{en ? "Sign in" : "Iniciar sesión"}</h2>
     <p>{en ? "New here? Enter your email and a password, then choose Create account." : "¿Es tu primera vez? Ingresa tu correo y una contraseña y elige Crear cuenta."}</p>
     <form onSubmit={e => { e.preventDefault(); void run("login"); }} style={{ display: "grid", gap: 16 }}>
       <label>{en ? "Email" : "Correo"}<input style={{ width: "100%", padding: 12 }} type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} required disabled={!!busy} /></label>
@@ -53,5 +74,7 @@ export default function AuthPage() {
       {message ? <p role="status">{message}</p> : null}
       {session.error ? <><p role="alert">{en ? "Check your connection and retry." : "Revisa tu conexión y vuelve a intentar."}</p><button type="button" onClick={session.retry}>{en ? "Retry" : "Reintentar"}</button></> : null}
     </form>
+    </section>
+    <div className="mc-auth-footer" aria-hidden="true" />
   </main>;
 }
