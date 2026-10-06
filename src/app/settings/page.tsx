@@ -1638,7 +1638,7 @@ export default function SettingsPage() {
                       <p style={{ margin: 0 }}><strong>Para usarlo:</strong> activa Siri, di “Mi Lista” y espera a que te pida qué agregar.</p>
                     </div>
                   ) : null}
-                  {voiceToken && (language === "en" || !testingShortcutAvailable) ? (
+                  {voiceToken && !testingShortcutAvailable ? (
                     <div style={{ display: "grid", gap: 8 }}>
                       <div style={{ fontSize: s(12), color: MC_NAVY_MUTED }}>
                         {language === "en"
@@ -1679,29 +1679,21 @@ export default function SettingsPage() {
                   ) : null}
 
                   {testingShortcutAvailable && language === "en" ? (
-                    <div style={{ display: "grid", gap: 10, fontSize: s(13), color: MC_NAVY, lineHeight: 1.5 }}>
-                      <div style={{ fontWeight: 900 }}>{language === "en" ? "iPhone: install the ready-made shortcut" : "iPhone: instalar el atajo listo"}</div>
+                    <div data-testid="siri-english-simple-setup" style={{ display: "grid", gap: 10, fontSize: s(13), color: MC_NAVY, lineHeight: 1.4 }}>
+                      <div style={{ fontWeight: 900 }}>Set up Siri in 3 steps</div>
                       <ol style={{ margin: 0, paddingLeft: 20, display: "grid", gap: 6 }}>
-                        <li>{language === "en" ? "Tap Copy complete Authorization value. Then tap Install English Siri shortcut (testing). Installing does not copy your connection; you must paste it in Text. Keep it private." : "Toca Copiar valor completo de Authorization. Después toca Instalar para Siri en español (testing). Instalar no copia tu conexión: debes pegarla en Texto. Es privada; no la compartas."}</li>
-                        <li>{language === "en" ? "Tap Install English Siri shortcut (testing), then Configure Shortcut. Paste your connection in Text and tap Add Shortcut. Do not choose Skip Setup or paste the iCloud link." : "Toca Instalar para Siri en español (testing) y luego Configurar atajo. Pega tu conexión en Texto y toca Agregar atajo. No elijas Omitir configuración ni pegues el enlace de iCloud."}</li>
-                        <li>{language === "en" ? "First test: open Shortcuts and tap the installed Shopping Voice tile, not its three dots. Allow speech recognition, connection and sending text to the MinderCart testing address when prompted. Say Milk note cold when it listens, wait silently, then check My List. You do not need to activate Siri for this first test." : "Primera prueba: abre Atajos y toca el recuadro instalado Agregar a MinderCart, no sus tres puntos. Autoriza reconocimiento de voz, conexión y envío de texto a la dirección de MinderCart testing cuando lo pida. Cuando escuche, di Leche nota fría, espera en silencio y revisa Mi Lista. En esta primera prueba no necesitas activar Siri."}</li>
-                        <li>{language === "en" ? "The shortcut installs as Shopping Voice; no renaming or editing is needed. If you already have a working shortcut with this name, keep it rather than installing again." : "El atajo se instala con el nombre Agregar a MinderCart; no necesitas renombrarlo ni editarlo. Si ya tienes uno que funciona con ese nombre, consérvalo: no necesitas reinstalarlo ni revocar su acceso."}</li>
+                        <li>Copy your connection using the button below.</li>
+                        <li>Tap <strong>Install shortcut</strong>.</li>
+                        <li>Paste your connection and tap <strong>Add Shortcut</strong>.</li>
                       </ol>
-                      {voiceToken ? (
-                        <button type="button" onClick={() => void copyVoiceValue(`Bearer ${voiceToken}`, language === "en" ? "Connection" : "Conexión")} style={{ width: "100%", padding: "12px 14px", borderRadius: 12, border: `1px solid ${MC_NAVY_LINE}`, background: "#fff", color: MC_NAVY, fontWeight: 900 }}>
-                          {language === "en" ? "Copy complete Authorization value" : "Copiar valor completo de Authorization"}
-                        </button>
-                      ) : (
-                        <p style={{ margin: 0 }}>{language === "en" ? "If your shortcut already works, you do not need to install it again. Your connection is only displayed when access is enabled. To reuse it, copy the complete Authorization value from your existing shortcut; do not share it. Revoking access invalidates the old connection." : "Si tu atajo ya funciona, no necesitas instalarlo otra vez. Tu conexión solo se muestra al activar el acceso. Para reutilizarla, copia el valor completo de Authorization de tu atajo existente; no lo compartas. Revocar el acceso invalida la conexión anterior."}</p>
-                      )}
-                      <a href={language === "en" ? "https://www.icloud.com/shortcuts/ace6e4d0434f4efba7eda56db89376ea" : "https://www.icloud.com/shortcuts/850dfff0a8af4419bed750ad182534e0"} target="_blank" rel="noopener noreferrer" style={{ display: "block", textAlign: "center", padding: "12px 14px", borderRadius: 12, background: MC_NAVY, color: "#fff", fontWeight: 900, textDecoration: "none" }}>
-                        {language === "en" ? "Install English Siri shortcut (testing)" : "Instalar para Siri en español (testing)"}
-                      </a>
-                      <p style={{ margin: 0 }}>{language === "en" ? "This shortcut listens in English (US) and connects only to testing, not production. Changing MinderCart's language does not change an already installed shortcut. Never share a copy containing your connection." : "Este atajo dicta en español y se conecta solo a testing, no a producción. Cambiar el idioma de MinderCart no cambia un atajo ya instalado. Nunca compartas una copia que contenga tu conexión."}</p>
+                      <button type="button" onClick={() => void copyVoiceValue(`Bearer ${voiceToken}`, "Connection")} style={{ width: "100%", padding: "12px 14px", borderRadius: 12, border: `1px solid ${MC_NAVY_LINE}`, background: "#fff", color: MC_NAVY, fontWeight: 900 }}>Copy connection</button>
+                      <a href="https://www.icloud.com/shortcuts/3f932f78e3de4f4e92c4b23f414afb96" target="_blank" rel="noopener noreferrer" style={{ display: "block", textAlign: "center", padding: "12px 14px", borderRadius: 12, background: MC_NAVY, color: "#fff", fontWeight: 900, textDecoration: "none" }}>Install shortcut</a>
+                      <p style={{ margin: 0 }}>Your connection is private. Don’t share it.</p>
+                      <p style={{ margin: 0 }}><strong>To use it:</strong> activate Siri, say “My List”, and wait for it to ask what to add.</p>
                     </div>
                   ) : null}
 
-                  {language === "en" || !testingShortcutAvailable ? <details style={{ fontSize: s(13), color: MC_NAVY }}>
+                  {!testingShortcutAvailable ? <details style={{ fontSize: s(13), color: MC_NAVY }}>
                     <summary style={{ cursor: "pointer", fontWeight: 900 }}>
                       {language === "en" ? "Technical help: manual shortcut setup" : "Ayuda técnica: configurar el atajo manualmente"}
                     </summary>
@@ -1742,7 +1734,7 @@ export default function SettingsPage() {
                     )}
                   </details> : null}
 
-                  {language === "en" ? <details style={{ fontSize: s(13), color: MC_NAVY, lineHeight: 1.5 }}>
+                  {language === "en" && !testingShortcutAvailable ? <details style={{ fontSize: s(13), color: MC_NAVY, lineHeight: 1.5 }}>
                     <summary style={{ cursor: "pointer", fontWeight: 900 }}>{language === "en" ? "iPhone: daily use and spoken notes" : "iPhone: uso diario y notas por voz"}</summary>
                     <p>{language === "en" ? "Daily use (after the first test): with Siri in English, activate Siri and say only “Shopping Voice”. Wait for “What's the text?”, then say “Milk note cold” and wait silently. Do not say the shortcut name and product together. You do not need to open Shortcuts each time. Do not press the red stop button: it cancels the shortcut. Return to My List in testing; allow a few seconds for syncing." : "Uso diario (con el atajo configurado como “Agregar a MinderCart”): activa Siri y di únicamente “Agregar a MinderCart”. Espera a que pida el texto; después di “Leche nota fría” y guarda silencio. Son dos pasos: no digas el nombre y el producto juntos. No necesitas abrir Atajos cada vez. No pulses el botón rojo de detener: cancela el atajo. Regresa a Mi Lista en testing. Espera hasta 20 segundos para sincronizar y revisa también los artículos al final de la lista antes de repetir el dictado. Si no aparece, actualiza una vez antes de reintentarlo."}</p>
                     <p>{language === "en" ? "MinderCart language, Siri language and the shortcut's dictation language are separate settings. This template dictates in English (US). If Siri cannot find the shortcut, check its name and Siri's language first." : "El idioma de MinderCart, el de Siri y el del dictado del atajo son ajustes distintos. El atajo dicta en español; si ya funciona, no necesitas cambiar el idioma de Siri. “Agregar a MinderCart” se probó con Siri en inglés. La plantilla enlazada no contiene claves ni Vista rápida técnica y ya lleva el nombre para invocarla con Siri."}</p>

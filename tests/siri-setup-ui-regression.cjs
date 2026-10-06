@@ -14,7 +14,7 @@ assert.ok(setupBranch, 'Setup must be gated by a newly available private connect
 assert.equal(setupBranch.whenFalse.getText(tree), 'null');
 const setup = setupBranch.whenTrue.getText(tree);
 for (const label of ['Copiar valor completo de Authorization', 'Copy complete Authorization value',
-  'Instalar para Siri en español (testing)', 'Install English Siri shortcut (testing)',
+  'Instalar atajo', 'Install shortcut',
   'Ayuda técnica', 'Technical help', 'uso diario', 'daily use', 'Terminar configuración', 'Finish setup']) {
   assert.ok(setup.includes(label), `${label} must remain inside setup-only branch`);
 }
@@ -44,7 +44,26 @@ assert.ok(simple.includes('Bearer ${voiceToken}'), 'Copy must include the full A
 assert.ok(simple.includes('fcbff51af45341cfbb4528d1096cffc1'));
 assert.ok(simple.includes('di “Mi Lista”'));
 assert.ok(!simple.includes('value={voiceToken}') && !simple.includes('Authorization'));
-assert.ok(!source.includes('Copy your connection using the button below'));
+assert.ok(source.includes('Copy your connection using the button below'));
+let english;
+function findEnglish(node) {
+  if (ts.isJsxElement(node) && node.openingElement.getText(tree).includes('data-testid="siri-english-simple-setup"')) english = node;
+  ts.forEachChild(node, findEnglish);
+}
+findEnglish(tree);
+assert.ok(english);
+copyButtons = 0; steps = 0;
+countSpanish(english);
+assert.equal(copyButtons, 1);
+assert.equal(steps, 3);
+const simpleEnglish = english.getText(tree);
+assert.ok(simpleEnglish.includes('Bearer ${voiceToken}'));
+assert.ok(simpleEnglish.includes('3f932f78e3de4f4e92c4b23f414afb96'));
+assert.ok(simpleEnglish.includes('say “My List”'));
+assert.ok(!simpleEnglish.includes('value={voiceToken}') && !simpleEnglish.includes('Authorization'));
+assert.ok(simpleEnglish.indexOf('</ol>') < simpleEnglish.indexOf('<button'));
+assert.ok(simpleEnglish.indexOf('<button') < simpleEnglish.indexOf('<a href='));
+assert.ok(!source.includes('ace6e4d0434f4efba7eda56db89376ea'));
 const revoke = source.slice(source.indexOf('async function onRevokeVoiceAccess()'), source.indexOf('async function copyVoiceValue'));
 assert.ok(revoke.indexOf('window.confirm') < revoke.indexOf('fetch('));
 assert.ok(revoke.includes('Todos los atajos') && revoke.includes('All shortcuts'));
