@@ -13,10 +13,10 @@ for (const lang of ['es', 'en']) {
   assert.match(output.exports.passwordResetMessage(lang), /Spam/);
 }
 const gate = fs.readFileSync('src/components/mindercart/AccessGate.tsx', 'utf8');
-assert.ok(gate.includes('if (session.status === "authenticated") return <>{children}{navigation}</>'));
+assert.ok(!gate.includes('useAuthSession'));
 assert.ok(gate.includes('router.replace("/auth")'));
 assert.ok(gate.includes('mindercart.onboardingSeen.v1'));
-assert.ok(gate.includes('session.error'));
+assert.ok(!gate.includes('session.error'));
 assert.ok(gate.includes('Agrega lo que necesitas en segundos'));
 assert.ok(gate.includes('Crea y reutiliza tus propias listas'));
 assert.ok(gate.includes('Compra más rápido, organizado por categoría'));
@@ -25,22 +25,32 @@ const React = require('react');
 const { renderToStaticMarkup } = require('react-dom/server');
 let status = 'guest';
 let path = '/';
+let sessionError = null;
+let language = 'es';
 const gateModule = { exports: {} };
 vm.runInNewContext(ts.transpileModule(gate, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, esModuleInterop: true } }).outputText, {
   exports: gateModule.exports, module: gateModule,
   require(name) {
     if (name === 'react') return React;
+    if (name === 'next/image') return function Image(props) { return React.createElement('img', { src: props.src, alt: props.alt }); };
     if (name === 'next/navigation') return { usePathname: () => path, useRouter: () => ({ replace() {} }) };
-    if (name.includes('auth-context')) return { useAuthSession: () => ({ status, enabled: true, error: null }) };
-    if (name.includes('hooks')) return { useMinderCartState: () => ({ settings: { language: 'es' } }) };
+    if (name.includes('auth-context')) return { useAuthSession: () => ({ status, enabled: true, error: sessionError }) };
+    if (name.includes('hooks')) return { useMinderCartState: () => ({ settings: { language } }) };
     throw Error(name);
   },
 });
 function renderGate() { return renderToStaticMarkup(React.createElement(gateModule.exports.AccessGate, { children: 'PRIVATE_LIST', navigation: 'PRIVATE_NAV' })); }
-assert.ok(!renderGate().includes('PRIVATE_LIST'));
-assert.ok(!renderGate().includes('PRIVATE_NAV'));
+assert.ok(renderGate().includes('PRIVATE_LISTPRIVATE_NAV'));
 status = 'loading';
-assert.ok(!renderGate().includes('PRIVATE_LIST'));
+assert.ok(renderGate().includes('PRIVATE_LISTPRIVATE_NAV'));
+assert.ok(!renderGate().includes('session-loading-footer'));
+for (language of ['es', 'en']) {
+  sessionError = 'auth/check-delayed';
+  assert.ok(renderGate().includes('PRIVATE_LISTPRIVATE_NAV'));
+  sessionError = 'auth/check-failed';
+  assert.ok(renderGate().includes('PRIVATE_LISTPRIVATE_NAV'));
+}
+sessionError = null; language = 'es';
 status = 'authenticated';
 assert.ok(renderGate().includes('PRIVATE_LISTPRIVATE_NAV'));
 status = 'guest'; path = '/auth';
