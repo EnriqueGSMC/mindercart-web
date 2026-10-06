@@ -1624,7 +1624,21 @@ export default function SettingsPage() {
                   </div>
 
                   {voiceToken ? <div data-testid="siri-initial-setup" style={{ display: "grid", gap: 10 }}>
-                  {voiceToken ? (
+                  {language === "es" && testingShortcutAvailable ? (
+                    <div data-testid="siri-spanish-simple-setup" style={{ display: "grid", gap: 10, fontSize: s(13), color: MC_NAVY, lineHeight: 1.4 }}>
+                      <div style={{ fontWeight: 900 }}>Configura Siri en 3 pasos</div>
+                      <ol style={{ margin: 0, paddingLeft: 20, display: "grid", gap: 6 }}>
+                        <li>Copia tu conexión con el botón de abajo.</li>
+                        <li>Toca <strong>Instalar atajo</strong>.</li>
+                        <li>Pega tu conexión y toca <strong>Agregar atajo</strong>.</li>
+                      </ol>
+                      <button type="button" onClick={() => void copyVoiceValue(`Bearer ${voiceToken}`, "Conexión")} style={{ width: "100%", padding: "12px 14px", borderRadius: 12, border: `1px solid ${MC_NAVY_LINE}`, background: "#fff", color: MC_NAVY, fontWeight: 900 }}>Copiar conexión</button>
+                      <a href="https://www.icloud.com/shortcuts/fcbff51af45341cfbb4528d1096cffc1" target="_blank" rel="noopener noreferrer" style={{ display: "block", textAlign: "center", padding: "12px 14px", borderRadius: 12, background: MC_NAVY, color: "#fff", fontWeight: 900, textDecoration: "none" }}>Instalar atajo</a>
+                      <p style={{ margin: 0 }}>Tu conexión es privada. No la compartas.</p>
+                      <p style={{ margin: 0 }}><strong>Para usarlo:</strong> activa Siri, di “Mi Lista” y espera a que te pida qué agregar.</p>
+                    </div>
+                  ) : null}
+                  {voiceToken && (language === "en" || !testingShortcutAvailable) ? (
                     <div style={{ display: "grid", gap: 8 }}>
                       <div style={{ fontSize: s(12), color: MC_NAVY_MUTED }}>
                         {language === "en"
@@ -1664,7 +1678,7 @@ export default function SettingsPage() {
                     </div>
                   ) : null}
 
-                  {testingShortcutAvailable ? (
+                  {testingShortcutAvailable && language === "en" ? (
                     <div style={{ display: "grid", gap: 10, fontSize: s(13), color: MC_NAVY, lineHeight: 1.5 }}>
                       <div style={{ fontWeight: 900 }}>{language === "en" ? "iPhone: install the ready-made shortcut" : "iPhone: instalar el atajo listo"}</div>
                       <ol style={{ margin: 0, paddingLeft: 20, display: "grid", gap: 6 }}>
@@ -1687,7 +1701,7 @@ export default function SettingsPage() {
                     </div>
                   ) : null}
 
-                  <details style={{ fontSize: s(13), color: MC_NAVY }}>
+                  {language === "en" || !testingShortcutAvailable ? <details style={{ fontSize: s(13), color: MC_NAVY }}>
                     <summary style={{ cursor: "pointer", fontWeight: 900 }}>
                       {language === "en" ? "Technical help: manual shortcut setup" : "Ayuda técnica: configurar el atajo manualmente"}
                     </summary>
@@ -1726,16 +1740,16 @@ export default function SettingsPage() {
                     ) : (
                       <p>{language === "en" ? "The private key is not shown again. If your shortcut already works, keep it; do not revoke access. If you lost the key and need a new shortcut, revoking and enabling again will invalidate the old key." : "La clave privada no vuelve a mostrarse. Si tu atajo ya funciona, consérvalo; no revoques el acceso. Si perdiste la clave y necesitas un atajo nuevo, revocar y activar de nuevo invalida la clave anterior."}</p>
                     )}
-                  </details>
+                  </details> : null}
 
-                  <details style={{ fontSize: s(13), color: MC_NAVY, lineHeight: 1.5 }}>
+                  {language === "en" ? <details style={{ fontSize: s(13), color: MC_NAVY, lineHeight: 1.5 }}>
                     <summary style={{ cursor: "pointer", fontWeight: 900 }}>{language === "en" ? "iPhone: daily use and spoken notes" : "iPhone: uso diario y notas por voz"}</summary>
                     <p>{language === "en" ? "Daily use (after the first test): with Siri in English, activate Siri and say only “Shopping Voice”. Wait for “What's the text?”, then say “Milk note cold” and wait silently. Do not say the shortcut name and product together. You do not need to open Shortcuts each time. Do not press the red stop button: it cancels the shortcut. Return to My List in testing; allow a few seconds for syncing." : "Uso diario (con el atajo configurado como “Agregar a MinderCart”): activa Siri y di únicamente “Agregar a MinderCart”. Espera a que pida el texto; después di “Leche nota fría” y guarda silencio. Son dos pasos: no digas el nombre y el producto juntos. No necesitas abrir Atajos cada vez. No pulses el botón rojo de detener: cancela el atajo. Regresa a Mi Lista en testing. Espera hasta 20 segundos para sincronizar y revisa también los artículos al final de la lista antes de repetir el dictado. Si no aparece, actualiza una vez antes de reintentarlo."}</p>
                     <p>{language === "en" ? "MinderCart language, Siri language and the shortcut's dictation language are separate settings. This template dictates in English (US). If Siri cannot find the shortcut, check its name and Siri's language first." : "El idioma de MinderCart, el de Siri y el del dictado del atajo son ajustes distintos. El atajo dicta en español; si ya funciona, no necesitas cambiar el idioma de Siri. “Agregar a MinderCart” se probó con Siri en inglés. La plantilla enlazada no contiene claves ni Vista rápida técnica y ya lleva el nombre para invocarla con Siri."}</p>
                     <p>{language === "en" ? "Start with a short phrase: “Milk note cold”. For several products, say next item between them, for example:" : "Sin notas: “leche, huevos y arroz”. Con notas, di nota antes de la nota y siguiente artículo para empezar otro producto:"}</p>
                     <p style={{ fontWeight: 800 }}>{language === "en" ? "Milk note cold, next item eggs." : "Agua mineral nota naranja, siguiente artículo agua mineral nota toronja, siguiente artículo coca."}</p>
                     <p>{language === "en" ? "Words after note belong to that note until next item. Notes keep your dictated wording; they are not translated. The English template has no technical Quick Look screens. If nothing appears, do not immediately repeat the dictation: it may still be syncing." : "Esto agrega dos renglones de Agua Mineral con notas diferentes y Coca sin nota. Todo lo que digas después de nota pertenece a esa nota hasta siguiente artículo. Las notas conservan tus palabras; no se traducen."}</p>
-                  </details>
+                  </details> : null}
 
                   <button type="button" onClick={() => {
                     if (!window.confirm(language === "en"
