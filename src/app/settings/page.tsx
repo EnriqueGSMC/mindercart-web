@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { siriShortcutLinks } from "@/lib/voice/shortcut-links";
 import { detectVoiceDevicePlatform, type VoiceDevicePlatform } from "@/lib/voice/device-platform";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -311,11 +312,11 @@ function removeCustomItemCompat(item: Pick<ItemMaster, "itemKey" | "name">) {
 
 export default function SettingsPage() {
   const [voiceDevice, setVoiceDevice] = React.useState<VoiceDevicePlatform>("unknown");
-  const [testingShortcutAvailable, setTestingShortcutAvailable] = React.useState(false);
+  const [shortcutLinks, setShortcutLinks] = React.useState<ReturnType<typeof siriShortcutLinks>>(null);
+  const shortcutAvailable = shortcutLinks !== null;
   React.useEffect(() => {
     setVoiceDevice(detectVoiceDevicePlatform(navigator.userAgent, navigator.maxTouchPoints));
-    // This shared shortcut has a fixed testing endpoint. Never offer it on production.
-    setTestingShortcutAvailable(window.location.hostname === "mindercart-web-git-testing-enrique-sanchezs-projects.vercel.app");
+    setShortcutLinks(siriShortcutLinks(window.location.hostname));
   }, []);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -1624,7 +1625,7 @@ export default function SettingsPage() {
                   </div>
 
                   {voiceToken ? <div data-testid="siri-initial-setup" style={{ display: "grid", gap: 10 }}>
-                  {language === "es" && testingShortcutAvailable ? (
+                  {language === "es" && shortcutLinks ? (
                     <div data-testid="siri-spanish-simple-setup" style={{ display: "grid", gap: 10, fontSize: s(13), color: MC_NAVY, lineHeight: 1.4 }}>
                       <div style={{ fontWeight: 900 }}>Configura Siri en 3 pasos</div>
                       <ol style={{ margin: 0, paddingLeft: 20, display: "grid", gap: 6 }}>
@@ -1633,12 +1634,12 @@ export default function SettingsPage() {
                         <li>Pega tu conexión y toca <strong>Agregar atajo</strong>.</li>
                       </ol>
                       <button type="button" onClick={() => void copyVoiceValue(`Bearer ${voiceToken}`, "Conexión")} style={{ width: "100%", padding: "12px 14px", borderRadius: 12, border: `1px solid ${MC_NAVY_LINE}`, background: "#fff", color: MC_NAVY, fontWeight: 900 }}>Copiar conexión</button>
-                      <a href="https://www.icloud.com/shortcuts/fcbff51af45341cfbb4528d1096cffc1" target="_blank" rel="noopener noreferrer" style={{ display: "block", textAlign: "center", padding: "12px 14px", borderRadius: 12, background: MC_NAVY, color: "#fff", fontWeight: 900, textDecoration: "none" }}>Instalar atajo</a>
+                      <a href={shortcutLinks.es} target="_blank" rel="noopener noreferrer" style={{ display: "block", textAlign: "center", padding: "12px 14px", borderRadius: 12, background: MC_NAVY, color: "#fff", fontWeight: 900, textDecoration: "none" }}>Instalar atajo</a>
                       <p style={{ margin: 0 }}>Tu conexión es privada. No la compartas.</p>
                       <p style={{ margin: 0 }}><strong>Para usarlo:</strong> activa Siri, di “Mi Lista” y espera a que te pida qué agregar.</p>
                     </div>
                   ) : null}
-                  {voiceToken && !testingShortcutAvailable ? (
+                  {voiceToken && !shortcutAvailable ? (
                     <div style={{ display: "grid", gap: 8 }}>
                       <div style={{ fontSize: s(12), color: MC_NAVY_MUTED }}>
                         {language === "en"
@@ -1678,7 +1679,7 @@ export default function SettingsPage() {
                     </div>
                   ) : null}
 
-                  {testingShortcutAvailable && language === "en" ? (
+                  {shortcutLinks && language === "en" ? (
                     <div data-testid="siri-english-simple-setup" style={{ display: "grid", gap: 10, fontSize: s(13), color: MC_NAVY, lineHeight: 1.4 }}>
                       <div style={{ fontWeight: 900 }}>Set up Siri in 3 steps</div>
                       <ol style={{ margin: 0, paddingLeft: 20, display: "grid", gap: 6 }}>
@@ -1687,13 +1688,13 @@ export default function SettingsPage() {
                         <li>Paste your connection and tap <strong>Add Shortcut</strong>.</li>
                       </ol>
                       <button type="button" onClick={() => void copyVoiceValue(`Bearer ${voiceToken}`, "Connection")} style={{ width: "100%", padding: "12px 14px", borderRadius: 12, border: `1px solid ${MC_NAVY_LINE}`, background: "#fff", color: MC_NAVY, fontWeight: 900 }}>Copy connection</button>
-                      <a href="https://www.icloud.com/shortcuts/3f932f78e3de4f4e92c4b23f414afb96" target="_blank" rel="noopener noreferrer" style={{ display: "block", textAlign: "center", padding: "12px 14px", borderRadius: 12, background: MC_NAVY, color: "#fff", fontWeight: 900, textDecoration: "none" }}>Install shortcut</a>
+                      <a href={shortcutLinks.en} target="_blank" rel="noopener noreferrer" style={{ display: "block", textAlign: "center", padding: "12px 14px", borderRadius: 12, background: MC_NAVY, color: "#fff", fontWeight: 900, textDecoration: "none" }}>Install shortcut</a>
                       <p style={{ margin: 0 }}>Your connection is private. Don’t share it.</p>
                       <p style={{ margin: 0 }}><strong>To use it:</strong> activate Siri, say “My List”, and wait for it to ask what to add.</p>
                     </div>
                   ) : null}
 
-                  {!testingShortcutAvailable ? <details style={{ fontSize: s(13), color: MC_NAVY }}>
+                  {!shortcutAvailable ? <details style={{ fontSize: s(13), color: MC_NAVY }}>
                     <summary style={{ cursor: "pointer", fontWeight: 900 }}>
                       {language === "en" ? "Technical help: manual shortcut setup" : "Ayuda técnica: configurar el atajo manualmente"}
                     </summary>
@@ -1734,7 +1735,7 @@ export default function SettingsPage() {
                     )}
                   </details> : null}
 
-                  {language === "en" && !testingShortcutAvailable ? <details style={{ fontSize: s(13), color: MC_NAVY, lineHeight: 1.5 }}>
+                  {language === "en" && !shortcutAvailable ? <details style={{ fontSize: s(13), color: MC_NAVY, lineHeight: 1.5 }}>
                     <summary style={{ cursor: "pointer", fontWeight: 900 }}>{language === "en" ? "iPhone: daily use and spoken notes" : "iPhone: uso diario y notas por voz"}</summary>
                     <p>{language === "en" ? "Daily use (after the first test): with Siri in English, activate Siri and say only “Shopping Voice”. Wait for “What's the text?”, then say “Milk note cold” and wait silently. Do not say the shortcut name and product together. You do not need to open Shortcuts each time. Do not press the red stop button: it cancels the shortcut. Return to My List in testing; allow a few seconds for syncing." : "Uso diario (con el atajo configurado como “Agregar a MinderCart”): activa Siri y di únicamente “Agregar a MinderCart”. Espera a que pida el texto; después di “Leche nota fría” y guarda silencio. Son dos pasos: no digas el nombre y el producto juntos. No necesitas abrir Atajos cada vez. No pulses el botón rojo de detener: cancela el atajo. Regresa a Mi Lista en testing. Espera hasta 20 segundos para sincronizar y revisa también los artículos al final de la lista antes de repetir el dictado. Si no aparece, actualiza una vez antes de reintentarlo."}</p>
                     <p>{language === "en" ? "MinderCart language, Siri language and the shortcut's dictation language are separate settings. This template dictates in English (US). If Siri cannot find the shortcut, check its name and Siri's language first." : "El idioma de MinderCart, el de Siri y el del dictado del atajo son ajustes distintos. El atajo dicta en español; si ya funciona, no necesitas cambiar el idioma de Siri. “Agregar a MinderCart” se probó con Siri en inglés. La plantilla enlazada no contiene claves ni Vista rápida técnica y ya lleva el nombre para invocarla con Siri."}</p>

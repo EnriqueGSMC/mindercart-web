@@ -1,0 +1,17 @@
+const fs = require('node:fs');
+const vm = require('node:vm');
+const assert = require('node:assert/strict');
+const ts = require('typescript');
+const result = { exports: {} };
+vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/lib/voice/shortcut-links.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText, { module: result, exports: result.exports });
+const links = result.exports.siriShortcutLinks;
+const testing = links('mindercart-web-git-testing-enrique-sanchezs-projects.vercel.app');
+const production = links('mindercart-web.vercel.app');
+assert.ok(testing.es.endsWith('/fcbff51af45341cfbb4528d1096cffc1'));
+assert.ok(testing.en.endsWith('/3f932f78e3de4f4e92c4b23f414afb96'));
+assert.ok(production.es.endsWith('/bf4a799da2af4e2b977dfe5d764e656d'));
+assert.ok(production.en.endsWith('/11a53bc6cc874379ae2b72605170ec96'));
+assert.notEqual(testing.es, production.es);
+assert.notEqual(testing.en, production.en);
+for (const host of ['localhost', 'preview.vercel.app', 'mindercart-web.vercel.app.other.com', '']) assert.equal(links(host), null);
+console.log('PASS: exact-host production/testing links separated; unknown hosts receive no template');
