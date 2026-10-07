@@ -22,9 +22,10 @@ export function useMinderCartState() {
   const [hydrated, setHydrated] = React.useState(false);
 
   React.useEffect(() => {
-    const reload = (event?: Event) => {
-      const nextState = event instanceof CustomEvent ? event.detail : null;
-      setState(nextState && typeof nextState === "object" ? nextState as MinderCartState : readState());
+    const reload = () => {
+      // Event detail may contain canonical server names (e.g. Leche).
+      // Use the same localized snapshot on live updates as on initial loading.
+      setState(readState());
       setHydrated(true);
     };
 

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { DictationInput } from "@/components/DictationInput";
 import { useRouter, useSearchParams } from "next/navigation";
 import React from "react";
 import { createPortal } from "react-dom";
@@ -52,7 +53,6 @@ type SavedListRecord = {
 
 const ADD_STORE_VALUE = "__ADD_STORE__";
 const SAVED_LISTS_STORAGE_KEY = "mindercart.savedLists.v1";
-const ONBOARDING_STORAGE_KEY = "mindercart.onboardingSeen.v1";
 
 const MC_NAVY = "#12245E";
 const MC_NAVY_SOFT = "#EEF3FF";
@@ -354,8 +354,6 @@ export default function NeedsPage() {
   const [customStores, setCustomStores] = React.useState<string[]>([]);
   const [addingStore, setAddingStore] = React.useState(false);
   const [newStoreName, setNewStoreName] = React.useState("");
-  const [onboardingChecked, setOnboardingChecked] = React.useState(false);
-  const [showOnboarding, setShowOnboarding] = React.useState(false);
   const [draftModalViewport, setDraftModalViewport] = React.useState<{
     top: number;
     bottom: number;
@@ -381,28 +379,6 @@ export default function NeedsPage() {
     setSuggestions(buildSuggestions(name));
   }, [hydrated, name]);
 
-  React.useEffect(() => {
-    if (!hydrated) return;
-
-    try {
-      setShowOnboarding(window.localStorage.getItem(ONBOARDING_STORAGE_KEY) !== "1");
-    } catch {
-      setShowOnboarding(false);
-    } finally {
-      setOnboardingChecked(true);
-    }
-  }, [hydrated]);
-
-  React.useEffect(() => {
-    if (!showOnboarding) return;
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [showOnboarding]);
 
   React.useLayoutEffect(() => {
     if (!draftOpen) {
@@ -635,15 +611,6 @@ export default function NeedsPage() {
     selectableOpenedSavedListItems.length > 0
     && selectableOpenedSavedListItems.every((item) => selectedOpenSavedListItemIds.includes(item.id));
 
-  function completeOnboarding() {
-    try {
-      window.localStorage.setItem(ONBOARDING_STORAGE_KEY, "1");
-    } catch {
-      // The app remains usable even if local storage is unavailable.
-    }
-
-    setShowOnboarding(false);
-  }
 
   function resetInput() {
     setName("");
@@ -1001,174 +968,6 @@ export default function NeedsPage() {
     }
   }
 
-  const onboardingSteps =
-    lang === "en"
-      ? [
-          {
-            title: "Add what you need in seconds",
-            text: "Capture items anytime, before you forget.",
-          },
-          {
-            title: "Create and reuse your own lists",
-            text: "Save lists for weekly shopping, recipes, or special occasions.",
-          },
-          {
-            title: "Shop faster, organized by category",
-            text: "Spend less time searching and backtracking through the store.",
-          },
-        ]
-      : [
-          {
-            title: "Agrega lo que necesitas en segundos",
-            text: "Anota artículos en cualquier momento, antes de olvidarlos.",
-          },
-          {
-            title: "Crea y reutiliza tus propias listas",
-            text: "Guarda listas para compras semanales, recetas u ocasiones especiales.",
-          },
-          {
-            title: "Compra más rápido, organizado por categoría",
-            text: "Pasa menos tiempo buscando y regresando por los mismos pasillos.",
-          },
-        ];
-
-  const onboardingModal = showOnboarding
-    ? createPortal(
-      <div
-      style={{
-        ...modalOverlayStyle,
-        zIndex: 10050,
-        background: "rgba(10, 18, 45, 0.62)",
-      }}
-    >
-      <section
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="mindercart-onboarding-title"
-        style={{
-          ...modalCardStyle,
-          width: "min(500px, 100%)",
-          padding: 18,
-          borderRadius: 24,
-        }}
-      >
-        <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            minHeight: 30,
-            padding: "5px 10px",
-            borderRadius: 999,
-            background: MC_NAVY_SOFT,
-            color: MC_NAVY,
-            fontSize: s(12),
-            fontWeight: 900,
-            letterSpacing: "0.02em",
-          }}
-        >
-          MinderCart
-        </div>
-
-        <div
-          id="mindercart-onboarding-title"
-          style={{
-            marginTop: 12,
-            color: MC_NAVY,
-            fontSize: s(25),
-            fontWeight: 900,
-            lineHeight: 1.12,
-          }}
-        >
-          {lang === "en" ? "Welcome to MinderCart" : "Bienvenido a MinderCart"}
-        </div>
-
-        <div
-          style={{
-            marginTop: 6,
-            color: MC_NAVY_MUTED,
-            fontSize: s(15),
-            lineHeight: 1.35,
-          }}
-        >
-          {lang === "en" ? "Never forget what to buy." : "Nunca olvides qué comprar."}
-        </div>
-
-        <div style={{ display: "grid", gap: 10, marginTop: 18 }}>
-          {onboardingSteps.map((step, index) => (
-            <div
-              key={step.title}
-              style={{
-                display: "grid",
-                gridTemplateColumns: "36px minmax(0, 1fr)",
-                gap: 11,
-                alignItems: "start",
-                padding: 12,
-                borderRadius: 16,
-                border: `1px solid ${MC_NAVY_LINE}`,
-                background: "#fff",
-              }}
-            >
-              <div
-                aria-hidden="true"
-                style={{
-                  width: 34,
-                  height: 34,
-                  borderRadius: 999,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  background: MC_NAVY,
-                  color: "#fff",
-                  fontSize: s(14),
-                  fontWeight: 900,
-                }}
-              >
-                {index + 1}
-              </div>
-
-              <div style={{ minWidth: 0 }}>
-                <div style={{ color: MC_NAVY, fontSize: s(16), fontWeight: 900, lineHeight: 1.2 }}>
-                  {step.title}
-                </div>
-                <div
-                  style={{
-                    marginTop: 3,
-                    color: MC_NAVY_MUTED,
-                    fontSize: s(13),
-                    lineHeight: 1.35,
-                  }}
-                >
-                  {step.text}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <button
-          type="button"
-          autoFocus
-          onClick={completeOnboarding}
-          style={{
-            width: "100%",
-            marginTop: 18,
-            padding: "14px 16px",
-            borderRadius: 16,
-            border: `1px solid ${MC_NAVY}`,
-            background: MC_NAVY,
-            color: "#fff",
-            fontSize: s(15),
-            fontWeight: 900,
-            cursor: "pointer",
-          }}
-        >
-          {lang === "en" ? "Get started" : "Empezar"}
-        </button>
-      </section>
-      </div>,
-      document.body
-    )
-    : null;
 
   const draftModal = draft && draftModalViewport
     ? createPortal(
@@ -1439,7 +1238,7 @@ export default function NeedsPage() {
   )
     : null;
 
-  if (!hydrated || !onboardingChecked) {
+  if (!hydrated) {
     return (
       <AppShell title={t("es", "myListTitle")} darkHero subtitle={t("es", "myListSubtitle")}>
         <section style={{ ...cardStyle(), padding: 18 }}>
@@ -2215,7 +2014,6 @@ export default function NeedsPage() {
         )}
 
         {draftModal}
-        {onboardingModal}
       </AppShell>
     );
   }
@@ -2229,12 +2027,15 @@ export default function NeedsPage() {
     >
       <section style={{ ...cardStyle(), padding: 14 }}>
         <div style={{ display: "grid", gap: 12 }}>
-          <div style={{ fontSize: s(16), fontWeight: 700 }}>{lang === "en" ? "I need" : "Necesito"}</div>
-
-          <input
+          <DictationInput
+            lang={lang}
+            dictation="search"
+            dictationReplace
+            ariaLabel={lang === "en" ? "I need" : "Necesito"}
+            onDictationError={() => setMessage(lang === "en" ? "Use your keyboard microphone or type the product name." : "Usa el micrófono del teclado o escribe el nombre del producto.")}
             value={name}
-            onChange={(e) => {
-              setName(e.target.value);
+            onChange={(value) => {
+              setName(value);
               setMessage("");
             }}
             onKeyDown={(e) => {
@@ -2243,8 +2044,8 @@ export default function NeedsPage() {
                 openCustomDraft();
               }
             }}
-            placeholder={itemPlaceholder}
-            style={{
+            placeholder={`${lang === "en" ? "I need" : "Necesito"}… ${itemPlaceholder}`}
+            inputStyle={{
               width: "100%",
               padding: "16px 18px",
               borderRadius: 18,
@@ -2424,7 +2225,6 @@ export default function NeedsPage() {
       </section>
 
       {draftModal}
-      {onboardingModal}
     </AppShell>
   );
 }

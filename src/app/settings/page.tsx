@@ -1,6 +1,8 @@
 "use client";
 
 import React from "react";
+import { siriShortcutLinks } from "@/lib/voice/shortcut-links";
+import { detectVoiceDevicePlatform, type VoiceDevicePlatform } from "@/lib/voice/device-platform";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   AppShell,
@@ -15,6 +17,7 @@ import * as mcStorage from "@/lib/mindercart/storage";
 import { useMinderCartState } from "@/lib/mindercart/hooks";
 import { useAuthSession } from "@/lib/firebase/auth-context";
 import { resetPasswordForUser, signInUser, signOutUser, signUpUser } from "@/lib/firebase/auth-actions";
+import { authErrorMessage, passwordResetMessage } from "@/lib/firebase/auth-messages";
 import { resolveUserBootstrap } from "@/lib/firebase/resolve-user-bootstrap";
 import { saveUserData } from "@/lib/firebase/save-user-data";
 import {
@@ -308,6 +311,13 @@ function removeCustomItemCompat(item: Pick<ItemMaster, "itemKey" | "name">) {
 
 
 export default function SettingsPage() {
+  const [voiceDevice, setVoiceDevice] = React.useState<VoiceDevicePlatform>("unknown");
+  const [shortcutLinks, setShortcutLinks] = React.useState<ReturnType<typeof siriShortcutLinks>>(null);
+  const shortcutAvailable = shortcutLinks !== null;
+  React.useEffect(() => {
+    setVoiceDevice(detectVoiceDevicePlatform(navigator.userAgent, navigator.maxTouchPoints));
+    setShortcutLinks(siriShortcutLinks(window.location.hostname));
+  }, []);
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnTo = searchParams.get("returnTo") || "/";
@@ -358,6 +368,11 @@ export default function SettingsPage() {
   const [familyAcceptInviteBusy, setFamilyAcceptInviteBusy] = React.useState(false);
   const [familyStatusState, setFamilyStatusState] = React.useState<"loading" | "ready" | "error">("loading");
   const [familyStatusRetryToken, setFamilyStatusRetryToken] = React.useState(0);
+  const [voiceEnabled, setVoiceEnabled] = React.useState(false);
+  const [voiceToken, setVoiceToken] = React.useState("");
+  const [voiceBusy, setVoiceBusy] = React.useState(false);
+  const [voiceMessage, setVoiceMessage] = React.useState("");
+  const [voiceError, setVoiceError] = React.useState("");
 
   const refreshSettingsDerivedState = React.useCallback(() => {
     setStoreProfiles(mcStorage.listStoreProfiles());
@@ -373,6 +388,33 @@ export default function SettingsPage() {
     refreshSettingsDerivedState();
     setStoreDraft(emptyStoreDraft(settings.preferredStore));
   }, [hydrated, refreshSettingsDerivedState, settings.language, settings.preferredStore, settings.fontScale]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+
+    async function loadVoiceStatus() {
+      if (session.status !== "authenticated" || !session.user) {
+        setVoiceEnabled(false);
+        setVoiceToken("");
+        return;
+      }
+
+      try {
+        const idToken = await session.user.getIdToken();
+        const response = await fetch("/api/voice/access", {
+          headers: { Authorization: `Bearer ${idToken}` },
+        });
+        if (!response.ok) return;
+        const result = await response.json() as { enabled?: boolean };
+        if (!cancelled) setVoiceEnabled(result.enabled === true);
+      } catch {
+        // Voice access is optional; do not interrupt the rest of Settings.
+      }
+    }
+
+    void loadVoiceStatus();
+    return () => { cancelled = true; };
+  }, [session.status, session.user]);
 
   React.useEffect(() => {
     if (!hydrated) return;
@@ -834,7 +876,7 @@ export default function SettingsPage() {
     } catch (error) {
       setAccountError(
         error instanceof Error
-          ? error.message
+          ? authErrorMessage(error, language)
           : language === "en"
             ? "Sign in failed"
             : "No se pudo iniciar sesión"
@@ -855,7 +897,7 @@ export default function SettingsPage() {
     } catch (error) {
       setAccountError(
         error instanceof Error
-          ? error.message
+          ? authErrorMessage(error, language)
           : language === "en"
             ? "Sign up failed"
             : "No se pudo crear la cuenta"
@@ -876,18 +918,18 @@ export default function SettingsPage() {
       return;
     }
 
+    if (!window.confirm(language === "en" ? `Send password recovery instructions to ${email}?` : `¿Enviar instrucciones para recuperar tu contraseña a ${email}?`)) return;
+    setAccountMessage(language === "en" ? "Sending request…" : "Enviando solicitud…");
+
     try {
       setAccountBusy(true);
       await resetPasswordForUser(email);
-      setAccountMessage(
-        language === "en"
-          ? "We sent you an email to reset your password"
-          : "Te enviamos un correo para restablecer tu contraseña"
-      );
+      setAccountMessage(passwordResetMessage(language));
     } catch (error) {
+      setAccountMessage("");
       setAccountError(
         error instanceof Error
-          ? error.message
+          ? authErrorMessage(error, language)
           : language === "en"
             ? "We could not send the reset email"
             : "No se pudo enviar el correo de recuperación"
@@ -1200,6 +1242,75 @@ export default function SettingsPage() {
     }
   }
 
+  async function onEnableVoiceAccess() {
+    if (!session.user) return;
+
+    try {
+      setVoiceBusy(true);
+      setVoiceError("");
+      setVoiceMessage("");
+      const idToken = await session.user.getIdToken();
+      const response = await fetch("/api/voice/access", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${idToken}` },
+      });
+      const result = await response.json() as { token?: string; error?: string; diagnostic?: string };
+      if (!response.ok || !result.token) throw new Error(result.error || "Voice access error");
+
+      setVoiceEnabled(true);
+      setVoiceToken(result.token);
+      setVoiceMessage(
+        language === "en"
+          ? "Siri access is ready. Copy the key now; it is only shown once."
+          : "El acceso para Siri está listo. Copia la clave ahora; solo se muestra una vez."
+      );
+    } catch (error) {
+      setVoiceError(
+        error instanceof Error
+          ? error.message
+          : language === "en"
+            ? "Could not enable Siri access."
+            : "No se pudo activar el acceso para Siri."
+      );
+    } finally {
+      setVoiceBusy(false);
+    }
+  }
+
+  async function onRevokeVoiceAccess() {
+    if (!session.user) return;
+    if (!window.confirm(language === "en"
+      ? "Revoke Siri access? All shortcuts using this connection will stop working. You will need a new connection to configure them again."
+      : "¿Revocar el acceso para Siri? Todos los atajos que usan esta conexión dejarán de funcionar. Necesitarás una conexión nueva para configurarlos otra vez.")) return;
+
+    try {
+      setVoiceBusy(true);
+      setVoiceError("");
+      const idToken = await session.user.getIdToken();
+      const response = await fetch("/api/voice/access", {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${idToken}` },
+      });
+      if (!response.ok) throw new Error("Voice access error");
+      setVoiceEnabled(false);
+      setVoiceToken("");
+      setVoiceMessage(language === "en" ? "Siri access was revoked." : "El acceso para Siri fue revocado.");
+    } catch {
+      setVoiceError(language === "en" ? "Could not revoke Siri access." : "No se pudo revocar el acceso para Siri.");
+    } finally {
+      setVoiceBusy(false);
+    }
+  }
+
+  async function copyVoiceValue(value: string, label: string) {
+    try {
+      await navigator.clipboard.writeText(value);
+      setVoiceMessage(language === "en" ? `${label} copied.` : `${label} copiada.`);
+    } catch {
+      setVoiceError(language === "en" ? "Could not copy it." : "No se pudo copiar.");
+    }
+  }
+
   return (
     <AppShell title={t(language, "settingsTitle")} darkHero subtitle={t(language, "settingsSubtitle")} showCart={false}>
       <section style={{ ...cardStyle(), padding: 14, paddingBottom: "max(108px, env(safe-area-inset-bottom, 0px) + 88px)" }}>
@@ -1442,9 +1553,245 @@ export default function SettingsPage() {
             ) : null}
 
             {session.error ? (
-              <div style={{ fontSize: s(12), color: MC_NAVY_MUTED }}>{session.error}</div>
+              <div style={{ fontSize: s(12), color: MC_NAVY_MUTED }} role="status">
+                {session.error === "auth/check-delayed"
+                  ? (language === "en"
+                    ? "Checking your session is taking longer than expected. You can retry without signing out."
+                    : "La comprobación de tu sesión está tardando más de lo esperado. Puedes reintentar sin cerrar sesión.")
+                  : (language === "en"
+                    ? "We could not verify your session. Check your connection and retry."
+                    : "No pudimos comprobar tu sesión. Revisa tu conexión y vuelve a intentar.")}
+                <button type="button" onClick={session.retry} style={{ display: "block", marginTop: 8 }}>
+                  {language === "en" ? "Retry session check" : "Reintentar comprobación"}
+                </button>
+              </div>
             ) : null}
           </div>
+
+          <label style={{ display: "grid", gap: 8, color: MC_NAVY, fontSize: s(13) }}>
+            {language === "en" ? "Voice setup: which device are you configuring?" : "Configurar voz: ¿qué dispositivo quieres configurar?"}
+            <select value={voiceDevice} onChange={(event) => setVoiceDevice(event.target.value as VoiceDevicePlatform)} style={{ padding: 10, borderRadius: 10, border: `1px solid ${MC_NAVY_LINE}`, background: "#fff", color: MC_NAVY }}>
+              <option value="unknown">{language === "en" ? "Choose a device" : "Elegir dispositivo"}</option>
+              <option value="ios">iPhone / iPad</option>
+              <option value="android">Android</option>
+            </select>
+          </label>
+
+          {session.status === "authenticated" && voiceDevice === "ios" ? (
+            <div
+              style={{
+                display: "grid",
+                gap: 10,
+                padding: 14,
+                borderRadius: 14,
+                border: `1px solid ${MC_NAVY_LINE}`,
+                background: "#f7faff",
+              }}
+            >
+              <div style={{ fontWeight: 900, fontSize: s(15), color: MC_NAVY }}>
+                {language === "en" ? "Add with Siri (experimental)" : "Agregar con Siri (experimental)"}
+              </div>
+              {!voiceEnabled ? <div style={{ fontSize: s(13), color: MC_NAVY_MUTED, lineHeight: 1.45 }}>
+                {language === "en"
+                  ? "Say several items in one phrase and add them directly to My List using an Apple Shortcut."
+                  : "Di varios artículos en una sola frase y agrégalos directamente a Mi Lista mediante un Atajo de Apple."}
+              </div> : null}
+
+              {!voiceEnabled ? (
+                <button
+                  type="button"
+                  onClick={() => void onEnableVoiceAccess()}
+                  disabled={voiceBusy}
+                  style={{
+                    width: "100%",
+                    padding: "12px 14px",
+                    borderRadius: 14,
+                    border: `1px solid ${MC_NAVY}`,
+                    background: MC_NAVY,
+                    color: "#fff",
+                    fontWeight: 900,
+                    fontSize: s(15),
+                    opacity: voiceBusy ? 0.6 : 1,
+                  }}
+                >
+                  {voiceBusy
+                    ? language === "en" ? "Enabling..." : "Activando..."
+                    : language === "en" ? "Enable Siri access" : "Activar acceso para Siri"}
+                </button>
+              ) : (
+                <>
+                  <div style={{ fontSize: s(13), color: "#027a48", fontWeight: 900 }}>
+                    {language === "en" ? "Siri access enabled" : "Acceso para Siri activado"}
+                  </div>
+
+                  {voiceToken ? <div data-testid="siri-initial-setup" style={{ display: "grid", gap: 10 }}>
+                  {language === "es" && shortcutLinks ? (
+                    <div data-testid="siri-spanish-simple-setup" style={{ display: "grid", gap: 10, fontSize: s(13), color: MC_NAVY, lineHeight: 1.4 }}>
+                      <div style={{ fontWeight: 900 }}>Configura Siri en 3 pasos</div>
+                      <ol style={{ margin: 0, paddingLeft: 20, display: "grid", gap: 6 }}>
+                        <li>Copia tu conexión con el botón de abajo.</li>
+                        <li>Toca <strong>Instalar atajo</strong>.</li>
+                        <li>Pega tu conexión y toca <strong>Agregar atajo</strong>.</li>
+                      </ol>
+                      <button type="button" onClick={() => void copyVoiceValue(`Bearer ${voiceToken}`, "Conexión")} style={{ width: "100%", padding: "12px 14px", borderRadius: 12, border: `1px solid ${MC_NAVY_LINE}`, background: "#fff", color: MC_NAVY, fontWeight: 900 }}>Copiar conexión</button>
+                      <a href={shortcutLinks.es} target="_blank" rel="noopener noreferrer" style={{ display: "block", textAlign: "center", padding: "12px 14px", borderRadius: 12, background: MC_NAVY, color: "#fff", fontWeight: 900, textDecoration: "none" }}>Instalar atajo</a>
+                      <p style={{ margin: 0 }}>Tu conexión es privada. No la compartas.</p>
+                      <p style={{ margin: 0 }}><strong>Para usarlo:</strong> activa Siri, di “Mi Lista” y espera a que te pida qué agregar.</p>
+                    </div>
+                  ) : null}
+                  {voiceToken && !shortcutAvailable ? (
+                    <div style={{ display: "grid", gap: 8 }}>
+                      <div style={{ fontSize: s(12), color: MC_NAVY_MUTED }}>
+                        {language === "en"
+                          ? "Private key (shown only this time)"
+                          : "Clave privada (se muestra únicamente esta vez)"}
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: 8 }}>
+                        <input
+                          readOnly
+                          value={voiceToken}
+                          aria-label={language === "en" ? "Private Siri key" : "Clave privada de Siri"}
+                          style={{
+                            minWidth: 0,
+                            width: "100%",
+                            padding: "10px 12px",
+                            borderRadius: 12,
+                            border: `1px solid ${MC_NAVY_LINE}`,
+                            boxSizing: "border-box",
+                            fontSize: s(12),
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => void copyVoiceValue(voiceToken, language === "en" ? "Key" : "Clave")}
+                          style={{
+                            border: `1px solid ${MC_NAVY_LINE}`,
+                            background: "#fff",
+                            color: MC_NAVY,
+                            borderRadius: 12,
+                            padding: "10px 12px",
+                            fontWeight: 900,
+                          }}
+                        >
+                          {language === "en" ? "Copy" : "Copiar"}
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {shortcutLinks && language === "en" ? (
+                    <div data-testid="siri-english-simple-setup" style={{ display: "grid", gap: 10, fontSize: s(13), color: MC_NAVY, lineHeight: 1.4 }}>
+                      <div style={{ fontWeight: 900 }}>Set up Siri in 3 steps</div>
+                      <ol style={{ margin: 0, paddingLeft: 20, display: "grid", gap: 6 }}>
+                        <li>Copy your connection using the button below.</li>
+                        <li>Tap <strong>Install shortcut</strong>.</li>
+                        <li>Paste your connection and tap <strong>Add Shortcut</strong>.</li>
+                      </ol>
+                      <button type="button" onClick={() => void copyVoiceValue(`Bearer ${voiceToken}`, "Connection")} style={{ width: "100%", padding: "12px 14px", borderRadius: 12, border: `1px solid ${MC_NAVY_LINE}`, background: "#fff", color: MC_NAVY, fontWeight: 900 }}>Copy connection</button>
+                      <a href={shortcutLinks.en} target="_blank" rel="noopener noreferrer" style={{ display: "block", textAlign: "center", padding: "12px 14px", borderRadius: 12, background: MC_NAVY, color: "#fff", fontWeight: 900, textDecoration: "none" }}>Install shortcut</a>
+                      <p style={{ margin: 0 }}>Your connection is private. Don’t share it.</p>
+                      <p style={{ margin: 0 }}><strong>To use it:</strong> activate Siri, say “My List”, and wait for it to ask what to add.</p>
+                    </div>
+                  ) : null}
+
+                  {!shortcutAvailable ? <details style={{ fontSize: s(13), color: MC_NAVY }}>
+                    <summary style={{ cursor: "pointer", fontWeight: 900 }}>
+                      {language === "en" ? "Technical help: manual shortcut setup" : "Ayuda técnica: configurar el atajo manualmente"}
+                    </summary>
+                    <ol style={{ margin: "10px 0 0", paddingLeft: 20, display: "grid", gap: 6, lineHeight: 1.4 }}>
+                      <li>{language === "en" ? "Open Apple's Shortcuts app. Tap + and name the shortcut “Shopping Voice”." : "Abre la app Atajos de Apple. Toca + y ponle el nombre “Agregar a MinderCart”."}</li>
+                      <li>{language === "en" ? "Add Dictate Text. Select your language and stop listening After Pause." : "Busca y agrega Dictar texto. Elige Español (México) y dejar de escuchar Después de la pausa."}</li>
+                      <li>{language === "en" ? "Add Get Contents of URL. Paste the connection URL as fixed text, not as the Dictated Text variable. Expand the blue arrow and change GET to POST." : "Agrega Obtener contenido de URL. Pega la URL de conexión como texto fijo, no como la variable Texto dictado. Abre la flecha azul y cambia GET a POST."}</li>
+                      <li>{language === "en" ? "Under Headers, add a header. Key: Authorization. Value: Bearer, one space, then your private key. The value is not a URL." : "En Encabezados, toca Agregar nuevo encabezado. Clave: Authorization. Valor: Bearer, un espacio y tu clave privada. El valor no es una URL."}</li>
+                      <li>{language === "en" ? "Set Request Body to JSON. Add a Text field with the lowercase key utterance. For its value, select the variable produced by Dictate Text; do not type the words “Dictated Text”." : "En Solicitar cuerpo, elige JSON. Agrega un campo de tipo Texto con la clave utterance, en minúsculas. En el valor, selecciona la variable que sale de Dictar texto; no escribas las palabras “Texto dictado”."}</li>
+                      <li>{language === "en" ? "For the first test, add Quick Look after the request, using Contents of URL. Run with ▶, dictate milk, and wait silently. If asked, allow sending text only to the MinderCart address you selected." : "Para la primera prueba, agrega Vista rápida después de la solicitud, usando Contenido de URL. Ejecuta con ▶, dicta leche y espera en silencio. Si pide permiso, permite enviar texto solo a la dirección de MinderCart que elegiste."}</li>
+                    </ol>
+                    <button
+                      type="button"
+                      onClick={() => void copyVoiceValue(`${window.location.origin}/api/voice/add-items`, "URL")}
+                      style={{
+                        marginTop: 10,
+                        width: "100%",
+                        padding: "10px 12px",
+                        borderRadius: 12,
+                        border: `1px solid ${MC_NAVY_LINE}`,
+                        background: "#fff",
+                        color: MC_NAVY,
+                        fontWeight: 900,
+                      }}
+                    >
+                      {language === "en" ? "Copy connection URL" : "Copiar URL de conexión"}
+                    </button>
+                    {voiceToken ? (
+                      <button
+                        type="button"
+                        onClick={() => void copyVoiceValue(`Bearer ${voiceToken}`, language === "en" ? "Authorization value" : "Valor de Authorization")}
+                        style={{ marginTop: 8, width: "100%", padding: "10px 12px", borderRadius: 12, border: `1px solid ${MC_NAVY_LINE}`, background: "#fff", color: MC_NAVY, fontWeight: 900 }}
+                      >
+                        {language === "en" ? "Copy complete Authorization value" : "Copiar valor completo de Authorization"}
+                      </button>
+                    ) : (
+                      <p>{language === "en" ? "The private key is not shown again. If your shortcut already works, keep it; do not revoke access. If you lost the key and need a new shortcut, revoking and enabling again will invalidate the old key." : "La clave privada no vuelve a mostrarse. Si tu atajo ya funciona, consérvalo; no revoques el acceso. Si perdiste la clave y necesitas un atajo nuevo, revocar y activar de nuevo invalida la clave anterior."}</p>
+                    )}
+                  </details> : null}
+
+                  {language === "en" && !shortcutAvailable ? <details style={{ fontSize: s(13), color: MC_NAVY, lineHeight: 1.5 }}>
+                    <summary style={{ cursor: "pointer", fontWeight: 900 }}>{language === "en" ? "iPhone: daily use and spoken notes" : "iPhone: uso diario y notas por voz"}</summary>
+                    <p>{language === "en" ? "Daily use (after the first test): with Siri in English, activate Siri and say only “Shopping Voice”. Wait for “What's the text?”, then say “Milk note cold” and wait silently. Do not say the shortcut name and product together. You do not need to open Shortcuts each time. Do not press the red stop button: it cancels the shortcut. Return to My List in testing; allow a few seconds for syncing." : "Uso diario (con el atajo configurado como “Agregar a MinderCart”): activa Siri y di únicamente “Agregar a MinderCart”. Espera a que pida el texto; después di “Leche nota fría” y guarda silencio. Son dos pasos: no digas el nombre y el producto juntos. No necesitas abrir Atajos cada vez. No pulses el botón rojo de detener: cancela el atajo. Regresa a Mi Lista en testing. Espera hasta 20 segundos para sincronizar y revisa también los artículos al final de la lista antes de repetir el dictado. Si no aparece, actualiza una vez antes de reintentarlo."}</p>
+                    <p>{language === "en" ? "MinderCart language, Siri language and the shortcut's dictation language are separate settings. This template dictates in English (US). If Siri cannot find the shortcut, check its name and Siri's language first." : "El idioma de MinderCart, el de Siri y el del dictado del atajo son ajustes distintos. El atajo dicta en español; si ya funciona, no necesitas cambiar el idioma de Siri. “Agregar a MinderCart” se probó con Siri en inglés. La plantilla enlazada no contiene claves ni Vista rápida técnica y ya lleva el nombre para invocarla con Siri."}</p>
+                    <p>{language === "en" ? "Start with a short phrase: “Milk note cold”. For several products, say next item between them, for example:" : "Sin notas: “leche, huevos y arroz”. Con notas, di nota antes de la nota y siguiente artículo para empezar otro producto:"}</p>
+                    <p style={{ fontWeight: 800 }}>{language === "en" ? "Milk note cold, next item eggs." : "Agua mineral nota naranja, siguiente artículo agua mineral nota toronja, siguiente artículo coca."}</p>
+                    <p>{language === "en" ? "Words after note belong to that note until next item. Notes keep your dictated wording; they are not translated. The English template has no technical Quick Look screens. If nothing appears, do not immediately repeat the dictation: it may still be syncing." : "Esto agrega dos renglones de Agua Mineral con notas diferentes y Coca sin nota. Todo lo que digas después de nota pertenece a esa nota hasta siguiente artículo. Las notas conservan tus palabras; no se traducen."}</p>
+                  </details> : null}
+
+                  <button type="button" onClick={() => {
+                    if (!window.confirm(language === "en"
+                      ? "Have you installed and tested your shortcut? Finishing hides the private connection; it cannot be displayed again from Settings. Your shortcut will keep working."
+                      : "¿Ya instalaste y probaste tu atajo? Al terminar se ocultará la conexión privada; no podrás volver a verla desde Configuración. Tu atajo seguirá funcionando.")) return;
+                    setVoiceToken("");
+                    setVoiceMessage("");
+                    setVoiceError("");
+                  }} style={{ padding: "12px 14px", borderRadius: 12, background: MC_NAVY, color: "#fff", fontWeight: 900 }}>
+                    {language === "en" ? "Finish setup" : "Terminar configuración"}
+                  </button>
+                  </div> : null}
+
+                  <button
+                    type="button"
+                    onClick={() => void onRevokeVoiceAccess()}
+                    disabled={voiceBusy}
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      borderRadius: 12,
+                      border: `1px solid ${MC_NAVY_LINE}`,
+                      background: "#fff",
+                      color: MC_NAVY,
+                      fontWeight: 900,
+                      opacity: voiceBusy ? 0.6 : 1,
+                    }}
+                  >
+                    {language === "en" ? "Revoke Siri access" : "Revocar acceso para Siri"}
+                  </button>
+                </>
+              )}
+
+              {voiceMessage ? <div style={{ fontSize: s(13), color: "#027a48", fontWeight: 800 }}>{voiceMessage}</div> : null}
+              {voiceError ? <div style={{ fontSize: s(13), color: "#b42318", fontWeight: 800 }}>{voiceError}</div> : null}
+            </div>
+          ) : null}
+
+          {voiceDevice === "android" ? <details open style={{ padding: 14, borderRadius: 14, border: `1px solid ${MC_NAVY_LINE}`, color: MC_NAVY, fontSize: s(13), lineHeight: 1.5 }}>
+            <summary style={{ cursor: "pointer", fontWeight: 900 }}>{language === "en" ? "Android: basic voice typing" : "Android: dictado básico"}</summary>
+            <p>{language === "en" ? "No Siri access, private key or Apple Shortcut is needed. There is currently no equivalent MinderCart integration with Google Assistant or Gemini." : "No necesitas activar Siri, una clave privada ni Atajos de Apple. Por ahora MinderCart no tiene una integración equivalente con Google Assistant o Gemini."}</p>
+            <ol style={{ paddingLeft: 20 }}>
+              <li>{language === "en" ? "Open My List and tap the product search field to show the keyboard." : "Abre Mi Lista y toca el campo para buscar un producto; aparecerá el teclado."}</li>
+              <li>{language === "en" ? "If your keyboard supports voice typing (for example Gboard), tap its microphone and say one product name." : "Si tu teclado permite dictado (por ejemplo Gboard), toca su micrófono y di el nombre de un solo producto."}</li>
+              <li>{language === "en" ? "Check the text and select/add the product as usual. To dictate a note, tap the product's note field and use the keyboard microphone there." : "Revisa el texto y selecciona o agrega el producto como siempre. Para dictar una nota, toca el campo de nota del producto y usa ahí el micrófono del teclado."}</li>
+            </ol>
+            <p>{language === "en" ? "Keyboard voice typing only fills the selected field; it does not submit a shopping list or interpret nota / siguiente artículo commands." : "El dictado del teclado solo llena el campo seleccionado; no envía una lista de compras ni interpreta los comandos nota / siguiente artículo."}</p>
+            <a href={`https://support.google.com/gboard/answer/2781851?co=GENIE.Platform%3DAndroid&hl=${language === "en" ? "en" : "es"}`} target="_blank" rel="noopener noreferrer">{language === "en" ? "Google's voice typing guide" : "Ayuda de Google para dictar con el teclado"}</a>
+          </details> : null}
 
           {session.status === "authenticated" ? (
             <div

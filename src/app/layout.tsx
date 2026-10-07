@@ -1,8 +1,10 @@
 /* FILE: src/app/layout.tsx */
 import type { Metadata } from "next";
 import Script from "next/script";
+import Link from "next/link";
 import React from "react";
 import { AuthProvider } from "@/lib/firebase/auth-context";
+import { AccessGate } from "@/components/mindercart/AccessGate";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -298,9 +300,10 @@ function BottomNavigation() {
             const isCartItem = item.href === "/general-list";
 
             return (
-              <a
+              <Link
                 key={item.href}
                 href={item.href}
+                prefetch={false}
                 className="mc-bottom-nav__item"
                 data-nav-href={item.href}
                 data-nav-match={item.match.join("|")}
@@ -322,7 +325,7 @@ function BottomNavigation() {
                   </span>
                   <span className="mc-bottom-nav__label">{item.labelEs}</span>
                 </span>
-              </a>
+              </Link>
             );
           })}
         </div>
@@ -464,8 +467,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="es">
       <body>
         <AuthProvider>
-          <div className="mc-app-frame">{children}</div>
-          <BottomNavigation />
+          <AccessGate navigation={<BottomNavigation />}>
+            <div className="mc-app-frame">{children}</div>
+          </AccessGate>
         </AuthProvider>
       </body>
     </html>

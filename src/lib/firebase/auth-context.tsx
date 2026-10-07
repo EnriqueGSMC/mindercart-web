@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { clientAuth } from "@/lib/firebase/client";
 
@@ -11,11 +11,14 @@ export type AuthSession = {
   status: AuthStatus;
   user: User | null;
   error: string | null;
+  retry?: () => void;
 };
 
 const AuthContext = createContext<AuthSession | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [attempt, setAttempt] = useState(0);
+  const retry = useCallback(() => setAttempt((value) => value + 1), []);
   const [session, setSession] = useState<AuthSession>({
     enabled: true,
     status: "loading",
@@ -24,14 +27,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   });
 
   useEffect(() => {
+    let active = true;
     let unsubscribe: (() => void) | null = null;
+    setSession((current) => ({ ...current, enabled: true, error: null }));
     const authTimeout = window.setTimeout(() => {
+      if (!active) return;
       setSession((current) => current.status === "loading"
         ? {
-            enabled: true,
-            status: "guest",
-            user: null,
-            error: "Session check timed out",
+            ...current,
+            error: "auth/check-delayed",
           }
         : current);
     }, 8000);
@@ -42,6 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       unsubscribe = onAuthStateChanged(
         auth,
         (user) => {
+          if (!active) return;
           window.clearTimeout(authTimeout);
           setSession({
             enabled: true,
@@ -50,33 +55,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             error: null,
           });
         },
-        (error) => {
+        () => {
+          if (!active) return;
           window.clearTimeout(authTimeout);
-          setSession({
-            enabled: true,
-            status: "guest",
-            user: null,
-            error: error instanceof Error ? error.message : "Auth error",
-          });
+          setSession((current) => ({
+            ...current,
+            error: "auth/check-failed",
+          }));
         }
       );
-    } catch (error) {
+    } catch {
       window.clearTimeout(authTimeout);
       setSession({
         enabled: false,
-        status: "guest",
+        status: "loading",
         user: null,
-        error: error instanceof Error ? error.message : "Firebase auth unavailable",
+        error: "auth/check-failed",
       });
     }
 
     return () => {
+      active = false;
       window.clearTimeout(authTimeout);
       if (unsubscribe) unsubscribe();
     };
-  }, []);
+  }, [attempt]);
 
-  const value = useMemo(() => session, [session]);
+  useEffect(() => {
+    if (!session.error) return;
+    const recover = () => {
+      if (document.visibilityState === "visible") retry();
+    };
+    window.addEventListener("online", recover);
+    window.addEventListener("focus", recover);
+    document.addEventListener("visibilitychange", recover);
+    return () => {
+      window.removeEventListener("online", recover);
+      window.removeEventListener("focus", recover);
+      document.removeEventListener("visibilitychange", recover);
+    };
+  }, [session.error, retry]);
+
+  const value = useMemo(() => ({ ...session, retry }), [session, retry]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

@@ -5,6 +5,11 @@ import React from "react";
 type DictationMode = "search" | "number" | "text";
 
 type Props = {
+  inputStyle?: React.CSSProperties;
+  onKeyDown?: React.KeyboardEventHandler<HTMLInputElement>;
+  ariaLabel?: string;
+  id?: string;
+  onDictationError?: () => void;
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
@@ -94,6 +99,11 @@ function normalizeNumberTranscript(raw: string): string {
 }
 
 export function DictationInput({
+  inputStyle,
+  onKeyDown,
+  ariaLabel,
+  id,
+  onDictationError,
   value,
   onChange,
   placeholder,
@@ -112,6 +122,15 @@ export function DictationInput({
   const recRef = React.useRef<any>(null);
 
   React.useEffect(() => setSupported(Boolean(getSR())), []);
+  React.useEffect(() => () => {
+    const rec = recRef.current;
+    if (rec) {
+      rec.onresult = null;
+      rec.onerror = null;
+      rec.onend = null;
+      try { rec.abort(); } catch {}
+    }
+  }, []);
 
   const stop = React.useCallback(() => {
     try {
@@ -149,18 +168,21 @@ export function DictationInput({
       onChange(mustReplace ? txt : value ? `${value} ${txt}` : txt);
     };
 
-    rec.onerror = () => stop();
+    rec.onerror = () => { onDictationError?.(); stop(); };
     rec.onend = () => stop();
 
     setListening(true);
-    rec.start();
-  }, [dictation, dictationReplace, disabled, lang, onChange, stop, value]);
+    try { rec.start(); } catch { onDictationError?.(); stop(); }
+  }, [dictation, dictationReplace, disabled, lang, onChange, onDictationError, stop, value]);
 
   const Field: any = textarea ? "textarea" : "input";
 
   return (
     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
       <Field
+        id={id}
+        aria-label={ariaLabel}
+        onKeyDown={onKeyDown}
         value={value}
         onChange={(e: any) => onChange(e.target.value)}
         placeholder={placeholder}
@@ -169,7 +191,7 @@ export function DictationInput({
         // ✅ Para FAB global (y para debug):
         data-dictation={dictation}
         data-dictation-replace={dictationReplace ? "true" : "false"}
-        style={{ flex: 1, padding: 12, borderRadius: 12, border: "1px solid #ccc" }}
+        style={{ flex: 1, minWidth: 0, padding: 12, borderRadius: 12, border: "1px solid #ccc", ...inputStyle }}
       />
 
       {supported ? (
@@ -186,6 +208,8 @@ export function DictationInput({
             color: listening ? "white" : "#111",
           }}
           title={listening ? "Dictando…" : "Dictar"}
+          aria-label={listening ? "Detener dictado" : "Iniciar dictado"}
+          aria-pressed={listening}
         >
           {listening ? "🎤…" : "🎤"}
         </button>

@@ -204,13 +204,20 @@ export async function signUpUser(email: string, password: string) {
 
 export async function resetPasswordForUser(email: string) {
   const nextEmail = requireEmail(email);
-
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     const auth = clientAuth();
-    await sendPasswordResetEmail(auth, nextEmail);
+    await Promise.race([
+      sendPasswordResetEmail(auth, nextEmail),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error("auth/request-timeout")), 15000);
+      }),
+    ]);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Password reset failed";
     throw new AuthActionError("password-reset-failed", message);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
   }
 }
 
