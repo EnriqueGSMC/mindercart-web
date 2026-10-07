@@ -9,7 +9,6 @@ import {
 import { saveUserData } from "@/lib/firebase/save-user-data";
 import { watchPendingVoiceItems } from "@/lib/firebase/load-user-data";
 import { voiceItemIdentity } from "@/lib/voice/item-identity";
-import { compactJsonSignature } from "@/lib/mindercart/compact-signature";
 import { CHANGE_EVENT, readState, writeState } from "@/lib/mindercart/storage";
 
 const SAVED_LISTS_STORAGE_KEY = "mindercart.savedLists.v1";
@@ -46,8 +45,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value);
 }
 
-function hasPendingCloudSnapshot(
+function hasNewerPendingCloudSnapshot(
   uid: string,
+  cloudState: Record<string, unknown> | null,
 ): boolean {
   if (typeof window === "undefined" || !uid) return false;
 
@@ -58,12 +58,12 @@ function hasPendingCloudSnapshot(
     const pending = JSON.parse(raw) as Record<string, unknown> | null;
     if (!pending || safe(pending.uid) !== uid) return false;
 
-    if (!isRecord(pending.coreState) || !Array.isArray(pending.savedLists)) return false;
-    const payload = { coreState: pending.coreState, savedLists: pending.savedLists };
-    // A newer server timestamp (for example Siri) does not acknowledge this save.
-    // Only the successful save of this exact snapshot clears its pending marker.
-    return pending.signature === compactJsonSignature(payload)
-      || pending.signature === JSON.stringify(payload);
+    const pendingCreatedAt = Number(pending.createdAt ?? 0);
+    const cloudUpdatedAt = Number(cloudState?.updatedAt ?? 0);
+
+    return Number.isFinite(pendingCreatedAt)
+      && pendingCreatedAt > 0
+      && (!Number.isFinite(cloudUpdatedAt) || pendingCreatedAt > cloudUpdatedAt);
   } catch {
     return false;
   }
@@ -266,8 +266,11 @@ export function useUserBootstrap(): UserBootstrapState {
           session.status === "authenticated"
           && resolution.hasCloudData
         ) {
-          const hasPendingLocalSnapshot = hasPendingCloudSnapshot(uid);
-          if (!hasPendingLocalSnapshot) {
+          const hasNewerLocalSnapshot = hasNewerPendingCloudSnapshot(
+            uid,
+            resolution.cloudState,
+          );
+          if (!hasNewerLocalSnapshot) {
             const signature = buildApplySignature(uid, resolution);
 
             if (signature && signature !== appliedSignatureRef.current) {

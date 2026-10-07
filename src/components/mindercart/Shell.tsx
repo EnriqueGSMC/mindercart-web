@@ -514,11 +514,19 @@ export function AppShell(props: {
         return;
       }
 
-      const pendingVoiceItems = bootstrap.resolution?.cloudState?.pendingVoiceItems;
-      const hasMergedVoiceItems = Array.isArray(pendingVoiceItems) && pendingVoiceItems.length > 0;
-      // Do not restore a pre-dictation snapshot over the voice rows just merged
-      // by bootstrap. Publish the combined state instead, preserving deletions.
-      if (pendingAtStartup.signature !== signature && !hasMergedVoiceItems) {
+      const cloudUpdatedAt = Number(
+        bootstrap.resolution?.cloudState?.updatedAt ?? 0,
+      );
+
+      if (
+        Number.isFinite(cloudUpdatedAt)
+        && cloudUpdatedAt >= pendingAtStartup.createdAt
+      ) {
+        clearPendingCloudSyncSnapshot(uid, pendingAtStartup.signature);
+        return;
+      }
+
+      if (pendingAtStartup.signature !== signature) {
         applyPendingCloudSyncSnapshot(pendingAtStartup);
         return;
       }
