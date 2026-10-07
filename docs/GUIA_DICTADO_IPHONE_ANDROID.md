@@ -1,4 +1,62 @@
-# MinderCart: guía básica de dictado
+# MinderCart: guía vigente — 6 octubre 2026
+
+## Instalación iPhone
+
+Inicia sesión en la versión que usarás. En Configuración, selecciona iPhone / iPad y activa acceso para Siri si aún no está activado.
+
+### Español
+
+1. Copia tu conexión con el botón de abajo.
+2. Toca **Instalar atajo**.
+3. Pega tu conexión y toca **Agregar atajo**.
+
+Botones debajo: Copiar conexión / Instalar atajo. Pregunta: **Pega aquí lo que copiaste.** Nombre: **Mi Lista**, sin renombrar.
+
+### English
+
+1. Copy your connection using the button below.
+2. Tap **Install shortcut**.
+3. Paste your connection and tap **Add Shortcut**.
+
+Buttons below: Copy connection / Install shortcut. Question: **Paste what you copied here.** Name: **My List**, no renaming needed.
+
+Instalar NO copia automáticamente; copiar incluye Bearer. No compartir conexión ni atajo configurado. No pegar enlace iCloud ni omitir configuración. Terminar oculta guía/conexión sin revocar. Acceso activo muestra estado/revocación con confirmación. No reinstalar ni revocar una copia funcional.
+
+## Uso
+
+Activa Siri, di SOLO Mi Lista / My List, espera pregunta y dicta. Guarda silencio; detener cancela. Ejemplos:
+
+- Leche nota cacao, siguiente artículo huevos, siguiente artículo pan nota integral.
+- Milk note chocolate, next item eggs, next item bread note whole wheat.
+
+Separadores siguiente artículo / next item terminan la nota anterior; notas no se traducen. Permisos iniciales: comprobar destino antes de aceptar. Desde Atajos ejecutar recuadro, no tres puntos. No requiere app abierta; sí internet/conexión vigente.
+
+## Idioma y entorno
+
+App/Siri/dictado independientes. App elige por SU idioma, no detecta Siri ni cambia atajos instalados. Selector específico Siri no implementado.
+
+| Entorno | Mi Lista | My List |
+| --- | --- | --- |
+| Testing | https://www.icloud.com/shortcuts/fcbff51af45341cfbb4528d1096cffc1 | https://www.icloud.com/shortcuts/3f932f78e3de4f4e92c4b23f414afb96 |
+| Producción, prueba pendiente | https://www.icloud.com/shortcuts/bf4a799da2af4e2b977dfe5d764e656d | https://www.icloud.com/shortcuts/11a53bc6cc874379ae2b72605170ec96 |
+
+Destinos: `/api/voice/add-items` de testing `mindercart-web-git-testing-enrique-sanchezs-projects.vercel.app` o producción `mindercart-web.vercel.app`. Selección por host exacto; otros sin plantilla fija. Promover código no cambia copias/snapshots. Publicado en testing 9db5185, deployment confirmado. No promoción main ni prueba end-to-end producción en esta revisión.
+
+## Android y pendientes
+
+Android usa micrófono del teclado: dictar en campo, revisar y agregar con controles habituales; notas en su campo. No separadores automáticos ni Assistant/Gemini; falta prueba real.
+
+Propietario validó ambos idiomas, notas/varios, app cerrada, aparición automática y refresh sano. Esposa reportó instalación anterior, no validación autónoma completa de nuevas plantillas. Pendientes: Firebase Admin Production sin exponer secretos; tras promoción autorizada, prueba controlada main con permisos/nota/varios/persistencia/destino; recuperación nueva UI/Spam, idioma tras preferencias y Android. Aislamiento con cuentas/grupos independientes; familia comparte lista.
+
+Si falla, revisar nombre/cuenta/grupo/entorno y toda la lista antes de repetir. PENDIENTE no es copia conectada. No cambiar claves funcionales ni mostrar secretos. Tests no certifican producción.
+
+---
+
+# HISTORIAL TÉCNICO — NO USAR COMO INSTRUCCIONES ACTUALES
+
+Prevalece la guía anterior. Nombres/enlaces Agregar a MinderCart / Shopping Voice y pendientes siguientes son históricos, no distribuir.
+
+# MinderCart: guía básica de dictado (histórica)
 
 ## Antes de empezar
 
