@@ -24,7 +24,7 @@ const orange = { id: 'orange', itemKey: 'agua', name: 'Agua Mineral', note: 'nar
 const grapefruit = { ...orange, id: 'grapefruit', note: 'toronja' };
 let state = { activeShoppingListItems: [], generalListItems: [], itemsMaster: [], settings: {} };
 const savedLists = [];
-const pending = { uid: 'u', coreState: state, savedLists, createdAt: 100 };
+const pending = { uid: 'u', coreState: state, savedLists, createdAt: 100, workspaceType: 'individual', familyId: null, baseUpdatedAt: '50' };
 pending.signature = signatures.compactJsonSignature({ coreState: state, savedLists });
 let raw = JSON.stringify(pending);
 const bootstrap = load('src/lib/firebase/use-user-bootstrap.ts', {
@@ -51,8 +51,12 @@ const remote = {
     itemsMaster: [],
   },
 };
-assert.equal(bootstrap.hasPendingCloudSnapshot('u'), true);
-assert.equal(bootstrap.hasPendingCloudSnapshot('other-user'), false);
+assert.equal(bootstrap.hasPendingCloudSnapshot('u', 'individual'), true);
+assert.equal(bootstrap.hasPendingCloudSnapshot('other-user', 'individual'), false);
+assert.equal(bootstrap.hasPendingCloudSnapshot('u', 'family', 'f'), false);
+raw = JSON.stringify({ ...pending, workspaceType: undefined, baseUpdatedAt: undefined });
+assert.equal(bootstrap.hasPendingCloudSnapshot('u', 'individual'), false, 'Unscoped legacy marker must not block cloud loading');
+raw = JSON.stringify(pending);
 bootstrap.applyPendingVoiceItemsToLocal(remote);
 assert.equal(state.activeShoppingListItems.length, 2);
 assert.equal(state.activeShoppingListItems.some((row) => row.id === 'old'), false);
@@ -72,9 +76,9 @@ assert.equal(outgoing.coreState.activeShoppingListItems.some((row) => row.id ===
 assert.equal(outgoing.pendingVoiceItems.length, 0);
 
 raw = JSON.stringify({ ...pending, signature: 'invalid' });
-assert.equal(bootstrap.hasPendingCloudSnapshot('u'), false);
+assert.equal(bootstrap.hasPendingCloudSnapshot('u', 'individual'), false);
 raw = null;
-assert.equal(bootstrap.hasPendingCloudSnapshot('u'), false);
+assert.equal(bootstrap.hasPendingCloudSnapshot('u', 'individual'), false);
 console.log('PASS: pending deletion survives newer Siri timestamp, note variants, repeated refresh and outgoing save');
 
 let notifySnapshot;

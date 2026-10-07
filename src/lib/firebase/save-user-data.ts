@@ -11,7 +11,7 @@ import {
   doc,
   getDoc,
   getFirestore,
-  setDoc,
+  runTransaction,
   type DocumentReference,
 } from "firebase/firestore";
 import type { InitialCloudBootstrapPayload } from "@/lib/mindercart/storage";
@@ -321,19 +321,19 @@ async function saveUserDataOnce(input: SaveUserDataInput): Promise<SaveUserDataR
     FIRESTORE_WRITE_TIMEOUT_MS,
     "Resolve cloud workspace",
   );
-  const remoteSnap = await withOperationTimeout(
-    getDoc(target.ref),
-    FIRESTORE_WRITE_TIMEOUT_MS,
-    "Check pending voice items",
-  );
-  const mergedData = mergePendingVoiceItems(
-    requireData(input.data),
-    remoteSnap.exists() ? remoteSnap.data() : null,
-  );
-  const payload = buildPayload({ ...input, data: mergedData }, savedAt, target);
-
   await withOperationTimeout(
-    setDoc(target.ref, payload, { merge: true }),
+    runTransaction(getFirestore(clientApp()), async (transaction) => {
+      const userSnap = await transaction.get(usersDoc(uid));
+      const membership = userSnap.exists() ? readActiveFamilyMembership(userSnap.data()) : null;
+      if (
+        (target.workspaceType === "family" && membership?.familyId !== target.familyId)
+        || (target.workspaceType === "individual" && membership !== null)
+      ) throw new Error("Cloud workspace changed; reload before saving");
+      const remoteSnap = target.targetPath === `users/${uid}` ? userSnap : await transaction.get(target.ref);
+      const mergedData = mergePendingVoiceItems(requireData(input.data), remoteSnap.exists() ? remoteSnap.data() : null);
+      const payload = buildPayload({ ...input, data: mergedData }, savedAt, target);
+      transaction.set(target.ref, payload, { merge: true });
+    }),
     FIRESTORE_WRITE_TIMEOUT_MS,
     "Save cloud workspace",
   );

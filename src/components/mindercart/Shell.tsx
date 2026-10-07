@@ -7,7 +7,7 @@ import React from "react";
 import { useAuthSession } from "@/lib/firebase/auth-context";
 import { getFamilyById, getUserFamilyMembership } from "@/lib/firebase/shared-list-actions";
 import { saveUserData } from "@/lib/firebase/save-user-data";
-import { useUserBootstrap } from "@/lib/firebase/use-user-bootstrap";
+import { hasPendingCloudSnapshot, useUserBootstrap } from "@/lib/firebase/use-user-bootstrap";
 import { useMinderCartState } from "@/lib/mindercart/hooks";
 import { CHANGE_EVENT, writeState } from "@/lib/mindercart/storage";
 import { t } from "@/lib/mindercart/i18n";
@@ -31,6 +31,9 @@ type PendingCloudSyncSnapshot = {
   coreState: Record<string, unknown>;
   savedLists: unknown[];
   createdAt: number;
+  workspaceType: "individual" | "family";
+  familyId: string | null;
+  baseUpdatedAt: string;
 };
 
 function pendingCloudSyncStorageKey(uid: string) {
@@ -48,6 +51,9 @@ function readPendingCloudSyncSnapshot(uid: string): PendingCloudSyncSnapshot | n
     if (!parsed || parsed.uid !== uid || typeof parsed.signature !== "string") return null;
     if (!parsed.coreState || typeof parsed.coreState !== "object" || Array.isArray(parsed.coreState)) return null;
     if (!Array.isArray(parsed.savedLists)) return null;
+    if (parsed.workspaceType !== "individual" && parsed.workspaceType !== "family") return null;
+    if (typeof parsed.baseUpdatedAt !== "string") return null;
+    if (parsed.workspaceType === "family" && !parsed.familyId) return null;
 
     const expectedSignature = buildCloudSyncSignature(parsed.coreState, parsed.savedLists);
     const legacySignature = JSON.stringify({
@@ -62,6 +68,9 @@ function readPendingCloudSyncSnapshot(uid: string): PendingCloudSyncSnapshot | n
       coreState: parsed.coreState as Record<string, unknown>,
       savedLists: parsed.savedLists,
       createdAt: typeof parsed.createdAt === "number" ? parsed.createdAt : 0,
+      workspaceType: parsed.workspaceType,
+      familyId: parsed.familyId ?? null,
+      baseUpdatedAt: parsed.baseUpdatedAt,
     };
   } catch {
     return null;
@@ -72,6 +81,11 @@ function writePendingCloudSyncSnapshot(snapshot: PendingCloudSyncSnapshot) {
   if (typeof window === "undefined") return;
 
   try {
+    const previous = window.localStorage.getItem(pendingCloudSyncStorageKey(snapshot.uid));
+    if (previous && !hasPendingCloudSnapshot(snapshot.uid, snapshot.workspaceType, snapshot.familyId)) {
+      // Preserve unscoped/other-workspace edits for inspection, not replay.
+      window.localStorage.setItem(`mindercart.pendingCloudSync.quarantine.v1.${snapshot.uid}.${Date.now()}`, previous);
+    }
     window.localStorage.setItem(
       pendingCloudSyncStorageKey(snapshot.uid),
       JSON.stringify(snapshot),
@@ -81,11 +95,12 @@ function writePendingCloudSyncSnapshot(snapshot: PendingCloudSyncSnapshot) {
   }
 }
 
-function clearPendingCloudSyncSnapshot(uid: string, signature: string) {
+function clearPendingCloudSyncSnapshot(uid: string, signature: string, workspaceType: "individual" | "family", familyId: string | null) {
   if (typeof window === "undefined") return;
 
   const pending = readPendingCloudSyncSnapshot(uid);
   if (!pending || pending.signature !== signature) return;
+  if (pending.workspaceType !== workspaceType || pending.familyId !== familyId) return;
 
   try {
     window.localStorage.removeItem(pendingCloudSyncStorageKey(uid));
@@ -452,13 +467,17 @@ export function AppShell(props: {
 
     void saveUserData({
       uid: snapshot.uid,
+      workspaceType: snapshot.workspaceType,
+      familyId: snapshot.familyId,
       data: {
         coreState: snapshot.coreState,
         savedLists: snapshot.savedLists,
       },
     }).then(() => {
-      lastSavedSignatureRef.current = snapshot.signature;
-      clearPendingCloudSyncSnapshot(snapshot.uid, snapshot.signature);
+      if (lastUidRef.current === `${snapshot.uid}:${snapshot.workspaceType}:${snapshot.familyId ?? ""}`) {
+        lastSavedSignatureRef.current = snapshot.signature;
+      }
+      clearPendingCloudSyncSnapshot(snapshot.uid, snapshot.signature, snapshot.workspaceType, snapshot.familyId);
     }).catch(() => {
       // Keep the pending local snapshot for the next change or reload.
     }).finally(() => {
@@ -478,7 +497,7 @@ export function AppShell(props: {
 
   React.useEffect(() => {
     const uid = String(session.user?.uid ?? "").trim();
-    const isReady = session.status === "authenticated" && bootstrap.status === "ready" && !!uid;
+    const isReady = session.status === "authenticated" && bootstrap.status === "ready" && !!uid && !!bootstrap.resolution && !bootstrap.resolution.error;
 
     if (!isReady) {
       if (syncTimeoutRef.current !== null) {
@@ -489,11 +508,13 @@ export function AppShell(props: {
       queuedSyncSnapshotRef.current = null;
       baselineSignatureRef.current = "";
       lastSavedSignatureRef.current = "";
-      lastUidRef.current = uid;
+      lastUidRef.current = "";
       return;
     }
 
     const savedLists = readSavedListsSnapshot();
+    const resolution = bootstrap.resolution!;
+    const workspaceKey = `${uid}:${resolution.workspaceType}:${resolution.familyId ?? ""}`;
     const signature = buildCloudSyncSignature(state, savedLists);
     const currentSnapshot: PendingCloudSyncSnapshot = {
       uid,
@@ -501,28 +522,19 @@ export function AppShell(props: {
       coreState: state as unknown as Record<string, unknown>,
       savedLists,
       createdAt: Date.now(),
+      workspaceType: resolution.workspaceType,
+      familyId: resolution.familyId,
+      baseUpdatedAt: String(resolution.cloudState?.updatedAt ?? ""),
     };
 
-    if (lastUidRef.current !== uid) {
-      lastUidRef.current = uid;
+    if (lastUidRef.current !== workspaceKey) {
+      lastUidRef.current = workspaceKey;
       baselineSignatureRef.current = signature;
       lastSavedSignatureRef.current = signature;
 
-      const pendingAtStartup = readPendingCloudSyncSnapshot(uid);
+      const pendingAtStartup = hasPendingCloudSnapshot(uid, resolution.workspaceType, resolution.familyId) ? readPendingCloudSyncSnapshot(uid) : null;
 
       if (!pendingAtStartup) {
-        return;
-      }
-
-      const cloudUpdatedAt = Number(
-        bootstrap.resolution?.cloudState?.updatedAt ?? 0,
-      );
-
-      if (
-        Number.isFinite(cloudUpdatedAt)
-        && cloudUpdatedAt >= pendingAtStartup.createdAt
-      ) {
-        clearPendingCloudSyncSnapshot(uid, pendingAtStartup.signature);
         return;
       }
 
@@ -532,7 +544,7 @@ export function AppShell(props: {
       }
     }
 
-    const pendingSnapshot = readPendingCloudSyncSnapshot(uid);
+    const pendingSnapshot = hasPendingCloudSnapshot(uid, resolution.workspaceType, resolution.familyId) ? readPendingCloudSyncSnapshot(uid) : null;
     let snapshotToSync: PendingCloudSyncSnapshot;
 
     if (pendingSnapshot?.signature === signature) {

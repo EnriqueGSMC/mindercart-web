@@ -10,6 +10,7 @@ import { saveUserData } from "@/lib/firebase/save-user-data";
 import { watchPendingVoiceItems } from "@/lib/firebase/load-user-data";
 import { voiceItemIdentity } from "@/lib/voice/item-identity";
 import { CHANGE_EVENT, readState, writeState } from "@/lib/mindercart/storage";
+import { compactJsonSignature } from "@/lib/mindercart/compact-signature";
 
 const SAVED_LISTS_STORAGE_KEY = "mindercart.savedLists.v1";
 const PENDING_CLOUD_SYNC_STORAGE_PREFIX = "mindercart.pendingCloudSync.v1.";
@@ -45,9 +46,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value);
 }
 
-function hasNewerPendingCloudSnapshot(
+export function hasPendingCloudSnapshot(
   uid: string,
-  cloudState: Record<string, unknown> | null,
+  workspaceType: "individual" | "family",
+  familyId?: string | null,
 ): boolean {
   if (typeof window === "undefined" || !uid) return false;
 
@@ -58,12 +60,11 @@ function hasNewerPendingCloudSnapshot(
     const pending = JSON.parse(raw) as Record<string, unknown> | null;
     if (!pending || safe(pending.uid) !== uid) return false;
 
-    const pendingCreatedAt = Number(pending.createdAt ?? 0);
-    const cloudUpdatedAt = Number(cloudState?.updatedAt ?? 0);
-
-    return Number.isFinite(pendingCreatedAt)
-      && pendingCreatedAt > 0
-      && (!Number.isFinite(cloudUpdatedAt) || pendingCreatedAt > cloudUpdatedAt);
+    // Older markers have no proven origin. Keep them on disk, but never replay
+    // them over a cloud document or silently assign them to another workspace.
+    if (pending.workspaceType !== workspaceType || safe(pending.familyId) !== safe(familyId)) return false;
+    if (typeof pending.baseUpdatedAt !== "string" || !isRecord(pending.coreState) || !Array.isArray(pending.savedLists)) return false;
+    return pending.signature === compactJsonSignature({ coreState: pending.coreState, savedLists: pending.savedLists });
   } catch {
     return false;
   }
@@ -197,7 +198,7 @@ function buildApplySignature(uid: string, resolution: UserBootstrapResolution) {
   }
 
   const updatedAt = safe(resolution.cloudState.updatedAt);
-  return `${uid}:${updatedAt}`;
+  return `${uid}:${resolution.workspaceType}:${resolution.familyId ?? ""}:${updatedAt}`;
 }
 
 export function useUserBootstrap(): UserBootstrapState {
@@ -205,13 +206,19 @@ export function useUserBootstrap(): UserBootstrapState {
   const [state, setState] = useState<UserBootstrapState>(INITIAL_STATE);
   const [refreshRevision, setRefreshRevision] = useState(0);
   const appliedSignatureRef = useRef("");
+  const loadedWorkspaceRef = useRef("");
 
   const workspaceType = state.resolution?.workspaceType;
   const familyId = state.resolution?.familyId;
   useEffect(() => {
     const uid = safe(session.user?.uid);
     if (session.status !== "authenticated" || !uid || !workspaceType) return;
+    const workspaceKey = `${uid}:${workspaceType}:${familyId ?? ""}`;
     return watchPendingVoiceItems({ uid, workspaceType, familyId }, (cloudState) => {
+      if (loadedWorkspaceRef.current !== workspaceKey) return;
+      if (!hasPendingCloudSnapshot(uid, workspaceType, familyId)) {
+        applyCloudStateToLocal(cloudState);
+      }
       // Apply the confirmed snapshot directly. Re-fetching bootstrap here can
       // race an older in-flight read and lose the only live notification.
       const merged = applyPendingVoiceItemsToLocal(cloudState);
@@ -245,6 +252,7 @@ export function useUserBootstrap(): UserBootstrapState {
       const uid = safe(session.user?.uid);
 
       if (session.status === "loading") {
+        loadedWorkspaceRef.current = "";
         setState({
           status: "loading",
           authStatus: session.status,
@@ -266,11 +274,11 @@ export function useUserBootstrap(): UserBootstrapState {
           session.status === "authenticated"
           && resolution.hasCloudData
         ) {
-          const hasNewerLocalSnapshot = hasNewerPendingCloudSnapshot(
-            uid,
-            resolution.cloudState,
-          );
-          if (!hasNewerLocalSnapshot) {
+          const hasLocalSnapshot = hasPendingCloudSnapshot(uid, resolution.workspaceType, resolution.familyId);
+          if (hasLocalSnapshot) {
+            const pending = JSON.parse(window.localStorage.getItem(`${PENDING_CLOUD_SYNC_STORAGE_PREFIX}${uid}`)!);
+            applyCloudStateToLocal(pending);
+          } else {
             const signature = buildApplySignature(uid, resolution);
 
             if (signature && signature !== appliedSignatureRef.current) {
@@ -281,6 +289,8 @@ export function useUserBootstrap(): UserBootstrapState {
               appliedSignatureRef.current = signature;
             }
           }
+
+          loadedWorkspaceRef.current = `${uid}:${resolution.workspaceType}:${resolution.familyId ?? ""}`;
 
           // Merge into the selected local/cloud baseline, then acknowledge it.
           const stateWithVoiceItems = applyPendingVoiceItemsToLocal(resolution.cloudState);
@@ -298,6 +308,7 @@ export function useUserBootstrap(): UserBootstrapState {
 
         if (session.status !== "authenticated") {
           appliedSignatureRef.current = "";
+          loadedWorkspaceRef.current = "";
         }
 
         setState({
